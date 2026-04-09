@@ -10,8 +10,10 @@ from loguru import logger
 
 from src._share import EXT_LANG_MAP, LANG_EXT_MAP
 from src.core.aligner import BilingualAligner
+from src.core.extractor import TermExtractor
 from src.core.parser import LocFileParser
-from src.export.writer import CorpusWriter
+from src.export.writer import CorpusWriter, GlossaryWriter
+from src.models.glossary import Glossary
 
 app = typer.Typer(
     name="x2loc", help="XCOM 2 localization file toolkit.", no_args_is_help=True
@@ -26,6 +28,8 @@ class OutputFormat(StrEnum):
 parser = LocFileParser()
 aligner = BilingualAligner()
 writer = CorpusWriter()
+extractor = TermExtractor()
+glossary_writer = GlossaryWriter()
 
 
 @app.command()
@@ -193,6 +197,79 @@ def align_dir(
     logger.info(
         f"Done: matched={matched}, source_only={source_only_count}, skipped={skipped}"
     )
+
+
+@app.command()
+def extract(
+    corpus_dirs: Annotated[
+        list[Path],
+        typer.Argument(
+            help="Directories containing corpus JSON files (priority order)."
+        ),
+    ],
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Output file path.")
+    ] = None,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", "-f", help="Output format."),
+    ] = OutputFormat.CSV,
+    exclude_cosmetic: Annotated[
+        bool,
+        typer.Option("--exclude-cosmetic", help="Exclude cosmetic category terms."),
+    ] = False,
+) -> None:
+    """Extract glossary terms from aligned corpus directories."""
+    from src.models.corpus import BilingualCorpus
+
+    corpora: list[BilingualCorpus] = []
+
+    for corpus_dir in corpus_dirs:
+        if not corpus_dir.is_dir():
+            logger.error(f"Corpus directory does not exist: {corpus_dir}")
+            raise typer.Exit(1)
+
+        json_files = sorted(corpus_dir.glob("*.json"))
+        if not json_files:
+            logger.warning(f"No JSON files found in {corpus_dir}")
+            continue
+
+        for json_file in json_files:
+            try:
+                data = json.loads(json_file.read_text(encoding="utf-8"))
+                corpus = BilingualCorpus.model_validate(data)
+                corpora.append(corpus)
+            except Exception as e:
+                logger.warning(f"Failed to load {json_file}: {e}")
+
+    if not corpora:
+        logger.error("No valid corpus files found")
+        raise typer.Exit(1)
+
+    glossary = extractor.extract(corpora)
+
+    if exclude_cosmetic:
+        glossary = Glossary(
+            source_lang=glossary.source_lang,
+            target_lang=glossary.target_lang,
+            terms=[t for t in glossary.terms if t.category != "cosmetic"],
+        )
+
+    logger.info(f"Extracted {glossary.term_count} terms")
+
+    if output_format == OutputFormat.CSV:
+        text = glossary_writer.to_csv_string(glossary)
+    else:
+        text = glossary_writer.to_json_string(glossary)
+
+    if output:
+        if output_format == OutputFormat.CSV:
+            glossary_writer.write_csv(glossary, output)
+        else:
+            glossary_writer.write_json(glossary, output)
+        logger.info(f"Written to {output}")
+    else:
+        sys.stdout.write(text)
 
 
 def _resolve_target_ext(target_lang: str | None, target_dir: Path) -> str:

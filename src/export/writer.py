@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from src.models.corpus import BilingualCorpus
+from src.models.glossary import Glossary
 
 CSV_COLUMNS: list[str] = [
     "compound_key",
@@ -17,6 +18,18 @@ CSV_COLUMNS: list[str] = [
     "source_line",
     "target_line",
     "status",
+]
+
+GLOSSARY_CSV_COLUMNS: list[str] = [
+    "source",
+    "target",
+    "category",
+    "context_section",
+    "context_key",
+    "context_source_file",
+    "do_not_translate",
+    "same_as_source",
+    "context_count",
 ]
 
 
@@ -72,5 +85,49 @@ class CorpusWriter:
     def write_json(self, corpus: BilingualCorpus, output: Path) -> None:
         """Write corpus to JSON file."""
         content = self.to_json_string(corpus)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(content, encoding="utf-8")
+
+
+class GlossaryWriter:
+    def to_csv_string(self, glossary: Glossary) -> str:
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=GLOSSARY_CSV_COLUMNS)
+        writer.writeheader()
+
+        for term in glossary.terms:
+            first_ctx = term.contexts[0] if term.contexts else None
+            row = {
+                "source": term.source,
+                "target": term.target,
+                "category": term.category,
+                "context_section": first_ctx.section_raw if first_ctx else "",
+                "context_key": first_ctx.key if first_ctx else "",
+                "context_source_file": str(first_ctx.source_path) if first_ctx else "",
+                "do_not_translate": "true" if term.do_not_translate else "",
+                "same_as_source": "true" if term.same_as_source else "",
+                "context_count": len(term.contexts),
+            }
+            writer.writerow(row)
+
+        return output.getvalue()
+
+    def write_csv(self, glossary: Glossary, output: Path) -> None:
+        """Write glossary to CSV file with UTF-8 BOM (Weblate-compatible)."""
+        content = self.to_csv_string(glossary)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(content, encoding="utf-8-sig")
+
+    def to_json_string(self, glossary: Glossary) -> str:
+        """Serialize glossary to formatted JSON string."""
+        return json.dumps(
+            glossary.model_dump(mode="json"),
+            indent=4,
+            ensure_ascii=False,
+        )
+
+    def write_json(self, glossary: Glossary, output: Path) -> None:
+        """Write glossary to JSON file."""
+        content = self.to_json_string(glossary)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(content, encoding="utf-8")
