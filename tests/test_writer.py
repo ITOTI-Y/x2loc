@@ -99,11 +99,12 @@ class TestCsvWriter:
         assert row["status"] == "source_only"
 
     def test_target_only_entry(self, writer: CorpusWriter) -> None:
-        tgt = _entry("Extra", "额外", line=10)
+        src_e = _entry("Extra", "placeholder_src", line=9)
+        tgt_e = _entry("Extra", "额外", line=10)
         entry = BilingualEntry(
             compound_key="S::Extra",
-            source=tgt,
-            target=tgt,
+            source=src_e,
+            target=tgt_e,
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry], target_only=["S::Extra"])
@@ -111,7 +112,7 @@ class TestCsvWriter:
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
-        assert row["source_value"] == "额外"
+        assert row["source_value"] == "placeholder_src"
         assert row["target_value"] == "额外"
         assert row["status"] == "target_only"
 

@@ -247,30 +247,35 @@ skip_no_data = pytest.mark.skipif(
 @skip_no_data
 class TestRealData:
     def test_xcomgame_int(self, parser: LocFileParser) -> None:
-        result = parser.parse(DATA_DIR / "GameExample" / "INT" / "XComGame.int")
+        p = DATA_DIR / "GameExample" / "INT" / "XComGame.int"
+        if not p.exists():
+            pytest.skip("XComGame.int not found")
+        result = parser.parse(p)
         assert result.lang == "en"
         assert result.encoding == "utf-16-le"
         assert result.entry_count > 1000
         assert len(result.sections) > 50
 
     def test_xcomgame_chn(self, parser: LocFileParser) -> None:
-        result = parser.parse(DATA_DIR / "GameExample" / "CHN" / "XComGame.chn")
+        p = DATA_DIR / "GameExample" / "CHN" / "XComGame.chn"
+        if not p.exists():
+            pytest.skip("XComGame.chn not found")
+        result = parser.parse(p)
         assert result.lang == "zh_Hans"
         assert result.entry_count > 1000
 
-    def test_align_xcomgame(self) -> None:
-        p = LocFileParser()
-        a = BilingualAligner()
-
+    def test_align_xcomgame(
+        self, parser: LocFileParser, aligner: BilingualAligner
+    ) -> None:
         int_path = DATA_DIR / "GameExample" / "INT" / "XComGame.int"
         chn_path = DATA_DIR / "GameExample" / "CHN" / "XComGame.chn"
 
         if not int_path.exists() or not chn_path.exists():
             pytest.skip("XComGame .int/.chn pair not found")
 
-        src = p.parse(int_path)
-        tgt = p.parse(chn_path)
-        corpus = a.align(src, tgt)
+        src = parser.parse(int_path)
+        tgt = parser.parse(chn_path)
+        corpus = aligner.align(src, tgt)
 
         assert corpus.aligned_count > 1000
         assert len(corpus.entries) > 0

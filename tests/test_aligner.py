@@ -207,8 +207,8 @@ class TestAlign:
         assert len(corpus.entries) == 2
         tgt_only_entry = corpus.entries[1]
         assert tgt_only_entry.compound_key == "S::K2"
-        assert tgt_only_entry.source.value == "乙"
-        assert tgt_only_entry.target is not None
+        # Aligner mirrors target into source for target_only entries
+        assert tgt_only_entry.source is tgt_only_entry.target
         assert tgt_only_entry.target.value == "乙"
 
     def test_mixed(self, aligner: BilingualAligner) -> None:
