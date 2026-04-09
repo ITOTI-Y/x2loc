@@ -17,11 +17,15 @@ ARRAY_INDEX_RE: Final[re.Pattern[str]] = re.compile(r"\[([^\]]+)\]$")
 PLACEHOLDER_PATTERNS: Final[list[tuple[re.Pattern[str], PlaceholderType]]] = [
     (re.compile(r"<XGParam:[^>]+/>"), PlaceholderType.XGPARAM),
     (re.compile(r"<Ability:[^>]+/>"), PlaceholderType.ABILITY),
+    (re.compile(r"<\w+:[^>]+/>"), PlaceholderType.XML_VAR),
     (re.compile(r"<Bullet/>"), PlaceholderType.BULLET),
     (re.compile(r"<Heal/>"), PlaceholderType.HEAL),
     (re.compile(r"<br/>"), PlaceholderType.BR),
-    (re.compile(r"<font[^>]*>"), PlaceholderType.HTML),
-    (re.compile(r"</font>"), PlaceholderType.HTML),
+    (re.compile(r"<\w+/>"), PlaceholderType.XML_SELF_CLOSE),
+    (
+        re.compile(r"</?(?:font|h\d|br|div|span|p|b|i|u|em|strong)\b[^>]*>"),
+        PlaceholderType.HTML,
+    ),
     (re.compile(r"%[A-Za-z]+%"), PlaceholderType.PERCENT_WRAPPED),
     (re.compile(r"%[A-Za-z]"), PlaceholderType.PERCENT),
     (re.compile(r"\\n"), PlaceholderType.NEWLINE),

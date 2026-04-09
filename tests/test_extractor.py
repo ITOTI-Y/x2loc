@@ -228,49 +228,45 @@ class TestClassify:
         result = extractor._classify(entry)
         assert result == ("short_text", 2)
 
-    def test_rule_c_five_words_boundary(self, extractor: TermExtractor) -> None:
+    def test_rule_c_three_words_boundary(self, extractor: TermExtractor) -> None:
         hdr = _header("Section")
-        src = _entry("Key", "one two three four five")  # 5 words → included
+        src = _entry("Key", "one two three")  # 3 words → included
         entry = _bilingual("key", src, None, hdr)
 
         result = extractor._classify(entry)
         assert result == ("short_text", 2)
 
-    def test_rule_c_six_words_without_hint_rejected(
+    def test_rule_c_four_words_without_hint_rejected(
         self, extractor: TermExtractor
     ) -> None:
         hdr = _header("Section")
-        src = _entry("SomeKey", "one two three four five six")  # 6 words, no hint
+        src = _entry("SomeKey", "one two three four")  # 4 words, no hint
         entry = _bilingual("key", src, None, hdr)
 
         result = extractor._classify(entry)
         assert result is None
 
-    def test_rule_c_six_words_with_name_hint(self, extractor: TermExtractor) -> None:
+    def test_rule_c_four_words_with_name_hint(self, extractor: TermExtractor) -> None:
         hdr = _header("Section")
-        src = _entry("DisplayName", "one two three four five six")  # 6 words + "Name"
+        src = _entry("DisplayName", "one two three four")  # 4 words + "Name"
         entry = _bilingual("key", src, None, hdr)
 
         result = extractor._classify(entry)
         assert result == ("short_text", 2)
 
-    def test_rule_c_ten_words_with_hint(self, extractor: TermExtractor) -> None:
+    def test_rule_c_five_words_with_hint(self, extractor: TermExtractor) -> None:
         hdr = _header("Section")
-        src = _entry(
-            "LocTitle", "one two three four five six seven eight nine ten"
-        )  # 10 words + "Title"
+        src = _entry("LocTitle", "one two three four five")  # 5 words + "Title"
         entry = _bilingual("key", src, None, hdr)
 
         result = extractor._classify(entry)
         assert result == ("short_text", 2)
 
-    def test_rule_c_eleven_words_with_hint_rejected(
+    def test_rule_c_six_words_with_hint_rejected(
         self, extractor: TermExtractor
     ) -> None:
         hdr = _header("Section")
-        src = _entry(
-            "LocTitle", "one two three four five six seven eight nine ten eleven"
-        )
+        src = _entry("LocTitle", "one two three four five six")  # 6 words + hint
         entry = _bilingual("key", src, None, hdr)
 
         result = extractor._classify(entry)
@@ -280,12 +276,30 @@ class TestClassify:
         for hint in NAME_KEY_HINTS:
             key = f"Loc{hint.capitalize()}"
             hdr = _header("Section")
-            src = _entry(key, "one two three four five six")
+            src = _entry(key, "one two three four")  # 4 words + hint
             entry = _bilingual("key", src, None, hdr)
 
             result = extractor._classify(entry)
             assert result is not None, f"Failed for hint {hint}"
             assert result == ("short_text", 2)
+
+    def test_rule_c_skip_with_placeholders(self, extractor: TermExtractor) -> None:
+        hdr = _header("Section")
+        ph = PlaceholderSchema(pattern="%A", type=PlaceholderType.PERCENT, span=(0, 2))
+        src = _entry("Key", "%A BEGIN HACK", placeholders=[ph])
+        entry = _bilingual("key", src, None, hdr)
+
+        result = extractor._classify(entry)
+        assert result is None
+
+    def test_rule_c_skip_sentence_ending(self, extractor: TermExtractor) -> None:
+        hdr = _header("Section")
+        for ending in ["A trap.", "Watch out!", "Really?"]:
+            src = _entry("Key", ending)
+            entry = _bilingual("key", src, None, hdr)
+
+            result = extractor._classify(entry)
+            assert result is None, f"Should reject sentence: {ending}"
 
     def test_empty_value_rejected(self, extractor: TermExtractor) -> None:
         hdr = _header("Section")
@@ -532,9 +546,13 @@ class TestPlaceholders:
         ph = PlaceholderSchema(
             pattern="<Bullet/>", type=PlaceholderType.BULLET, span=(0, 8)
         )
-        src = _entry("Key", "OK", placeholders=[ph])
-        entry = _bilingual("key", src, _entry("Key", "确定"), hdr)
-        corpus = _corpus([entry])
+        # Entry with placeholder (contributes placeholder term only)
+        src_ph = _entry("Key", "OK <Bullet/>", placeholders=[ph])
+        entry_ph = _bilingual("key1", src_ph, None, hdr)
+        # Entry without placeholder (contributes regular term)
+        src_ok = _entry("Key2", "OK")
+        entry_ok = _bilingual("key2", src_ok, _entry("Key2", "确定"), hdr)
+        corpus = _corpus([entry_ph, entry_ok])
         glossary = extractor.extract([corpus])
 
         assert glossary.term_count >= 2

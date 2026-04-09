@@ -203,10 +203,32 @@ class TestExtractPlaceholders:
         assert len(phs) == 1
         assert phs[0].type == PlaceholderType.BR
 
+    def test_xml_var(self) -> None:
+        phs = parser._extract_placeholders("Photo by <Photobooth:FirstName0/>")
+        assert len(phs) == 1
+        assert phs[0].type == PlaceholderType.XML_VAR
+        assert phs[0].pattern == "<Photobooth:FirstName0/>"
+
+    def test_xml_self_close(self) -> None:
+        phs = parser._extract_placeholders("Focus: <FocusAmount/>")
+        assert len(phs) == 1
+        assert phs[0].type == PlaceholderType.XML_SELF_CLOSE
+        assert phs[0].pattern == "<FocusAmount/>"
+
     def test_html_font_pair(self) -> None:
         phs = parser._extract_placeholders("<font color='#FF0000'>red</font> normal")
         assert len(phs) == 2
         assert all(p.type == PlaceholderType.HTML for p in phs)
+
+    def test_html_headings(self) -> None:
+        phs = parser._extract_placeholders("<h2>Credits</h2>")
+        assert len(phs) == 2
+        assert all(p.type == PlaceholderType.HTML for p in phs)
+
+    def test_html_br_no_slash(self) -> None:
+        phs = parser._extract_placeholders("line1<br>line2")
+        assert len(phs) == 1
+        assert phs[0].type == PlaceholderType.HTML
 
     def test_percent_wrapped(self) -> None:
         phs = parser._extract_placeholders("replace %modnames% here")

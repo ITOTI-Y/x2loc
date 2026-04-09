@@ -129,7 +129,7 @@ class TestParseIntegration:
     def test_placeholder_showcase(
         self, parser: LocFileParser, sample_int: Path
     ) -> None:
-        """Verify all 9 placeholder types appear in PlaceholderShowcase section."""
+        """Verify all 11 placeholder types appear in PlaceholderShowcase section."""
         result = parser.parse(sample_int)
         showcase = result.sections[8]
         assert showcase.header.name == "PlaceholderShowcase"
@@ -138,9 +138,11 @@ class TestParseIntegration:
         expected = {
             PlaceholderType.XGPARAM,
             PlaceholderType.ABILITY,
+            PlaceholderType.XML_VAR,
             PlaceholderType.BULLET,
             PlaceholderType.HEAL,
             PlaceholderType.BR,
+            PlaceholderType.XML_SELF_CLOSE,
             PlaceholderType.HTML,
             PlaceholderType.PERCENT_WRAPPED,
             PlaceholderType.PERCENT,

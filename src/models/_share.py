@@ -22,6 +22,8 @@ class PlaceholderType(StrEnum):
     PERCENT = "percent"
     PERCENT_WRAPPED = "percent_wrapped"
     NEWLINE = "newline"
+    XML_VAR = "xml_var"
+    XML_SELF_CLOSE = "xml_self_close"
 
 
 class SectionHeaderFormat(StrEnum):

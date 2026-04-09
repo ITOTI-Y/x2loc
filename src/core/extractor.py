@@ -59,6 +59,9 @@ KEY_PATTERN_RULES: Final[list[tuple[re.Pattern[str], str]]] = [
 
 NAME_KEY_HINTS: Final[set[str]] = {"name", "title", "label", "header", "button"}
 
+_NOISE_RE: Final[re.Pattern[str]] = re.compile(r"[<>#]")
+_ARRAY_INDEX_RE: Final[re.Pattern[str]] = re.compile(r"\[\d+\]")
+
 
 class TermExtractor:
     def extract(
@@ -195,10 +198,19 @@ class TermExtractor:
                 return (category, 1)
 
         # Rule C: Short text fallback
-        word_count = len(source.value.split())
-        if word_count <= 5:
+        if source.placeholders:
+            return None
+        text = source.value
+        if text and text[-1] in ".!?":
+            return None
+        if _NOISE_RE.search(text):
+            return None
+        if _ARRAY_INDEX_RE.search(source.key):
+            return None
+        word_count = len(text.split())
+        if word_count <= 3:
             return ("short_text", 2)
-        if word_count <= 10 and any(
+        if word_count <= 5 and any(
             hint in source.key.lower() for hint in NAME_KEY_HINTS
         ):
             return ("short_text", 2)
