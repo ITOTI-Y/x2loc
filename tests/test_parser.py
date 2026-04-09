@@ -10,11 +10,6 @@ from src.models._share import PlaceholderType, SectionHeaderFormat
 parser = LocFileParser()
 
 
-# =====================================================================
-# _infer_encoding
-# =====================================================================
-
-
 class TestInferEncoding:
     def test_utf16le_bom(self, tmp_path: Path) -> None:
         p = tmp_path / "test.bin"
@@ -56,11 +51,6 @@ class TestInferEncoding:
         assert parser._infer_encoding(sample_int) == "utf-16-le"
 
 
-# =====================================================================
-# _infer_lang
-# =====================================================================
-
-
 class TestInferLang:
     @pytest.mark.parametrize(
         ("ext", "expected"),
@@ -93,11 +83,6 @@ class TestInferLang:
             parser._infer_lang(Path("/fake/noext"))
 
 
-# =====================================================================
-# _read_file
-# =====================================================================
-
-
 class TestReadFile:
     def test_utf16le_basic(self, make_loc_file) -> None:
         p = make_loc_file("[Section]\nKey=Val")
@@ -124,11 +109,6 @@ class TestReadFile:
         p = make_loc_file("[Section]", encoding="utf-16-le")
         with pytest.raises(UnicodeDecodeError):
             parser._read_file(p, "utf-8")
-
-
-# =====================================================================
-# _parse_section_header
-# =====================================================================
 
 
 class TestParseSectionHeader:
@@ -187,11 +167,6 @@ class TestParseSectionHeader:
     def test_raw_preserved(self) -> None:
         h = parser._parse_section_header("XComGame.UIFinalShell")
         assert h.raw == "XComGame.UIFinalShell"
-
-
-# =====================================================================
-# _extract_placeholders
-# =====================================================================
 
 
 class TestExtractPlaceholders:
@@ -277,11 +252,6 @@ class TestExtractPlaceholders:
         assert phs[0].type == PlaceholderType.PERCENT_WRAPPED
 
 
-# =====================================================================
-# _parse_entry
-# =====================================================================
-
-
 class TestParseEntry:
     def test_simple_quoted(self) -> None:
         e = parser._parse_entry(("", "m_strOK", '"OK"'), 1, [])
@@ -360,11 +330,6 @@ class TestParseEntry:
         assert e.value == ""
 
 
-# =====================================================================
-# _parse_struct_fields
-# =====================================================================
-
-
 class TestParseStructFields:
     def test_mixed_fields(self) -> None:
         fields = parser._parse_struct_fields(
@@ -408,11 +373,6 @@ class TestParseStructFields:
     def test_empty_content(self) -> None:
         fields = parser._parse_struct_fields("")
         assert fields == []
-
-
-# =====================================================================
-# _scan_lines
-# =====================================================================
 
 
 class TestScanLines:

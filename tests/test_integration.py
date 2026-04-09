@@ -1,16 +1,12 @@
-"""Integration tests for LocFileParser.parse() — full pipeline."""
+"""Integration tests for LocFileParser.parse() and BilingualAligner.align()."""
 
 from pathlib import Path
 
 import pytest
 
+from src.core.aligner import BilingualAligner
 from src.core.parser import LocFileParser
 from src.models._share import PlaceholderType, SectionHeaderFormat
-
-# =====================================================================
-# Full parse() with fixture files
-# =====================================================================
-
 
 class TestParseIntegration:
     def test_sample_int(self, parser: LocFileParser, sample_int: Path) -> None:
@@ -151,11 +147,6 @@ class TestParseIntegration:
         assert all_types == expected
 
 
-# =====================================================================
-# Dynamic file creation tests
-# =====================================================================
-
-
 class TestParseWithDynamicFiles:
     def test_utf8sig_file(self, parser: LocFileParser, make_loc_file) -> None:
         p = make_loc_file(
@@ -200,9 +191,50 @@ class TestParseWithDynamicFiles:
         assert result.sections[0].entries[0].value == "确定取消"
 
 
-# =====================================================================
-# Real data smoke tests (skipped if data/ absent)
-# =====================================================================
+class TestAlignIntegration:
+    def test_align_fixture_files(
+        self,
+        parser: LocFileParser,
+        aligner: BilingualAligner,
+        align_source_int: Path,
+        align_target_chn: Path,
+    ) -> None:
+        src = parser.parse(align_source_int)
+        tgt = parser.parse(align_target_chn)
+        corpus = aligner.align(src, tgt)
+
+        # Source: 3 UIUtilities + 2 BattleScanner + 3 appends = 8
+        # Target: 2 UIUtilities + 3 BattleScanner + 2 appends = 7
+        # Aligned: OK, Cancel, FriendlyName, HelpText, Desc#0, Desc#1 = 6
+        assert corpus.aligned_count == 6
+
+        # Source only: m_strSourceOnly, MissionDescriptions#2
+        assert len(corpus.source_only) == 2
+        assert "UIUtilities_Text::m_strSourceOnly" in corpus.source_only
+        assert "MissionObjectiveTexts::MissionDescriptions#2" in corpus.source_only
+
+        # Target only: LocTargetOnly
+        assert len(corpus.target_only) == 1
+        assert "BattleScanner X2AbilityTemplate::LocTargetOnly" in corpus.target_only
+
+        # Total entries: 8 source + 1 target_only = 9
+        assert len(corpus.entries) == 9
+
+    def test_align_source_only_corpus(
+        self,
+        parser: LocFileParser,
+        aligner: BilingualAligner,
+        align_source_int: Path,
+    ) -> None:
+        src = parser.parse(align_source_int)
+        corpus = aligner.align(src, target_lang="ja")
+
+        assert corpus.target_lang == "ja"
+        assert corpus.target_path is None
+        assert corpus.aligned_count == 0
+        assert len(corpus.source_only) == 8
+        assert corpus.target_only == []
+
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -224,3 +256,20 @@ class TestRealData:
         result = parser.parse(DATA_DIR / "GameExample" / "CHN" / "XComGame.chn")
         assert result.lang == "zh_Hans"
         assert result.entry_count > 1000
+
+    def test_align_xcomgame(self) -> None:
+        p = LocFileParser()
+        a = BilingualAligner()
+
+        int_path = DATA_DIR / "GameExample" / "INT" / "XComGame.int"
+        chn_path = DATA_DIR / "GameExample" / "CHN" / "XComGame.chn"
+
+        if not int_path.exists() or not chn_path.exists():
+            pytest.skip("XComGame .int/.chn pair not found")
+
+        src = p.parse(int_path)
+        tgt = p.parse(chn_path)
+        corpus = a.align(src, tgt)
+
+        assert corpus.aligned_count > 1000
+        assert len(corpus.entries) > 0

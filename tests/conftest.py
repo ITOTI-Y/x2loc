@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from src.core.aligner import BilingualAligner
 from src.core.parser import LocFileParser
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -113,6 +114,46 @@ def _generate_fixtures(d: Path) -> None:
     ]
     _write_loc_file(d / "entry_before_section.int", "\n".join(bad_lines))
 
+    # --- align_source.int (for alignment tests) ---
+    align_src_lines = [
+        "[UIUtilities_Text]",
+        'm_strGenericOK="OK"',
+        'm_strGenericCancel="CANCEL"',
+        'm_strSourceOnly="Source Only Text"',
+        "",
+        "[BattleScanner X2AbilityTemplate]",
+        'LocFriendlyName="Battle Scanner"',
+        'LocHelpText="Provides vision for <Ability:BATTLESCANNERDURATION/> turns."',
+        "",
+        "[MissionObjectiveTexts]",
+        '+MissionDescriptions=(MissionFamily="Recover_LW", '
+        'Description="We have discovered a supply cache.", MissionIndex=0)',
+        '+MissionDescriptions=(MissionFamily="Destroy_LW", '
+        'Description="We must destroy the relay.", MissionIndex=1)',
+        '+MissionDescriptions=(MissionFamily="Rescue_LW", '
+        'Description="Rescue the VIP.", MissionIndex=2)',
+    ]
+    _write_loc_file(d / "align_source.int", "\n".join(align_src_lines))
+
+    # --- align_target.chn (for alignment tests) ---
+    align_tgt_lines = [
+        "[UIUtilities_Text]",
+        'm_strGenericOK="确定"',
+        'm_strGenericCancel="取消"',
+        "",
+        "[BattleScanner X2AbilityTemplate]",
+        'LocFriendlyName="战场扫描器"',
+        'LocHelpText="提供视野持续<Ability:BATTLESCANNERDURATION/>回合。"',
+        'LocTargetOnly="仅目标语言条目"',
+        "",
+        "[MissionObjectiveTexts]",
+        '+MissionDescriptions=(MissionFamily="Recover_LW", '
+        'Description="我们发现了一个补给缓存。", MissionIndex=0)',
+        '+MissionDescriptions=(MissionFamily="Destroy_LW", '
+        'Description="我们必须摧毁中继器。", MissionIndex=1)',
+    ]
+    _write_loc_file(d / "align_target.chn", "\n".join(align_tgt_lines))
+
 
 @pytest.fixture(scope="session")
 def fixtures_dir() -> Path:
@@ -124,6 +165,11 @@ def fixtures_dir() -> Path:
 @pytest.fixture
 def parser() -> LocFileParser:
     return LocFileParser()
+
+
+@pytest.fixture
+def aligner() -> BilingualAligner:
+    return BilingualAligner()
 
 
 @pytest.fixture
@@ -149,6 +195,16 @@ def comments_only_int(fixtures_dir: Path) -> Path:
 @pytest.fixture
 def entry_before_section_int(fixtures_dir: Path) -> Path:
     return fixtures_dir / "entry_before_section.int"
+
+
+@pytest.fixture
+def align_source_int(fixtures_dir: Path) -> Path:
+    return fixtures_dir / "align_source.int"
+
+
+@pytest.fixture
+def align_target_chn(fixtures_dir: Path) -> Path:
+    return fixtures_dir / "align_target.chn"
 
 
 @pytest.fixture
