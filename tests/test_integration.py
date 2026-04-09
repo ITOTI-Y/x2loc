@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from src.core.aligner import BilingualAligner
+from src.core.extractor import TermExtractor
 from src.core.parser import LocFileParser
 from src.models._share import PlaceholderType, SectionHeaderFormat
 
@@ -279,3 +280,33 @@ class TestRealData:
 
         assert corpus.aligned_count > 1000
         assert len(corpus.entries) > 0
+
+    def test_extract_xcomgame(
+        self,
+        parser: LocFileParser,
+        aligner: BilingualAligner,
+        extractor: TermExtractor,
+    ) -> None:
+        int_path = DATA_DIR / "GameExample" / "INT" / "XComGame.int"
+        chn_path = DATA_DIR / "GameExample" / "CHN" / "XComGame.chn"
+
+        if not int_path.exists() or not chn_path.exists():
+            pytest.skip("XComGame .int/.chn pair not found")
+
+        src = parser.parse(int_path)
+        tgt = parser.parse(chn_path)
+        corpus = aligner.align(src, tgt)
+        glossary = extractor.extract([corpus])
+
+        assert glossary.term_count > 500
+
+        ability_terms = [t for t in glossary.terms if t.category == "ability"]
+        assert len(ability_terms) > 100
+
+        ph_terms = [t for t in glossary.terms if t.do_not_translate]
+        assert len(ph_terms) > 5
+
+        # Verify no empty source values
+        for term in glossary.terms:
+            if not term.do_not_translate:
+                assert term.source != ""

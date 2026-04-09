@@ -7,10 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from src.export.writer import CSV_COLUMNS, CorpusWriter
+from src.export.writer import (
+    CSV_COLUMNS,
+    GLOSSARY_CSV_COLUMNS,
+    CorpusWriter,
+    GlossaryWriter,
+)
 from src.models._share import SectionHeaderFormat
 from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.entry import EntrySchema
+from src.models.glossary import Glossary, GlossaryTerm, TermContext
 from src.models.section import SectionHeader
 
 
@@ -228,3 +234,207 @@ class TestJsonWriter:
 
         assert data["entries"] == []
         assert data["aligned_count"] == 0
+
+
+def _term(
+    source: str,
+    target: str,
+    category: str = "ability",
+    do_not_translate: bool = False,
+    same_as_source: bool = False,
+    contexts: list[TermContext] | None = None,
+) -> GlossaryTerm:
+    return GlossaryTerm(
+        source=source,
+        target=target,
+        category=category,
+        do_not_translate=do_not_translate,
+        same_as_source=same_as_source,
+        contexts=contexts or [],
+    )
+
+
+def _glossary(terms: list[GlossaryTerm] | None = None) -> Glossary:
+    return Glossary(
+        source_lang="en",
+        target_lang="zh_Hans",
+        terms=terms or [],
+    )
+
+
+@pytest.fixture
+def glossary_writer() -> GlossaryWriter:
+    return GlossaryWriter()
+
+
+class TestGlossaryCsvWriter:
+    def test_column_order(self, glossary_writer: GlossaryWriter) -> None:
+        glossary = _glossary()
+        result = glossary_writer.to_csv_string(glossary)
+        header_line = result.splitlines()[0]
+        assert header_line == ",".join(GLOSSARY_CSV_COLUMNS)
+
+    def test_term_with_context(self, glossary_writer: GlossaryWriter) -> None:
+        ctx = TermContext(
+            compound_key="S::K",
+            section_raw="SectionRaw",
+            key="KeyName",
+            source_path=Path("/src/file.int"),
+        )
+        term = _term("Rend", "撕裂", category="ability", contexts=[ctx])
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["source"] == "Rend"
+        assert row["target"] == "撕裂"
+        assert row["category"] == "ability"
+        assert row["context_section"] == "SectionRaw"
+        assert row["context_key"] == "KeyName"
+        assert row["context_source_file"] == "/src/file.int"
+        assert row["context_count"] == "1"
+
+    def test_do_not_translate_flag(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term(
+            "<Bullet/>", "<Bullet/>", category="placeholder", do_not_translate=True
+        )
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["do_not_translate"] == "true"
+
+    def test_same_as_source_flag(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term("HP", "HP", same_as_source=True)
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["same_as_source"] == "true"
+
+    def test_empty_flags_when_false(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term("Rend", "撕裂")
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["do_not_translate"] == ""
+        assert row["same_as_source"] == ""
+
+    def test_no_context_empty_fields(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term("<br/>", "<br/>", category="placeholder", do_not_translate=True)
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["context_section"] == ""
+        assert row["context_key"] == ""
+        assert row["context_source_file"] == ""
+        assert row["context_count"] == "0"
+
+    def test_merged_context_count(self, glossary_writer: GlossaryWriter) -> None:
+        ctxs = [
+            TermContext(
+                compound_key=f"S::K{i}",
+                section_raw="S",
+                key=f"K{i}",
+                source_path=Path("/f.int"),
+            )
+            for i in range(3)
+        ]
+        term = _term("Aid", "援助", contexts=ctxs)
+        glossary = _glossary([term])
+        result = glossary_writer.to_csv_string(glossary)
+
+        reader = csv.DictReader(io.StringIO(result))
+        row = next(reader)
+        assert row["context_count"] == "3"
+        # First context used for section/key
+        assert row["context_key"] == "K0"
+
+    def test_write_csv_bom(
+        self, glossary_writer: GlossaryWriter, tmp_path: Path
+    ) -> None:
+        glossary = _glossary()
+        out = tmp_path / "glossary.csv"
+        glossary_writer.write_csv(glossary, out)
+
+        raw = out.read_bytes()
+        assert raw.startswith(b"\xef\xbb\xbf")
+
+    def test_write_csv_creates_parent_dirs(
+        self, glossary_writer: GlossaryWriter, tmp_path: Path
+    ) -> None:
+        glossary = _glossary()
+        out = tmp_path / "sub" / "dir" / "glossary.csv"
+        glossary_writer.write_csv(glossary, out)
+        assert out.exists()
+
+    def test_empty_glossary(self, glossary_writer: GlossaryWriter) -> None:
+        glossary = _glossary()
+        result = glossary_writer.to_csv_string(glossary)
+        lines = result.strip().splitlines()
+        assert len(lines) == 1  # header only
+
+
+class TestGlossaryJsonWriter:
+    def test_structure(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term("Rend", "撕裂", category="ability")
+        glossary = _glossary([term])
+        result = glossary_writer.to_json_string(glossary)
+        data = json.loads(result)
+
+        assert data["source_lang"] == "en"
+        assert data["target_lang"] == "zh_Hans"
+        assert data["term_count"] == 1
+        assert len(data["terms"]) == 1
+        assert data["terms"][0]["source"] == "Rend"
+        assert data["terms"][0]["target"] == "撕裂"
+        assert data["terms"][0]["category"] == "ability"
+
+    def test_roundtrip(self, glossary_writer: GlossaryWriter) -> None:
+        ctx = TermContext(
+            compound_key="S::K",
+            section_raw="S",
+            key="K",
+            source_path=Path("/f.int"),
+        )
+        term = _term("Aid", "援助", contexts=[ctx])
+        glossary = _glossary([term])
+        json_str = glossary_writer.to_json_string(glossary)
+        data = json.loads(json_str)
+
+        restored = Glossary.model_validate(data)
+        assert restored.term_count == 1
+        assert restored.terms[0].contexts[0].compound_key == "S::K"
+
+    def test_chinese_not_escaped(self, glossary_writer: GlossaryWriter) -> None:
+        term = _term("Rend", "撕裂")
+        glossary = _glossary([term])
+        result = glossary_writer.to_json_string(glossary)
+
+        assert "撕裂" in result
+        assert "\\u" not in result
+
+    def test_write_json_file(
+        self, glossary_writer: GlossaryWriter, tmp_path: Path
+    ) -> None:
+        glossary = _glossary()
+        out = tmp_path / "glossary.json"
+        glossary_writer.write_json(glossary, out)
+
+        data = json.loads(out.read_text(encoding="utf-8"))
+        assert data["source_lang"] == "en"
+
+    def test_empty_glossary(self, glossary_writer: GlossaryWriter) -> None:
+        glossary = _glossary()
+        result = glossary_writer.to_json_string(glossary)
+        data = json.loads(result)
+
+        assert data["terms"] == []
+        assert data["term_count"] == 0

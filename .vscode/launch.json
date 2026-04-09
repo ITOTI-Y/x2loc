@@ -4,7 +4,6 @@
     // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             // tests/test_parser.py::TestParseEntry to run only this test
             "name": "Parse Loc File",
@@ -13,6 +12,18 @@
             "module": "pytest",
             "args": [
                 "tests/",
+                "-v"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            // tests/test_extractor.py::TestExtractCommand to run only this test
+            "name": "Extract Glossary",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/test_extractor.py::TestExtractCommand",
                 "-v"
             ],
             "console": "integratedTerminal"

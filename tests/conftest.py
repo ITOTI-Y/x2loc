@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.core.aligner import BilingualAligner
+from src.core.extractor import TermExtractor
 from src.core.parser import LocFileParser
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -170,6 +171,11 @@ def parser() -> LocFileParser:
 @pytest.fixture
 def aligner() -> BilingualAligner:
     return BilingualAligner()
+
+
+@pytest.fixture
+def extractor() -> TermExtractor:
+    return TermExtractor()
 
 
 @pytest.fixture
