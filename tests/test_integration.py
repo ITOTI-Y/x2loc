@@ -8,6 +8,7 @@ from src.core.aligner import BilingualAligner
 from src.core.parser import LocFileParser
 from src.models._share import PlaceholderType, SectionHeaderFormat
 
+
 class TestParseIntegration:
     def test_sample_int(self, parser: LocFileParser, sample_int: Path) -> None:
         result = parser.parse(sample_int)
