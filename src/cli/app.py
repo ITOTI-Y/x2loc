@@ -1604,6 +1604,14 @@ def _mark_glossary_flags(
 
     # same_as_source → state=10 on TARGET-language units. Pass the
     # existing target list-form back so Weblate's plural re-validation passes.
+    #
+    # Error policy: this entire pass is a best-effort UX hint — it marks
+    # `same_as_source` glossary rows as "needs editing" so translators
+    # know to confirm the same-source target is intentional. Any failure
+    # to PATCH a given unit (network timeout, transient 5xx, server
+    # rejection) is non-fatal; the glossary itself is already functional
+    # from the earlier `create_component` + `upload_file` steps. We log
+    # the failure and continue rather than aborting the whole upload.
     for unit in client.list_units(slug, target_lang):
         row = index.get(unit.get("context", ""))
         if row is None or row.get("same_as_source") != "true":
@@ -1622,8 +1630,16 @@ def _mark_glossary_flags(
                 {"state": 10, "target": target_value},
             )
             needs_editing_count += 1
-        except WeblateAPIError as e:
-            logger.warning(f"patch_unit {unit_id} (needs-editing): {e}")
+        except Exception as e:
+            # Catch everything: WeblateAPIError, httpx.ReadTimeout,
+            # httpx.HTTPError, connection resets — all treated as
+            # "this PATCH didn't land, move on". Aborting here would
+            # crash the whole upload after the glossary itself is
+            # already successfully created, which is the worst of both
+            # worlds. See the same_as_source pass docstring above.
+            logger.warning(
+                f"patch_unit {unit_id} (needs-editing) failed: {type(e).__name__}: {e}"
+            )
             skipped += 1
 
     logger.info(
