@@ -236,6 +236,45 @@ class WeblateClient:
         self._raise_for_status(r)
         return r.json()
 
+    def create_unit(
+        self,
+        component_slug: str,
+        lang: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Add a new translation unit to an existing component.
+
+        This is the only incremental-update path for bilingual CSV
+        components — `upload_file` with `method="translate"` silently
+        skips units whose source string doesn't already exist, and
+        `method="replace"` is destructive against translator edits.
+
+        The request body is passed through verbatim so the caller can
+        target either monolingual (`key` + `value`) or bilingual /
+        glossary (`source` + `target`) shapes. Weblate glossary
+        components accept `source`/`target`; regular bilingual CSV
+        components accept the same fields in Weblate 4.5+. If a
+        deployment rejects these calls, the caller should fall back to
+        download → merge → replace-upload.
+
+        Args:
+            component_slug: Target component slug (e.g. `{namespace}-XComGame`
+                or `glossary-{namespace}`).
+            lang: Translation-language code. The unit is language-scoped
+                on the URL but visible across all languages once created.
+            body: Raw JSON body for the POST request.
+
+        Returns:
+            The newly-created unit payload from Weblate.
+        """
+        r = self._request(
+            "POST",
+            f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/",
+            json=body,
+        )
+        self._raise_for_status(r)
+        return r.json()
+
     def get_task(self, url: str) -> dict[str, Any]:
         r = self._request("GET", url)
         self._raise_for_status(r)

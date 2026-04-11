@@ -402,6 +402,57 @@ class TestUnitPatch:
         assert result["extra_flags"] == "read-only"
 
 
+class TestCreateUnit:
+    """Incremental-add path for existing components (Mode 2 upload)."""
+
+    @respx.mock
+    def test_create_unit_posts_body_to_lang_units_endpoint(
+        self, weblate_client: WeblateClient
+    ) -> None:
+        route = respx.post(
+            f"{BASE}translations/xcom2-test/glossary-1122837889-more-traits/en/units/"
+        ).mock(
+            return_value=httpx.Response(
+                201,
+                json={
+                    "id": 9001,
+                    "source": ["Chain Lightning"],
+                    "target": [""],
+                    "context": "Chain Lightning::ability",
+                },
+            )
+        )
+        body = {
+            "source": "Chain Lightning",
+            "target": "",
+            "context": "Chain Lightning::ability",
+            "state": 0,
+        }
+
+        result = weblate_client.create_unit(
+            "glossary-1122837889-more-traits", "en", body
+        )
+
+        assert result["id"] == 9001
+        assert route.called
+        assert route.calls.last.request.method == "POST"
+        # Body was passed through verbatim.
+        import json
+
+        sent = json.loads(route.calls.last.request.content)
+        assert sent == body
+
+    @respx.mock
+    def test_create_unit_raises_on_error(self, weblate_client: WeblateClient) -> None:
+        respx.post(f"{BASE}translations/xcom2-test/x/en/units/").mock(
+            return_value=httpx.Response(400, json={"detail": "bad"})
+        )
+
+        with pytest.raises(WeblateAPIError) as exc:
+            weblate_client.create_unit("x", "en", {"source": "bad"})
+        assert exc.value.status == 400
+
+
 class TestContextManager:
     def test_enter_exit_closes_client(self, weblate_config: Any) -> None:
         with WeblateClient(weblate_config) as client:
