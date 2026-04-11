@@ -9,6 +9,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pydantic>=2.12.5",
     "typer>=0.24.1",
+    "unidecode>=1.4.0",
 ]
 
 [dependency-groups]

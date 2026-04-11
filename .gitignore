@@ -15,4 +15,5 @@ docs/_dev/
 .claude/
 tests/fixtures/
 output/
+temp/
 configs/weblate.toml
