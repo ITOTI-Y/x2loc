@@ -801,25 +801,41 @@ class TestUploadCommand:
 
 
 class TestDownloadCommand:
+    """Namespace-filtered download. Acceptance criteria for this command
+    are validated against real hosted.weblate.org (see docs/_dev/WEBLATE.md);
+    these mock tests pin the namespace-prefix filtering logic and directory
+    layout only.
+    """
+
     @patch("src.cli.app.WeblateClient")
-    def test_download_saves_non_glossary_components(
+    def test_download_filters_by_namespace_prefix(
         self, mock_weblate: MagicMock, tmp_path: Path
     ) -> None:
+        """Only components whose slug starts with `{namespace}-` are
+        downloaded, and saved under `{output_dir}/{namespace}/{stem}.csv`.
+        Glossary components and components from other namespaces are
+        skipped even when they're in the project.
+        """
+        ns = "1122837889-more-traits"
         instance = mock_weblate.return_value.__enter__.return_value
         instance.list_components.return_value = [
-            {"slug": "XComGame", "is_glossary": False},
-            {"slug": "glossary", "is_glossary": True},  # must be skipped
+            {"slug": f"{ns}-XComGame", "is_glossary": False},
+            {"slug": f"{ns}-UIScreens", "is_glossary": False},
+            {"slug": f"glossary-{ns}", "is_glossary": True},  # glossary skipped
+            {
+                "slug": "other-mod-XComGame",  # different namespace
+                "is_glossary": False,
+            },
         ]
-        instance.download_file.return_value = (
-            b"context,source,target\nUIUtilities_Text::m_strGenericOK,OK,"
-            b"\xe7\xa1\xae\xe5\xae\x9a\n"
-        )
+        instance.download_file.return_value = b"context,source,target\n"
 
-        out_dir = tmp_path / "downloads"
+        out_dir = tmp_path / "translations"
         result = runner.invoke(
             app,
             [
                 "download",
+                "--namespace",
+                ns,
                 "--target-lang",
                 "zh_Hans",
                 "--output-dir",
@@ -834,25 +850,34 @@ class TestDownloadCommand:
         )
 
         assert result.exit_code == 0, result.stdout
-        assert (out_dir / "XComGame.csv").exists()
-        assert not (out_dir / "glossary.csv").exists()
+        assert (out_dir / ns / "XComGame.csv").exists()
+        assert (out_dir / ns / "UIScreens.csv").exists()
+        # Namespace prefix was stripped from the filenames.
+        assert not (out_dir / ns / f"{ns}-XComGame.csv").exists()
+        assert not (out_dir / ns / f"glossary-{ns}.csv").exists()
+        assert not (out_dir / ns / "other-mod-XComGame.csv").exists()
 
     @patch("src.cli.app.WeblateClient")
-    def test_download_component_filter(
+    def test_download_component_filter_stem_match(
         self, mock_weblate: MagicMock, tmp_path: Path
     ) -> None:
+        """`--component` narrows to a single stem AFTER the namespace prefix
+        is stripped (so callers pass `XComGame`, not the full slug)."""
+        ns = "base-xcom2-wotc"
         instance = mock_weblate.return_value.__enter__.return_value
         instance.list_components.return_value = [
-            {"slug": "XComGame", "is_glossary": False},
-            {"slug": "UIScreens", "is_glossary": False},
+            {"slug": f"{ns}-XComGame", "is_glossary": False},
+            {"slug": f"{ns}-UIScreens", "is_glossary": False},
         ]
         instance.download_file.return_value = b"context,source,target\n"
 
-        out_dir = tmp_path / "downloads"
+        out_dir = tmp_path / "translations"
         result = runner.invoke(
             app,
             [
                 "download",
+                "--namespace",
+                ns,
                 "--target-lang",
                 "zh_Hans",
                 "--output-dir",
@@ -869,8 +894,41 @@ class TestDownloadCommand:
         )
 
         assert result.exit_code == 0, result.stdout
-        assert (out_dir / "XComGame.csv").exists()
-        assert not (out_dir / "UIScreens.csv").exists()
+        assert (out_dir / ns / "XComGame.csv").exists()
+        assert not (out_dir / ns / "UIScreens.csv").exists()
+
+    @patch("src.cli.app.WeblateClient")
+    def test_download_empty_namespace_warns(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        """Non-existent namespace exits 0 with a warning (not an error —
+        a future job may upload into this namespace later)."""
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.list_components.return_value = [
+            {"slug": "other-mod-XComGame", "is_glossary": False},
+        ]
+
+        out_dir = tmp_path / "translations"
+        result = runner.invoke(
+            app,
+            [
+                "download",
+                "--namespace",
+                "does-not-exist",
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+        assert result.exit_code == 0
+        instance.download_file.assert_not_called()
 
 
 class TestWritebackCommand:

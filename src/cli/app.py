@@ -501,11 +501,24 @@ def _read_namespace_from_corpora(json_files: list[Path]) -> str:
 
 @app.command()
 def download(
+    namespace: Annotated[
+        str,
+        typer.Option(
+            "--namespace",
+            "-n",
+            help=(
+                "Mod namespace to download (e.g. `1122837889-more-traits` "
+                "or `base-xcom2-wotc`). Only components whose slug starts "
+                "with `{namespace}-` are fetched; glossary components are "
+                "skipped."
+            ),
+        ),
+    ],
     target_lang: Annotated[
         str, typer.Option("--target-lang", "-t", help="BCP-47 target language.")
     ],
     output_dir: Annotated[
-        Path, typer.Option("--output-dir", "-o", help="CSV output directory.")
+        Path, typer.Option("--output-dir", "-o", help="CSV output root.")
     ],
     url: Annotated[str | None, typer.Option("--url")] = None,
     token: Annotated[str | None, typer.Option("--token")] = None,
@@ -513,12 +526,26 @@ def download(
     config: Annotated[Path | None, typer.Option("--config")] = None,
     component: Annotated[
         str | None,
-        typer.Option("--component", help="Only download this component slug."),
+        typer.Option(
+            "--component",
+            help=(
+                "Optionally narrow to a single component stem (e.g. "
+                "`XComGame`). Value is matched against the stem after the "
+                "namespace prefix is stripped."
+            ),
+        ),
     ] = None,
 ) -> None:
-    """Download translations from Weblate as CSV files."""
+    """Download translations from Weblate for a single mod namespace.
+
+    CSVs are saved to `{output-dir}/{namespace}/{stem}.csv` so the
+    directory layout mirrors `align-dir`'s `output/corpus/{namespace}/`
+    and can be fed directly to `writeback`.
+    """
     cfg = _load_weblate_config(url, token, project, config)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = output_dir / namespace
+    target_dir.mkdir(parents=True, exist_ok=True)
+    slug_prefix = f"{namespace}-"
 
     with WeblateClient(cfg) as client:
         try:
@@ -530,21 +557,31 @@ def download(
         total = 0
         for comp in components:
             slug = comp["slug"]
-            if component is not None and slug != component:
-                continue
             if comp.get("is_glossary"):
+                continue
+            if not slug.startswith(slug_prefix):
+                continue
+            stem = slug.removeprefix(slug_prefix)
+            if component is not None and stem != component:
                 continue
             try:
                 data = client.download_file(slug, target_lang)
             except WeblateAPIError as e:
                 logger.warning(f"download {slug}: {e}")
                 continue
-            out_path = output_dir / f"{slug}.csv"
+            out_path = target_dir / f"{stem}.csv"
             out_path.write_bytes(data)
             logger.info(f"Downloaded {out_path.name} ({len(data)} bytes)")
             total += 1
 
-        logger.info(f"Downloaded {total} component(s) to {output_dir}")
+        if total == 0:
+            logger.warning(
+                f"No components matched namespace prefix {slug_prefix!r}. "
+                "Check that `upload` has run for this namespace, and that "
+                "the project contains at least one non-glossary component "
+                "starting with the prefix."
+            )
+        logger.info(f"Downloaded {total} component(s) to {target_dir}")
 
 
 @app.command()
