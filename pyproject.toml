@@ -1,8 +1,10 @@
 [project]
 name = "x2loc"
 version = "0.1.0"
-description = "Add your description here"
+description = "XCOM 2 War of the Chosen localization toolkit — parse, align, translate, and round-trip UE3 .int/.chn files through Weblate."
 readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "ITOTI-Y" }]
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
