@@ -244,6 +244,26 @@ class LocFileParser:
             and raw_value_stripped.endswith('"')
         ):
             value = raw_value_stripped[1:-1]
+            # Malformed nesting cases observed in real mods:
+            #   LocFlyOverText=""Cover Me"        (double-open, single-close)
+            #   LocHelpText=""Value"              (same)
+            #   TacticalText="""                  (three quotes)
+            # After the strict outer strip, the remaining `value` still
+            # carries a stray leading and/or trailing `"`. Clean those up
+            # here, but respect `\"` — a legitimate escape ends with `"`
+            # and the preceding `\` must not be mis-stripped.
+            if value.startswith('"'):
+                logger.warning(
+                    f'Extra leading `"` after outer strip at line {line_number}: '
+                    f"{raw_value_stripped[:80]}"
+                )
+                value = value[1:]
+            if value.endswith('"') and not value.endswith('\\"'):
+                logger.warning(
+                    f'Extra trailing `"` after outer strip at line {line_number}: '
+                    f"{raw_value_stripped[:80]}"
+                )
+                value = value[:-1]
         elif raw_value_stripped.startswith('"'):
             # Unclosed string literal: author forgot the closing `"`.
             # Observed in real mods (e.g. RealModFiles/2867288932 T2/T3/T4

@@ -412,6 +412,34 @@ class TestParseEntry:
         e = parser._parse_entry(("", "Key", "42   ;meaningful constant"), 1, [])
         assert e.value == "42"
 
+    def test_double_opening_quote_pattern(self) -> None:
+        # Real-mod case: `Key=""Cover Me"` — two opening quotes and one
+        # closing. Strict outer strip produces `"Cover Me` which then
+        # still needs the residual leading `"` cleaned up.
+        e = parser._parse_entry(("", "LocFlyOverText", '""Cover Me"'), 1, [])
+        assert e.value == "Cover Me"
+
+    def test_triple_quote_becomes_empty(self) -> None:
+        # Real-mod case: three consecutive quotes as the entire value.
+        # Author probably meant an empty string but typed an extra quote.
+        # After outer strip the value is a lone quote; edge cleanup drops it.
+        e = parser._parse_entry(("", "TacticalText", '"""'), 1, [])
+        assert e.value == ""
+
+    def test_trailing_double_quote_pattern(self) -> None:
+        # Mirror of double-opening: `Key="Value""` — open, value, two
+        # closing. Strict strip produces `Value"`; edge cleanup drops
+        # the trailing residual.
+        e = parser._parse_entry(("", "Key", '"Value""'), 1, [])
+        assert e.value == "Value"
+
+    def test_escaped_quote_not_stripped_by_edge_cleanup(self) -> None:
+        # Critical correctness: `"\"Hello\""` strips to `\"Hello\"`,
+        # which ends with `\"` (a legitimate escape). The edge cleanup
+        # must NOT strip that trailing quote — only unescaped strays.
+        e = parser._parse_entry(("", "Key", '"\\"Hello\\""'), 1, [])
+        assert e.value == '\\"Hello\\"'
+
 
 class TestParseStructFields:
     def test_mixed_fields(self) -> None:
