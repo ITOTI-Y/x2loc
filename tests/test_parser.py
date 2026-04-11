@@ -374,6 +374,44 @@ class TestParseEntry:
         e = parser._parse_entry(("", "Key", '"'), 1, [])
         assert e.value == ""
 
+    def test_inline_comment_stripped(self) -> None:
+        """UE3 `.int` files support trailing `;comment` on entry lines:
+
+            Key="Lifetime Stats"    ;gets appended with [unit name]
+
+        The regex captures the entire rest of the line including the
+        comment. Parser must strip the comment before doing quote
+        extraction, otherwise a valid quoted value gets misclassified
+        as an unclosed string literal and leaks the stray `"`.
+        """
+        e = parser._parse_entry(
+            ("", "Key", '"Lifetime Stats"    ;gets appended with [unit name]'),
+            1,
+            [],
+        )
+        assert e.value == "Lifetime Stats"
+        assert e.raw_value == '"Lifetime Stats"'
+
+    def test_inline_comment_preserves_semicolon_inside_quotes(self) -> None:
+        """A `;` inside a quoted string is legal content, NOT a comment."""
+        e = parser._parse_entry(("", "Key", '"a;b;c"'), 1, [])
+        assert e.value == "a;b;c"
+
+    def test_inline_comment_with_escaped_quote(self) -> None:
+        """`\\"` inside the quoted section must not flip the state
+        machine and trigger a false comment cut.
+        """
+        e = parser._parse_entry(
+            ("", "Key", '"He said \\"hi;lo\\""  ;trailing note'), 1, []
+        )
+        assert e.raw_value == '"He said \\"hi;lo\\""'
+        assert e.value == 'He said \\"hi;lo\\"'
+
+    def test_inline_comment_on_unquoted_value(self) -> None:
+        """Comments can also trail unquoted values."""
+        e = parser._parse_entry(("", "Key", "42   ;meaningful constant"), 1, [])
+        assert e.value == "42"
+
 
 class TestParseStructFields:
     def test_mixed_fields(self) -> None:

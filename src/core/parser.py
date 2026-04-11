@@ -225,6 +225,18 @@ class LocFileParser:
 
         key = key_with_index
 
+        # UE3 .int format allows inline `;comment` trailing on the same
+        # line as a key=value. Our ENTRY_RE's `(.*)` group grabs
+        # everything up to EOL including the comment, so a line like
+        #   Key="Value"    ;explanatory text
+        # arrives here with raw_value == `"Value"    ;explanatory text`.
+        # Strip the comment BEFORE quote-extraction — otherwise the
+        # value-parsing logic mis-classifies the whole thing as an
+        # unclosed/malformed string and leaks the leading `"` into
+        # `value`. Comments are not preserved in EntrySchema because the
+        # translation pipeline has no use for them downstream.
+        raw_value = _strip_inline_comment(raw_value)
+
         raw_value_stripped = raw_value.strip()
         if (
             len(raw_value_stripped) >= 2
@@ -365,3 +377,38 @@ class LocFileParser:
             )
 
         return result
+
+
+def _strip_inline_comment(raw_value: str) -> str:
+    """Strip a UE3 inline `;comment` from the value portion of an entry.
+
+    Scans left-to-right tracking whether we're inside a quoted string,
+    and cuts at the first `;` encountered OUTSIDE quotes. Preserves
+    semicolons inside quoted content (rare but legal, e.g.
+    `Key="Stats;foo"`).
+
+    Handles the `\\"` escape sequence properly: when we see a backslash
+    followed by `"` while in_quotes, we skip both characters so the
+    inner `"` doesn't flip the quoted state.
+
+    Returns the raw_value up to (but not including) the comment
+    semicolon, with trailing whitespace stripped. If no comment is
+    present, returns the input unchanged.
+    """
+    in_quotes = False
+    i = 0
+    while i < len(raw_value):
+        c = raw_value[i]
+        if in_quotes:
+            if c == "\\" and i + 1 < len(raw_value) and raw_value[i + 1] == '"':
+                i += 2
+                continue
+            if c == '"':
+                in_quotes = False
+        else:
+            if c == '"':
+                in_quotes = True
+            elif c == ";":
+                return raw_value[:i].rstrip()
+        i += 1
+    return raw_value
