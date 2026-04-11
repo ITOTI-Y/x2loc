@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import sys
+import time
 import tomllib
 from collections import Counter
 from enum import StrEnum
@@ -23,7 +24,7 @@ from src.export.writer import CorpusWriter, GlossaryWriter
 from src.models.corpus import BilingualCorpus
 from src.models.file import LocalizationFile
 from src.models.glossary import Glossary
-from src.models.mod import ModInfoSchema
+from src.models.mod import BASE_GAME_NAMESPACE, ModInfoSchema
 from src.models.weblate import WeblateConfigSchema
 from src.services.weblate import WeblateAPIError, WeblateClient
 
@@ -412,6 +413,21 @@ def upload(
     yes: Annotated[
         bool, typer.Option("--yes", help="Skip confirmation prompts.")
     ] = False,
+    single_component: Annotated[
+        bool,
+        typer.Option(
+            "--single-component",
+            help=(
+                "Merge every corpus JSON in the directory into ONE Weblate "
+                "component whose slug is the namespace itself (e.g. "
+                "`base-xcom2-wotc`). Context strings are prefixed with the "
+                "source file stem to avoid cross-file collisions. Intended "
+                "for reference-only uploads (base game) that are never "
+                "written back — `download` filters by `{namespace}-` prefix "
+                "and therefore naturally skips the merged component."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Upload aligned corpora (+ optional glossary) to Weblate."""
     if not corpus_dir.is_dir():
@@ -436,16 +452,26 @@ def upload(
             # agree. A mismatch is treated as a data error.
             namespace = _read_namespace_from_corpora(json_files)
 
-            for json_file in json_files:
-                _upload_single_corpus(
+            if single_component:
+                _upload_merged_corpus(
                     client,
-                    json_file,
+                    json_files,
+                    namespace,
                     target_lang,
-                    method,
-                    yes,
                     license=cfg.license,
                     license_url=cfg.license_url,
                 )
+            else:
+                for json_file in json_files:
+                    _upload_single_corpus(
+                        client,
+                        json_file,
+                        target_lang,
+                        method,
+                        yes,
+                        license=cfg.license,
+                        license_url=cfg.license_url,
+                    )
 
             if glossary is not None:
                 _upload_glossary(
@@ -821,6 +847,290 @@ def _ensure_project(client: WeblateClient, cfg: WeblateConfigSchema) -> None:
         client.create_project(name=cfg.project_slug, slug=cfg.project_slug)
 
 
+def _apply_base_game_read_only(
+    client: WeblateClient, slug: str, namespace: str
+) -> None:
+    """Mark a component as read-only when it represents the base game.
+
+    The base-game corpus and glossary are Firaxis's official text and
+    ship as translator reference only — nobody should be editing them
+    inside Weblate. Setting `check_flags='read-only'` on the component
+    applies Weblate's built-in `read-only` flag to every string, which
+    blocks the translation editor while still letting translators search
+    and copy from the strings for context. This is the component-level
+    alternative to patching `extra_flags` on every unit individually —
+    the unit-level path is ~26K serial PATCHes for base-xcom2-wotc and
+    repeatedly trips hosted.weblate.org's 30s per-request timeout.
+    """
+    if namespace != BASE_GAME_NAMESPACE:
+        return
+    try:
+        client.patch_component(slug, {"check_flags": "read-only"})
+        logger.info(f"Marked '{slug}' as read-only (base game reference)")
+    except WeblateAPIError as e:
+        logger.warning(f"Failed to mark '{slug}' read-only: {e}")
+
+
+# How many units to seed the merged component with on first create_component.
+# Larger seeds risk server-side HTTP 500 on hosted.weblate.org (observed
+# at ≥5K units during initial base-game upload 2026-04-11).
+MERGED_SEED_SIZE: Final[int] = 1000
+
+# Batch size for subsequent upload_file(method=add) calls. 5000-unit
+# batches were verified to succeed with a 300s client timeout; larger
+# batches start to hit server-side import timeouts.
+MERGED_BATCH_SIZE: Final[int] = 5000
+
+# When method=translate returns accepted=0 despite a CSV full of non-empty
+# targets, Weblate's unit index hasn't caught up with the preceding bulk
+# source upload yet. Retry with backoff rather than silently dropping
+# those translations on the floor.
+ZERO_ACCEPTED_RETRIES: Final[int] = 3
+ZERO_ACCEPTED_BACKOFF: Final[float] = 15.0
+
+
+def _upload_merged_corpus(
+    client: WeblateClient,
+    json_files: list[Path],
+    namespace: str,
+    target_lang: str,
+    license: str = "",
+    license_url: str = "",
+) -> None:
+    """Merge every corpus JSON into one Weblate component.
+
+    Used for reference-only uploads such as the official base game files:
+    23K+ translatable strings spread over ~200 loc files, all pointing at
+    the same namespace. Creating one component per file would blow past
+    hosted.weblate.org quotas and buy nothing because these uploads are
+    never written back — translators read them for context and that is
+    it. `download` filters by `{namespace}-` prefix so a merged component
+    whose slug equals the namespace exactly (no hyphen suffix) is
+    naturally excluded from round-trip paths.
+
+    Context prefixing: the per-file `compound_key` is prepended with the
+    file stem — `{stem}::{compound_key}` — so that e.g. `XComGame` and
+    `XComGame_XPACK` can both contribute a `[UIUtilities_Text]
+    m_strGenericOK` entry without clobbering each other inside the merged
+    unit set. The prefix is opaque to Weblate and to `_parse_translation_csv`.
+
+    Upload strategy (verified on hosted.weblate.org 2026-04-11):
+        1. **Seed** the component with MERGED_SEED_SIZE units via
+           `create_component` — one big POST of 26K+ units returns HTTP
+           500, so we keep the seed small.
+        2. **Append** the remaining source strings in MERGED_BATCH_SIZE
+           chunks via `upload_file(method='add')`. This endpoint is
+           idempotent: re-running the same batch returns skipped=N,
+           accepted=0, not_found=0, so interrupted runs resume cleanly.
+        3. **Wait** briefly for Weblate's cross-language index to catch
+           up before pushing targets — immediate target upload races the
+           index rebuild and silently drops all rows with
+           accepted=0/skipped=0/not_found=0. `_upload_translation_batch`
+           also retries on that zero-accepted signature.
+        4. **Push targets** in MERGED_BATCH_SIZE chunks via
+           `upload_file(method='translate')`, which fills empty target
+           slots without clobbering translator edits (importantly, this
+           path is re-runnable for incremental base-game updates).
+    """
+    slug = namespace
+    merged_units: list[tuple[str, str, str, str]] = []
+    template_corpus: BilingualCorpus | None = None
+    contributing_files = 0
+
+    for jf in json_files:
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+            corpus = BilingualCorpus.model_validate(data)
+        except Exception as e:
+            logger.warning(f"Failed to load {jf.name}: {e}")
+            continue
+
+        file_units = converter.to_units(corpus)
+        if not file_units:
+            continue
+
+        if template_corpus is None:
+            template_corpus = corpus
+
+        stem = jf.stem
+        for context, source, target, note in file_units:
+            merged_units.append(
+                (f"{stem}::{context}", source, target, f"file: {stem}; {note}")
+            )
+        contributing_files += 1
+
+    if template_corpus is None or not merged_units:
+        logger.error(f"No translatable units found in {len(json_files)} JSON files")
+        raise typer.Exit(1)
+
+    logger.info(
+        f"Merged {contributing_files} corpus files into "
+        f"{len(merged_units)} units; target slug='{slug}'"
+    )
+
+    source_lang = template_corpus.source_lang
+    component = client.get_component(slug)
+    if component is None:
+        _create_merged_component_seed(
+            client, slug, merged_units, source_lang, license, license_url
+        )
+        seed_end = min(MERGED_SEED_SIZE, len(merged_units))
+    else:
+        logger.info(f"Merged component '{slug}' exists, using additive path")
+        seed_end = 0
+
+    # Append remaining source strings in batches via the additive path.
+    _append_source_batches(client, slug, merged_units, source_lang, seed_end)
+
+    # Base-game reference uploads are read-only for translators. Apply
+    # the component-level flag here so it is set before translators ever
+    # see the zh_Hans side populated below.
+    _apply_base_game_read_only(client, slug, namespace)
+
+    # Let Weblate finish indexing the new source units before writing
+    # target translations — without this wait, the first few target
+    # batches race the index and return zero-accepted. The subsequent
+    # retry-with-backoff will eventually recover, but it wastes time.
+    if any(tgt for _, _, tgt, _ in merged_units):
+        logger.info(
+            f"Waiting {ZERO_ACCEPTED_BACKOFF:.0f}s for source index before "
+            "pushing target translations"
+        )
+        time.sleep(ZERO_ACCEPTED_BACKOFF)
+        client.create_translation(slug, target_lang)
+        _push_target_batches(client, slug, merged_units, target_lang)
+
+
+def _create_merged_component_seed(
+    client: WeblateClient,
+    slug: str,
+    merged_units: list[tuple[str, str, str, str]],
+    source_lang: str,
+    license: str,
+    license_url: str,
+) -> None:
+    """Create the merged component with a small seed batch of source units."""
+    seed = merged_units[:MERGED_SEED_SIZE]
+    seed_csv = _units_to_source_csv_bytes(seed)
+    logger.info(
+        f"Creating merged component '{slug}' with seed of {len(seed)} units "
+        f"({len(seed_csv) / 1024:.0f} KB)"
+    )
+    client.create_component(
+        name=slug,
+        slug=slug,
+        csv_bytes=seed_csv,
+        source_language=source_lang,
+        manage_units=True,
+        edit_template=True,
+        license=license,
+        license_url=license_url,
+    )
+
+
+def _append_source_batches(
+    client: WeblateClient,
+    slug: str,
+    merged_units: list[tuple[str, str, str, str]],
+    source_lang: str,
+    start: int,
+) -> None:
+    """Append remaining source units in batches via upload_file(method='add').
+
+    `start` is the index into `merged_units` from which appending begins —
+    0 when resuming against an existing component, `MERGED_SEED_SIZE` on
+    a fresh create.
+    """
+    total = len(merged_units)
+    added = 0
+    idx = start
+    while idx < total:
+        end = min(idx + MERGED_BATCH_SIZE, total)
+        batch = merged_units[idx:end]
+        csv_bytes = _units_to_source_csv_bytes(batch)
+        logger.info(
+            f"[{slug}] source batch {idx}:{end} "
+            f"({len(batch)} units, {len(csv_bytes) / 1024:.0f} KB)"
+        )
+        try:
+            info = client.upload_file(slug, source_lang, csv_bytes, method="add")
+        except WeblateAPIError as e:
+            logger.error(f"source batch {idx}:{end} failed: {e}")
+            raise
+        added += int(info.get("accepted", 0))
+        idx = end
+    logger.info(f"[{slug}] total source units added this run: {added}")
+
+
+def _push_target_batches(
+    client: WeblateClient,
+    slug: str,
+    merged_units: list[tuple[str, str, str, str]],
+    target_lang: str,
+) -> None:
+    """Push target translations in batches via upload_file(method='translate').
+
+    `translate` is non-destructive — only empty target slots are filled,
+    so re-running this path is safe and will converge on full coverage
+    even across server hiccups.
+    """
+    total = len(merged_units)
+    grand_accepted = 0
+    idx = 0
+    while idx < total:
+        end = min(idx + MERGED_BATCH_SIZE, total)
+        batch = merged_units[idx:end]
+        csv_bytes = _units_to_translation_csv_bytes(batch)
+        # Skip all-empty-target batches: the CSV writer would emit a
+        # header-only file that Weblate rejects with nothing to do.
+        if csv_bytes.count(b"\n") <= 1:
+            idx = end
+            continue
+        accepted = _upload_translation_batch_with_retry(
+            client, slug, target_lang, csv_bytes
+        )
+        grand_accepted += accepted
+        logger.info(
+            f"[{slug}] target batch {idx}:{end} accepted={accepted} "
+            f"(running total: {grand_accepted})"
+        )
+        idx = end
+    logger.info(f"[{slug}] total target translations written: {grand_accepted}")
+
+
+def _upload_translation_batch_with_retry(
+    client: WeblateClient,
+    slug: str,
+    target_lang: str,
+    csv_bytes: bytes,
+) -> int:
+    """Upload a target CSV batch, retrying on the zero-accepted signature.
+
+    Returns the number of accepted translations. When Weblate has not yet
+    finished indexing a prior source-side upload, the response comes back
+    with `accepted=0 skipped=0 not_found=0` — all rows silently dropped.
+    This function sleeps and retries up to `ZERO_ACCEPTED_RETRIES` times
+    before giving up on a batch.
+    """
+    for attempt in range(1, ZERO_ACCEPTED_RETRIES + 1):
+        info = client.upload_file(slug, target_lang, csv_bytes, method="translate")
+        accepted = int(info.get("accepted", 0))
+        skipped = int(info.get("skipped", 0))
+        not_found = int(info.get("not_found", 0))
+        if accepted > 0 or skipped > 0 or not_found > 0:
+            return accepted
+        if attempt < ZERO_ACCEPTED_RETRIES:
+            delay = ZERO_ACCEPTED_BACKOFF * attempt
+            logger.warning(
+                f"[{slug}] target batch returned zero-accepted signature "
+                f"(index not ready); retry {attempt}/{ZERO_ACCEPTED_RETRIES} "
+                f"after {delay:.0f}s"
+            )
+            time.sleep(delay)
+    logger.warning(f"[{slug}] target batch exhausted retries with zero accepted")
+    return 0
+
+
 def _upload_single_corpus(
     client: WeblateClient,
     corpus_path: Path,
@@ -1053,6 +1363,14 @@ def _upload_glossary(
         )
     else:
         _glossary_upload_mode_incremental(client, slug, rows, target_lang)
+
+    # Base-game glossary is a read-only reference. Apply the component
+    # flag and skip the per-unit flag-marking loop: component-level
+    # read-only already blocks edits, and patching 5K+ units one at a
+    # time reliably trips hosted.weblate.org's 30s per-request timeout.
+    if namespace == BASE_GAME_NAMESPACE:
+        _apply_base_game_read_only(client, slug, namespace)
+        return
 
     # Source language is usually "en" but we read it from the component
     # metadata after creation/update because `extra_flags` can only be set

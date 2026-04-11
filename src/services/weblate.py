@@ -11,6 +11,12 @@ RATE_LIMIT_FLOOR: Final[int] = 100
 RETRY_MAX_ATTEMPTS: Final[int] = 3
 RETRY_BASE_DELAY: Final[float] = 1.0
 HTTP_TIMEOUT: Final[float] = 30.0
+# Bulk file uploads (a few thousand CSV rows) can spend 30-120s in
+# Weblate's server-side import pipeline before the POST returns — a 30s
+# read timeout aborts the client while the server keeps processing, and
+# the next list_units then shows partial state. Use a longer ceiling for
+# upload_file and create_component specifically.
+HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
 TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 300.0
 
@@ -127,6 +133,7 @@ class WeblateClient:
             f"projects/{self.config.project_slug}/components/",
             data=data,
             files=files,
+            timeout=HTTP_UPLOAD_TIMEOUT,
         )
         self._raise_for_status(r)
         body = r.json()
@@ -229,6 +236,7 @@ class WeblateClient:
             f"translations/{self.config.project_slug}/{component_slug}/{lang}/file/",
             data=data,
             files=files,
+            timeout=HTTP_UPLOAD_TIMEOUT,
         )
         self._raise_for_status(r)
         return r.json()
