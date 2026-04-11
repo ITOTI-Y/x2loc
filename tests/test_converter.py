@@ -6,12 +6,15 @@ from src.core.aligner import BilingualAligner
 from src.core.converter import (
     TRANSLATABLE_STRUCT_FIELDS,
     CorpusConverter,
+    loc_escape,
+    loc_unescape,
 )
 from src.core.parser import LocFileParser
 from src.models._share import SectionHeaderFormat
 from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.entry import EntrySchema, StructFieldSchema
-from src.models.section import SectionHeader
+from src.models.file import LocalizationFile
+from src.models.section import SectionHeader, SectionSchema
 
 
 def _entry(
@@ -465,6 +468,162 @@ class TestBuildTargetFile:
         assert result.header_comments == []
         for sec in result.sections:
             assert sec.comments == []
+
+
+class TestLocEscapeHelpers:
+    """Unit tests for loc_escape / loc_unescape helpers.
+
+    The parser leaves `\\"` intact in `EntrySchema.value`; the CorpusConverter
+    layer unescapes on upload and re-escapes on writeback so translators see
+    clean text while the round-trip to the UE3 loc-file format stays valid.
+    """
+
+    def test_unescape_strips_backslash_quote(self) -> None:
+        assert loc_unescape('\\"Hello\\"') == '"Hello"'
+
+    def test_unescape_passes_through_plain(self) -> None:
+        assert loc_unescape("Hello world") == "Hello world"
+
+    def test_unescape_handles_mixed(self) -> None:
+        assert loc_unescape('He said \\"hi\\" to me') == 'He said "hi" to me'
+
+    def test_escape_ascii_quote_to_backslash_quote(self) -> None:
+        assert loc_escape('"Hello"') == '\\"Hello\\"'
+
+    def test_escape_normalizes_curly_quotes(self) -> None:
+        # Auto-translate tools often substitute ASCII `"` with typographic
+        # curly quotes. Both opening and closing variants must be normalized
+        # back to `\"` so the UE3 file shape stays valid.
+        assert loc_escape("\u201cHello\u201d") == '\\"Hello\\"'
+        assert loc_escape("He said \u201chi\u201d") == 'He said \\"hi\\"'
+
+    def test_escape_leaves_cjk_full_width_quotes(self) -> None:
+        # CJK full-width `「」` / `『』` are legitimate Chinese typography
+        # and must NOT be normalized back to `\"`.
+        assert loc_escape("「你好」") == "「你好」"
+        assert loc_escape("『引用』") == "『引用』"
+
+    def test_escape_passes_through_plain(self) -> None:
+        assert loc_escape("Hello world") == "Hello world"
+
+    def test_round_trip_ascii(self) -> None:
+        original = '"What the hell?"'
+        # Parser would emit `\"What the hell?\"` after stripping outer quotes.
+        # Unescape for Weblate, then escape back.
+        parsed = '\\"What the hell?\\"'
+        assert loc_unescape(parsed) == original
+        assert loc_escape(original) == parsed
+
+    def test_round_trip_curly_normalizes(self) -> None:
+        # Auto-translate returned curly-quoted target; escape collapses
+        # to the same form as ASCII-quoted translation.
+        auto_translate_output = "\u201c什么情况?\u201d"
+        assert loc_escape(auto_translate_output) == '\\"什么情况?\\"'
+
+
+class TestConverterQuoteBoundary:
+    """Integration: CorpusConverter must unescape on upload and escape on
+    writeback so the Weblate boundary cleanly round-trips dialogue text."""
+
+    def test_to_units_unescapes_source_and_target(
+        self, converter: CorpusConverter
+    ) -> None:
+        src = _entry(
+            "TraitQuotes[0]",
+            '\\"What the hell was that?\\"',
+            raw_value='"\\"What the hell was that?\\""',
+        )
+        tgt = _entry(
+            "TraitQuotes[0]",
+            '\\"什么情况?\\"',
+            raw_value='"\\"什么情况?\\""',
+        )
+        corpus = _corpus(
+            [_bilingual("Trait X2TraitTemplate::TraitQuotes[0]", src, tgt)]
+        )
+
+        units = converter.to_units(corpus)
+
+        assert len(units) == 1
+        _context, source_text, target_text, _note = units[0]
+        # What the translator sees — plain ASCII quotes, no backslashes.
+        assert source_text == '"What the hell was that?"'
+        assert target_text == '"什么情况?"'
+
+    def test_build_target_file_ascii_quotes_round_trip(
+        self, converter: CorpusConverter, tmp_path: Path
+    ) -> None:
+        """Translator wrote ASCII `"..."`; writeback must produce `"\\"...\\""`."""
+        source_entry = EntrySchema(
+            key="TraitQuotes[0]",
+            raw_value='"\\"What?\\""',
+            value='\\"What?\\"',
+            line_number=1,
+        )
+        source = LocalizationFile(
+            path=tmp_path / "src.int",
+            lang="en",
+            encoding="utf-8",
+            header_comments=[],
+            sections=[
+                SectionSchema(
+                    header=_header("Trait X2TraitTemplate"),
+                    entries=[source_entry],
+                )
+            ],
+        )
+        translations = {"Trait X2TraitTemplate::TraitQuotes[0]": '"什么?"'}
+
+        target = converter.build_target_file(
+            source=source,
+            translations=translations,
+            target_lang="zh_Hans",
+            target_path=tmp_path / "out.chn",
+        )
+        new_entry = target.sections[0].entries[0]
+        # value keeps the escaped form (matching parser's native output
+        # for the same content), and raw_value wraps it in outer quotes.
+        assert new_entry.value == '\\"什么?\\"'
+        assert new_entry.raw_value == '"\\"什么?\\""'
+
+    def test_build_target_file_curly_quotes_normalize_to_escape(
+        self, converter: CorpusConverter, tmp_path: Path
+    ) -> None:
+        """Translator (or auto-translate) emitted curly `\u201c...\u201d`; writeback must
+        still produce `"\\"...\\""` and not leave the curly characters in
+        the file."""
+        source_entry = EntrySchema(
+            key="TraitQuotes[0]",
+            raw_value='"\\"What?\\""',
+            value='\\"What?\\"',
+            line_number=1,
+        )
+        source = LocalizationFile(
+            path=tmp_path / "src.int",
+            lang="en",
+            encoding="utf-8",
+            header_comments=[],
+            sections=[
+                SectionSchema(
+                    header=_header("Trait X2TraitTemplate"),
+                    entries=[source_entry],
+                )
+            ],
+        )
+        translations = {
+            "Trait X2TraitTemplate::TraitQuotes[0]": "\u201c什么情况?\u201d"
+        }
+
+        target = converter.build_target_file(
+            source=source,
+            translations=translations,
+            target_lang="zh_Hans",
+            target_path=tmp_path / "out.chn",
+        )
+        new_entry = target.sections[0].entries[0]
+        assert "\u201c" not in new_entry.raw_value
+        assert "\u201d" not in new_entry.raw_value
+        assert new_entry.raw_value == '"\\"什么情况?\\""'
 
 
 class TestCompoundKeyParity:

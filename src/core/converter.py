@@ -13,6 +13,50 @@ TRANSLATABLE_STRUCT_FIELDS: Final[set[str]] = {
     "AnimationDisplayName",  # +m_arrAnimationPoses=(...) Animation Display Name
 }
 
+# Typographic curly quotes that auto-translate tools love to emit in
+# place of the original ASCII `"`. Normalized back to ASCII before
+# escape so the `\"` round-trip is preserved regardless of how the
+# translator (or an upstream tool) rendered dialog quotes.
+_CURLY_DOUBLE_QUOTES: Final[tuple[str, ...]] = ("\u201c", "\u201d")
+
+
+def loc_unescape(value: str) -> str:
+    """Inverse of UE3 loc-file `\\"` escape — for the Weblate boundary only.
+
+    The parser leaves the inner escape sequence intact in `EntrySchema.value`
+    (it only strips the outer quotes), so a raw `"\\"Hello\\""` arrives
+    here as `\\"Hello\\"` — literal backslash, quote, ..., backslash,
+    quote. Sending that to Weblate makes translators see ugly
+    `\\"Hello\\"` and trips auto-translate tools into either dropping
+    the escape or swapping `"` for typographic curly quotes. We want
+    translators to see clean natural text — `"Hello"` — and reconstruct
+    the escape form on writeback via `loc_escape`.
+
+    Parser and `loc_writer` are intentionally untouched; the transform
+    happens only at the CorpusConverter layer so `BilingualCorpus` JSON
+    on disk stays byte-compatible with the parser's native shape.
+    """
+    return value.replace('\\"', '"')
+
+
+def loc_escape(value: str) -> str:
+    """Inverse of `loc_unescape`. Used on writeback.
+
+    Three inputs converge to the same correct escape form:
+        - `"Hello"`          → `\\"Hello\\"`  (translator kept ASCII quotes)
+        - `\u201cHello\u201d`         → `\\"Hello\\"`  (auto-translate emitted curly quotes)
+        - `Hello`            → `Hello`      (no quotes at all)
+
+    Curly quotes MUST be normalized before the ASCII escape step,
+    otherwise the second `replace('"', '\\"')` would miss them. CJK
+    full-width quotes (`「」` / `『』`) are intentionally left alone —
+    those are legitimate Chinese typography for dialogue, not a
+    by-product of smart-quote transformation.
+    """
+    for curly in _CURLY_DOUBLE_QUOTES:
+        value = value.replace(curly, '"')
+    return value.replace('"', '\\"')
+
 
 class CorpusConverter:
     """Bidirectional bridge between BilingualCorpus and Weblate translation units.
@@ -51,7 +95,14 @@ class CorpusConverter:
             if not src.is_append or src.struct_fields is None:
                 target_value = tgt.value if tgt is not None else ""
                 note = f"section: {entry.section_header.raw}"
-                units.append((entry.compound_key, src.value, target_value, note))
+                units.append(
+                    (
+                        entry.compound_key,
+                        loc_unescape(src.value),
+                        loc_unescape(target_value),
+                        note,
+                    )
+                )
                 continue
 
             tgt_field_by_key: dict[str, str] = {}
@@ -67,7 +118,14 @@ class CorpusConverter:
                 context = f"{entry.compound_key}::{field.key}"
                 target_field_value = tgt_field_by_key.get(field.key, "")
                 note = f"section: {entry.section_header.raw}, entry: {src.key}"
-                units.append((context, field.value, target_field_value, note))
+                units.append(
+                    (
+                        context,
+                        loc_unescape(field.value),
+                        loc_unescape(target_field_value),
+                        note,
+                    )
+                )
         return units
 
     def build_target_file(
@@ -133,11 +191,17 @@ class CorpusConverter:
         if translated is None:
             return entry.model_copy()
 
-        new_value = translated
-        new_raw_value = _restore_quoting(entry.raw_value, new_value)
+        # The translator's text may contain natural ASCII `"` quotes
+        # (e.g. dialogue like `"Hello"`) or typographic curly quotes
+        # `\u201c\u201d` injected by auto-translate tools. Both must be escaped
+        # back to `\"` so the UE3 loc-file round-trip stays valid. The
+        # raw parser-side value stays in `\"`-escaped form, so we keep
+        # that invariant in `entry.value` too.
+        escaped_value = loc_escape(translated)
+        new_raw_value = _restore_quoting(entry.raw_value, escaped_value)
         return entry.model_copy(
             update={
-                "value": new_value,
+                "value": escaped_value,
                 "raw_value": new_raw_value,
                 "placeholders": [],  # placeholders recomputation is not needed
                 # for writeback, writer only uses raw_value
@@ -161,12 +225,15 @@ class CorpusConverter:
                 translated = translations.get(field_context)
                 if translated is not None:
                     any_translated = True
+                    # Same loc-escape treatment as simple entries; see
+                    # `_rebuild_simple_entry` for the rationale.
+                    escaped_field_value = loc_escape(translated)
                     new_fields.append(
                         field.model_copy(
                             update={
-                                "value": translated,
+                                "value": escaped_field_value,
                                 "raw_value": _restore_quoting(
-                                    field.raw_value, translated
+                                    field.raw_value, escaped_field_value
                                 ),
                                 "placeholders": [],
                             }
