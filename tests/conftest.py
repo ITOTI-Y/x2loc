@@ -1,13 +1,17 @@
 """Shared test fixtures with auto-generated binary fixture files."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 
 from src.core.aligner import BilingualAligner
+from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
+from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
+from src.models.weblate import WeblateConfigSchema
+from src.services.weblate import WeblateClient
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -158,6 +162,48 @@ def _generate_fixtures(d: Path) -> None:
     ]
     _write_loc_file(d / "align_target.chn", "\n".join(align_tgt_lines))
 
+    # --- struct_append.int (converter + writer exercise) ---
+    # Uses all three real container shapes discovered in data/:
+    #   +MissionDescriptions, +UnitTacticalInfo, +m_arrAnimationPoses
+    struct_append_int_lines = [
+        "[MissionObjectiveTexts]",
+        "+MissionDescriptions=("
+        'MissionFamily="Recover_LW", '
+        'Description="We have discovered a supply cache.", '
+        "MissionIndex=0)",
+        "+MissionDescriptions=("
+        'MissionFamily="Extract_LW", '
+        'Description="Rescue the VIP.", '
+        "MissionIndex=1)",
+        "",
+        "[X2DownloadableContentInfo_AdditionalUnitInfo]",
+        "+UnitTacticalInfo=("
+        'UnitName="Muton", '
+        'UnitDescription="A member of the alien warrior tribe.")',
+        "",
+        "[X2DownloadableContentInfo_WotCBallisticShields]",
+        '+m_arrAnimationPoses=(AnimationDisplayName="SHIELD Sword 1")',
+        "",
+        "[Rend X2AbilityTemplate]",
+        'LocFriendlyName="Rend"',
+        'LocLongDescription="Slash the target with <Ability:RENDDMG/> damage."',
+    ]
+    _write_loc_file(d / "struct_append.int", "\n".join(struct_append_int_lines))
+
+    # --- struct_append.chn (partial translation — covers fallback case) ---
+    struct_append_chn_lines = [
+        "[MissionObjectiveTexts]",
+        "+MissionDescriptions=("
+        'MissionFamily="Recover_LW", '
+        'Description="我们发现了一个补给缓存。", '
+        "MissionIndex=0)",
+        "",
+        "[Rend X2AbilityTemplate]",
+        'LocFriendlyName="撕裂"',
+        'LocLongDescription="撕开目标，造成<Ability:RENDDMG/>点伤害。"',
+    ]
+    _write_loc_file(d / "struct_append.chn", "\n".join(struct_append_chn_lines))
+
 
 @pytest.fixture(scope="session")
 def fixtures_dir() -> Path:
@@ -179,6 +225,34 @@ def aligner() -> BilingualAligner:
 @pytest.fixture
 def extractor() -> TermExtractor:
     return TermExtractor()
+
+
+@pytest.fixture
+def converter() -> CorpusConverter:
+    return CorpusConverter()
+
+
+@pytest.fixture
+def loc_writer() -> LocFileWriter:
+    return LocFileWriter()
+
+
+@pytest.fixture
+def weblate_config() -> WeblateConfigSchema:
+    return WeblateConfigSchema(
+        url="https://weblate.example.com/api/",
+        token="wlp_test_token",
+        project_slug="xcom2-test",
+    )
+
+
+@pytest.fixture
+def weblate_client(
+    weblate_config: WeblateConfigSchema,
+) -> Iterator[WeblateClient]:
+    client = WeblateClient(weblate_config)
+    yield client
+    client.close()
 
 
 @pytest.fixture
@@ -214,6 +288,16 @@ def align_source_int(fixtures_dir: Path) -> Path:
 @pytest.fixture
 def align_target_chn(fixtures_dir: Path) -> Path:
     return fixtures_dir / "align_target.chn"
+
+
+@pytest.fixture
+def struct_append_int(fixtures_dir: Path) -> Path:
+    return fixtures_dir / "struct_append.int"
+
+
+@pytest.fixture
+def struct_append_chn(fixtures_dir: Path) -> Path:
+    return fixtures_dir / "struct_append.chn"
 
 
 @pytest.fixture

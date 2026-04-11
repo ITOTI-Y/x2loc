@@ -1,7 +1,9 @@
 """CLI integration tests using typer.testing.CliRunner."""
 
+import csv
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -321,4 +323,480 @@ class TestExtractCommand:
         empty = tmp_path / "empty"
         empty.mkdir()
         result = runner.invoke(app, ["extract", str(empty)])
+        assert result.exit_code != 0
+
+
+def _write_upload_corpus(corpus_dir: Path, stem: str) -> Path:
+    """Write a minimal corpus JSON file for upload-command tests."""
+    corpus_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "source_lang": "en",
+        "target_lang": "zh_Hans",
+        "source_path": str(corpus_dir / f"{stem}.int"),
+        "target_path": str(corpus_dir / f"{stem}.chn"),
+        "entries": [
+            {
+                "compound_key": "UIUtilities_Text::m_strGenericOK",
+                "source": {
+                    "key": "m_strGenericOK",
+                    "raw_value": '"OK"',
+                    "value": "OK",
+                    "is_array": False,
+                    "array_index": None,
+                    "is_append": False,
+                    "struct_fields": None,
+                    "placeholders": [],
+                    "comments": [],
+                    "line_number": 1,
+                },
+                "target": {
+                    "key": "m_strGenericOK",
+                    "raw_value": '"确定"',
+                    "value": "确定",
+                    "is_array": False,
+                    "array_index": None,
+                    "is_append": False,
+                    "struct_fields": None,
+                    "placeholders": [],
+                    "comments": [],
+                    "line_number": 1,
+                },
+                "section_header": {
+                    "raw": "UIUtilities_Text",
+                    "format": "class_only",
+                    "name": "UIUtilities_Text",
+                    "object_name": None,
+                    "class_name": "UIUtilities_Text",
+                    "package": None,
+                },
+            },
+        ],
+        "source_only": [],
+        "target_only": [],
+    }
+    out = corpus_dir / f"{stem}.json"
+    out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    return out
+
+
+class TestUploadCommand:
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_creates_component_when_absent(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+        instance.get_component.return_value = None
+        instance.create_component.return_value = {"slug": "XComGame"}
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        instance.create_component.assert_called_once()
+        instance.create_translation.assert_called()
+        # Component was new, so translated CSV should be uploaded too
+        instance.upload_file.assert_called()
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_updates_existing_component(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        """Re-upload to an existing component with default (replace) method."""
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+        instance.get_component.return_value = {
+            "slug": "XComGame",
+            "stats": {"total": 1},
+        }
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+                "--yes",  # skip replace-confirmation prompt
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        instance.create_component.assert_not_called()
+        # Existing component → upload_file called at least once for target
+        assert instance.upload_file.call_count >= 1
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_creates_project_when_missing(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = None  # project missing
+        instance.get_component.return_value = None
+        instance.create_component.return_value = {"slug": "XComGame"}
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        instance.create_project.assert_called_once()
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_empty_corpus_dir_errors(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+        assert result.exit_code != 0
+
+    def test_upload_missing_credentials_errors(self, tmp_path: Path) -> None:
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                # no --url/--token/--project/--config
+            ],
+        )
+        assert result.exit_code != 0
+
+    def test_upload_config_file(self, tmp_path: Path) -> None:
+        """Loading Weblate config from TOML file."""
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        config_path = tmp_path / "weblate.toml"
+        config_path.write_text(
+            'url = "https://weblate.example.com/api/"\n'
+            'token = "wlp_from_file"\n'
+            'project_slug = "from-file"\n',
+            encoding="utf-8",
+        )
+
+        with patch("src.cli.app.WeblateClient") as mock_weblate:
+            instance = mock_weblate.return_value.__enter__.return_value
+            instance.get_project.return_value = {"slug": "from-file"}
+            instance.get_component.return_value = None
+            instance.create_component.return_value = {"slug": "XComGame"}
+
+            result = runner.invoke(
+                app,
+                [
+                    "upload",
+                    str(corpus_dir),
+                    "--target-lang",
+                    "zh_Hans",
+                    "--config",
+                    str(config_path),
+                ],
+            )
+            assert result.exit_code == 0, result.stdout
+            # Verify the config file values flowed into the constructed schema
+            cfg = mock_weblate.call_args.args[0]
+            assert cfg.token == "wlp_from_file"
+            assert cfg.project_slug == "from-file"
+
+
+class TestDownloadCommand:
+    @patch("src.cli.app.WeblateClient")
+    def test_download_saves_non_glossary_components(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.list_components.return_value = [
+            {"slug": "XComGame", "is_glossary": False},
+            {"slug": "glossary", "is_glossary": True},  # must be skipped
+        ]
+        instance.download_file.return_value = (
+            b"context,source,target\nUIUtilities_Text::m_strGenericOK,OK,"
+            b"\xe7\xa1\xae\xe5\xae\x9a\n"
+        )
+
+        out_dir = tmp_path / "downloads"
+        result = runner.invoke(
+            app,
+            [
+                "download",
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert (out_dir / "XComGame.csv").exists()
+        assert not (out_dir / "glossary.csv").exists()
+
+    @patch("src.cli.app.WeblateClient")
+    def test_download_component_filter(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.list_components.return_value = [
+            {"slug": "XComGame", "is_glossary": False},
+            {"slug": "UIScreens", "is_glossary": False},
+        ]
+        instance.download_file.return_value = b"context,source,target\n"
+
+        out_dir = tmp_path / "downloads"
+        result = runner.invoke(
+            app,
+            [
+                "download",
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+                "--component",
+                "XComGame",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert (out_dir / "XComGame.csv").exists()
+        assert not (out_dir / "UIScreens.csv").exists()
+
+
+class TestWritebackCommand:
+    def test_writeback_produces_chn_file(
+        self, tmp_path: Path, struct_append_int: Path
+    ) -> None:
+        """End-to-end: source .int + translated CSV → .chn file."""
+        src_dir = tmp_path / "INT"
+        src_dir.mkdir()
+        dest = src_dir / struct_append_int.name
+        dest.write_bytes(struct_append_int.read_bytes())
+
+        translations_dir = tmp_path / "csv"
+        translations_dir.mkdir()
+        csv_path = translations_dir / f"{dest.stem}.csv"
+        with csv_path.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["context", "source", "target", "developer_comments"],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "context": "Rend X2AbilityTemplate::LocFriendlyName",
+                    "source": "Rend",
+                    "target": "撕裂",
+                    "developer_comments": "",
+                }
+            )
+
+        out_dir = tmp_path / "CHN"
+        result = runner.invoke(
+            app,
+            [
+                "writeback",
+                str(src_dir),
+                str(translations_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        out_file = out_dir / f"{dest.stem}.chn"
+        assert out_file.exists()
+        raw = out_file.read_bytes()
+        assert raw.startswith(b"\xff\xfe")
+        # CRLF encoded in UTF-16-LE → \r\x00\n\x00
+        assert b"\r\x00\n\x00" in raw
+
+    def test_writeback_missing_csv_is_skipped(
+        self, tmp_path: Path, struct_append_int: Path
+    ) -> None:
+        src_dir = tmp_path / "INT"
+        src_dir.mkdir()
+        (src_dir / struct_append_int.name).write_bytes(struct_append_int.read_bytes())
+
+        empty_csv_dir = tmp_path / "empty"
+        empty_csv_dir.mkdir()
+
+        out_dir = tmp_path / "CHN"
+        result = runner.invoke(
+            app,
+            [
+                "writeback",
+                str(src_dir),
+                str(empty_csv_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+            ],
+        )
+        # Command should succeed but produce no output file
+        assert result.exit_code == 0, result.stdout
+        assert not list(out_dir.glob("*.chn"))
+
+    def test_writeback_partial_translation_fallback(
+        self, tmp_path: Path, struct_append_int: Path
+    ) -> None:
+        """Untranslated entries keep source values end-to-end."""
+        src_dir = tmp_path / "INT"
+        src_dir.mkdir()
+        dest = src_dir / struct_append_int.name
+        dest.write_bytes(struct_append_int.read_bytes())
+
+        translations_dir = tmp_path / "csv"
+        translations_dir.mkdir()
+        csv_path = translations_dir / f"{dest.stem}.csv"
+        with csv_path.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["context", "source", "target", "developer_comments"],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "context": (
+                        "MissionObjectiveTexts::MissionDescriptions#0::Description"
+                    ),
+                    "source": "We have discovered a supply cache.",
+                    "target": "我们发现了一个补给缓存。",
+                    "developer_comments": "",
+                }
+            )
+
+        out_dir = tmp_path / "CHN"
+        result = runner.invoke(
+            app,
+            [
+                "writeback",
+                str(src_dir),
+                str(translations_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--output-dir",
+                str(out_dir),
+            ],
+        )
+        assert result.exit_code == 0, result.stdout
+
+        # Re-parse the output and verify fallback entries retained source
+        from src.core.parser import LocFileParser
+
+        out_file = out_dir / f"{dest.stem}.chn"
+        reparsed = LocFileParser().parse(out_file)
+        rend_section = next(s for s in reparsed.sections if s.header.name == "Rend")
+        loc_friendly = next(
+            e for e in rend_section.entries if e.key == "LocFriendlyName"
+        )
+        assert loc_friendly.value == "Rend"  # untranslated → source preserved
+
+    def test_writeback_missing_source_dir_errors(self, tmp_path: Path) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "writeback",
+                str(tmp_path / "nope"),
+                str(tmp_path),
+                "--target-lang",
+                "zh_Hans",
+            ],
+        )
+        assert result.exit_code != 0
+
+    def test_writeback_unknown_target_lang_errors(
+        self, tmp_path: Path, struct_append_int: Path
+    ) -> None:
+        src_dir = tmp_path / "INT"
+        src_dir.mkdir()
+        (src_dir / struct_append_int.name).write_bytes(struct_append_int.read_bytes())
+        csv_dir = tmp_path / "csv"
+        csv_dir.mkdir()
+
+        result = runner.invoke(
+            app,
+            [
+                "writeback",
+                str(src_dir),
+                str(csv_dir),
+                "--target-lang",
+                "klingon",
+            ],
+        )
         assert result.exit_code != 0

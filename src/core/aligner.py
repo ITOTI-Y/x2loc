@@ -1,7 +1,6 @@
-from collections import defaultdict
-
 from loguru import logger
 
+from src.core._share import iter_compound_keys
 from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.entry import EntrySchema
 from src.models.file import LocalizationFile
@@ -101,26 +100,15 @@ class BilingualAligner:
     ) -> dict[str, tuple[EntrySchema, SectionHeader]]:
         """Build compound_key -> (entry, section_header) mapping.
 
-        For non-append entries: key = "section_raw::entry_key"
-        For append entries: key = "section_raw::entry_key#ordinal"
-        Duplicate non-append keys within same section: last wins + warn.
+        Delegates the iteration contract (ordinal counters, key shape) to
+        `iter_compound_keys`. Duplicate non-append keys within the same
+        section: last wins + warn.
         """
         index: dict[str, tuple[EntrySchema, SectionHeader]] = {}
 
-        for section in file.sections:
-            append_counters = defaultdict(int)
-
-            for entry in section.entries:
-                if entry.is_append:
-                    ordinal = append_counters[entry.key]
-                    compound_key = f"{section.header.raw}::{entry.key}#{ordinal}"
-                    append_counters[entry.key] += 1
-                else:
-                    compound_key = f"{section.header.raw}::{entry.key}"
-                    if compound_key in index:
-                        logger.warning(
-                            f"Duplicate non-append key: {compound_key}, last wins"
-                        )
-                index[compound_key] = (entry, section.header)
+        for compound_key, entry, section in iter_compound_keys(file):
+            if not entry.is_append and compound_key in index:
+                logger.warning(f"Duplicate non-append key: {compound_key}, last wins")
+            index[compound_key] = (entry, section.header)
 
         return index

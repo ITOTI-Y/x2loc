@@ -1,0 +1,339 @@
+import time
+from collections.abc import Iterator
+from typing import Any, Final
+
+import httpx
+from loguru import logger
+
+from src.models.weblate import WeblateConfigSchema
+
+RATE_LIMIT_FLOOR: Final[int] = 100
+RETRY_MAX_ATTEMPTS: Final[int] = 3
+RETRY_BASE_DELAY: Final[float] = 1.0
+HTTP_TIMEOUT: Final[float] = 30.0
+TASK_POLL_INTERVAL: Final[float] = 2.0
+TASK_POLL_TIMEOUT: Final[float] = 300.0
+
+
+class WeblateAPIError(Exception):
+    """Raised when the Weblate API returns an unrecoverable error."""
+
+    def __init__(self, status: int, message: str) -> None:
+        self.status = status
+        super().__init__(f"HTTP {status}: {message}")
+
+
+class WeblateClient:
+    """Thin Weblate REST API client.
+
+    Responsibilities: authentication, pagination, rate-limit backoff,
+    retry on 5xx / 429, background task polling.
+
+    Non-responsibilities: CSV generation, unit mapping, business rules
+    (those live in CorpusConverter / cli/app.py).
+    """
+
+    def __init__(self, config: WeblateConfigSchema) -> None:
+        self.config = config
+        self.base_url = config.url.rstrip("/") + "/"
+        self._client = httpx.Client(
+            base_url=self.base_url,
+            headers={
+                "Authorization": f"Token {config.token}",
+                "Accept": "application/json",
+            },
+            timeout=HTTP_TIMEOUT,
+            follow_redirects=True,
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __enter__(self) -> "WeblateClient":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def get_project(self) -> dict[str, Any] | None:
+        r = self._request("GET", f"projects/{self.config.project_slug}/")
+        if r.status_code == 404:
+            return None
+        self._raise_for_status(r)
+        return r.json()
+
+    def create_project(self, name: str, slug: str) -> dict[str, Any]:
+        r = self._request(
+            "POST",
+            "projects/",
+            json={"name": name, "slug": slug, "web": "https://example.com/"},
+        )
+        self._raise_for_status(r)
+        return r.json()
+
+    def list_components(self) -> list[dict[str, Any]]:
+        return list(self._paginate(f"projects/{self.config.project_slug}/components/"))
+
+    def get_component(self, slug: str) -> dict[str, Any] | None:
+        r = self._request("GET", f"components/{self.config.project_slug}/{slug}/")
+        if r.status_code == 404:
+            return None
+        self._raise_for_status(r)
+        return r.json()
+
+    def create_component(
+        self,
+        name: str,
+        slug: str,
+        csv_bytes: bytes,
+        source_language: str = "en",
+        is_glossary: bool = False,
+        license: str = "",
+        license_url: str = "",
+    ) -> dict[str, Any]:
+        """Create a component by uploading a CSV docfile.
+
+        Internally polls the resulting task URL until the component is ready
+        or TASK_POLL_TIMEOUT elapses.
+
+        When `license` (an SPDX identifier like "CC-BY-4.0") is provided,
+        the component is PATCHed with the license after creation — Weblate's
+        create endpoint silently drops license fields on POST, so a separate
+        PATCH is required to actually suppress the "missing license" warning.
+        """
+        files = {"docfile": (f"{slug}.csv", csv_bytes, "text/csv")}
+        data = {
+            "name": name,
+            "slug": slug,
+            "file_format": "csv",
+            "source_language": source_language,
+            "new_lang": "add",
+            "is_glossary": "true" if is_glossary else "false",
+        }
+        r = self._request(
+            "POST",
+            f"projects/{self.config.project_slug}/components/",
+            data=data,
+            files=files,
+        )
+        self._raise_for_status(r)
+        body = r.json()
+
+        task_url = body.get("task_url")
+        if task_url:
+            self._wait_for_task(task_url)
+
+        # License must be set via PATCH — POST drops it silently.
+        if license:
+            patch_data: dict[str, Any] = {"license": license}
+            if license_url:
+                patch_data["license_url"] = license_url
+            try:
+                body = self.patch_component(slug, patch_data)
+            except WeblateAPIError as e:
+                logger.warning(
+                    f"Failed to set license on {slug}: {e}; "
+                    "component was created but warning may persist"
+                )
+        return body
+
+    def delete_component(self, slug: str, wait: bool = True) -> None:
+        """Delete a component from the project.
+
+        Weblate's DELETE is processed asynchronously; by default we poll
+        until a subsequent GET on the same slug returns 404 (or the slug
+        endpoint disappears from the project's component list). Pass
+        `wait=False` to skip polling.
+        """
+        r = self._request(
+            "DELETE", f"components/{self.config.project_slug}/{slug}/"
+        )
+        if r.status_code not in (200, 202, 204, 404):
+            self._raise_for_status(r)
+        if not wait:
+            return
+
+        deadline = time.monotonic() + 30.0
+        while time.monotonic() < deadline:
+            check = self._request(
+                "GET", f"components/{self.config.project_slug}/{slug}/"
+            )
+            if check.status_code == 404:
+                return
+            time.sleep(1.0)
+        logger.warning(
+            f"Component {slug} still present after 30s delete wait"
+        )
+
+    def patch_component(
+        self, slug: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """PATCH an existing component. Used for fields Weblate silently
+        drops on the create endpoint — most notably `license`, which must be
+        set after creation or the project emits a "missing license" warning.
+        """
+        r = self._request(
+            "PATCH",
+            f"components/{self.config.project_slug}/{slug}/",
+            json=data,
+        )
+        self._raise_for_status(r)
+        return r.json()
+
+    def create_translation(self, component_slug: str, lang: str) -> None:
+        """Add a target language to a component. Idempotent on re-run.
+
+        Weblate's "already exists" response on POST varies by version:
+          - "Translation already exists."         (older)
+          - "Could not add '{lang}'!"              (newer, observed on
+            hosted.weblate.org 2026-04)
+        Both are treated as success so upload workflows can be re-run safely.
+        """
+        r = self._request(
+            "POST",
+            f"components/{self.config.project_slug}/{component_slug}/translations/",
+            json={"language_code": lang},
+        )
+        if r.status_code in (200, 201):
+            return
+        if r.status_code == 400:
+            body_lower = r.text.lower()
+            if "already exists" in body_lower or "could not add" in body_lower:
+                logger.debug(
+                    f"Translation {lang} for {component_slug} already exists"
+                )
+                return
+        self._raise_for_status(r)
+
+    def upload_file(
+        self,
+        component_slug: str,
+        lang: str,
+        csv_bytes: bytes,
+        method: str = "translate",
+    ) -> dict[str, Any]:
+        files = {"file": (f"{component_slug}.csv", csv_bytes, "text/csv")}
+        data = {"method": method}
+        r = self._request(
+            "POST",
+            f"translations/{self.config.project_slug}/{component_slug}/{lang}/file/",
+            data=data,
+            files=files,
+        )
+        self._raise_for_status(r)
+        return r.json()
+
+    def download_file(self, component_slug: str, lang: str) -> bytes:
+        r = self._request(
+            "GET",
+            f"translations/{self.config.project_slug}/{component_slug}/{lang}/file/",
+            params={"format": "csv"},
+        )
+        self._raise_for_status(r)
+        return r.content
+
+    def list_units(
+        self, component_slug: str, lang: str, q: str | None = None
+    ) -> Iterator[dict[str, Any]]:
+        path = f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
+        params = {"q": q} if q else None
+        yield from self._paginate(path, params=params)
+
+    def patch_unit(self, unit_id: int, data: dict[str, Any]) -> dict[str, Any]:
+        r = self._request("PATCH", f"units/{unit_id}/", json=data)
+        self._raise_for_status(r)
+        return r.json()
+
+    def get_task(self, url: str) -> dict[str, Any]:
+        r = self._request("GET", url)
+        self._raise_for_status(r)
+        return r.json()
+
+    def _paginate(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> Iterator[dict[str, Any]]:
+        next_url: str | None = path
+        first_params = params
+        while next_url:
+            r = self._request("GET", next_url, params=first_params)
+            first_params = None  # only the first page carries caller params
+            self._raise_for_status(r)
+            body = r.json()
+            yield from body.get("results", [])
+            next_url = body.get("next")
+
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        """Send an HTTP request with rate-limit + 5xx/429 retry.
+
+        `RETRY_MAX_ATTEMPTS` is the total number of HTTP calls on persistent
+        failure (1 initial attempt + N-1 retries). The gate uses `<` so that
+        attempt N is the last call, matching the constant's name.
+        """
+        attempt = 0
+        while True:
+            attempt += 1
+            r = self._client.request(method, url, **kwargs)
+            self._respect_rate_limit(r)
+
+            if r.status_code == 429 and attempt < RETRY_MAX_ATTEMPTS:
+                retry_after = float(r.headers.get("Retry-After", "1"))
+                logger.warning(
+                    f"Weblate 429 on {method} {url}; sleeping {retry_after}s"
+                )
+                time.sleep(retry_after)
+                continue
+            if 500 <= r.status_code < 600 and attempt < RETRY_MAX_ATTEMPTS:
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"Weblate {r.status_code} on {method} {url}; "
+                    f"retry {attempt}/{RETRY_MAX_ATTEMPTS} after {delay}s"
+                )
+                time.sleep(delay)
+                continue
+            return r
+
+    def _respect_rate_limit(self, response: httpx.Response) -> None:
+        remaining_header = response.headers.get("X-RateLimit-Remaining")
+        if remaining_header is None:
+            return
+        try:
+            remaining = int(remaining_header)
+        except ValueError:
+            return
+        if remaining >= RATE_LIMIT_FLOOR:
+            return
+        reset = response.headers.get("X-RateLimit-Reset")
+        if not reset:
+            return
+        try:
+            reset_ts = float(reset)
+        except ValueError:
+            return
+        sleep_for = max(reset_ts - time.time(), 0)
+        if sleep_for > 0:
+            logger.warning(
+                f"Weblate rate limit low ({remaining}); sleeping {sleep_for:.1f}s"
+            )
+            time.sleep(sleep_for)
+
+    def _raise_for_status(self, response: httpx.Response) -> None:
+        if response.is_success:
+            return
+        raise WeblateAPIError(response.status_code, response.text[:500])
+
+    def _wait_for_task(self, task_url: str) -> None:
+        deadline = time.monotonic() + TASK_POLL_TIMEOUT
+        while time.monotonic() < deadline:
+            task = self.get_task(task_url)
+            if task.get("completed"):
+                # Weblate may return {"result": null} for "completed with no
+                # payload", so `task.get("result", {})` is not enough — the
+                # default only kicks in when the key is absent, not null.
+                result = task.get("result") or {}
+                if result.get("error"):
+                    raise WeblateAPIError(
+                        500, f"Component task failed: {result['error']}"
+                    )
+                return
+            time.sleep(TASK_POLL_INTERVAL)
+        raise WeblateAPIError(504, f"Component task timeout: {task_url}")

@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from src.core.aligner import BilingualAligner
+from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
+from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
 from src.models._share import PlaceholderType, SectionHeaderFormat
 
@@ -312,3 +314,50 @@ class TestRealData:
         for term in glossary.terms:
             if not term.do_not_translate:
                 assert term.source != ""
+
+    def test_writeback_roundtrip_xcomgame(
+        self,
+        parser: LocFileParser,
+        aligner: BilingualAligner,
+        converter: CorpusConverter,
+        loc_writer: LocFileWriter,
+        tmp_path: Path,
+    ) -> None:
+        """End-to-end: parse real .int + .chn → to_units → feed back as
+        translations → build_target_file → write → re-parse → verify.
+        """
+        int_path = DATA_DIR / "GameExample" / "INT" / "XComGame.int"
+        chn_path = DATA_DIR / "GameExample" / "CHN" / "XComGame.chn"
+
+        if not int_path.exists() or not chn_path.exists():
+            pytest.skip("XComGame .int/.chn pair not found")
+
+        source = parser.parse(int_path)
+        target = parser.parse(chn_path)
+        corpus = aligner.align(source, target)
+
+        # Use every aligned unit's existing target as the "translation"
+        units = converter.to_units(corpus)
+        translations: dict[str, str] = {
+            context: tgt for context, _src, tgt, _note in units if tgt
+        }
+        assert len(translations) > 1000
+
+        out_path = tmp_path / "XComGame.chn"
+        rebuilt = converter.build_target_file(
+            source=source,
+            translations=translations,
+            target_lang="zh_Hans",
+            target_path=out_path,
+        )
+        loc_writer.write(rebuilt, out_path)
+
+        reparsed = parser.parse(out_path)
+        assert reparsed.encoding == "utf-16-le"
+        assert reparsed.lang == "zh_Hans"
+        assert reparsed.entry_count == source.entry_count
+
+        # Spot-check: "OK" in English must become Chinese after round-trip
+        ui = next(s for s in reparsed.sections if s.header.name == "UIUtilities_Text")
+        ok = next(e for e in ui.entries if e.key == "m_strGenericOK")
+        assert ok.value != "OK"

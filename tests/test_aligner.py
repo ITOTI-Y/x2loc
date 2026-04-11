@@ -6,7 +6,7 @@ import pytest
 
 from src.core.aligner import BilingualAligner
 from src.models._share import SectionHeaderFormat
-from src.models.entry import EntrySchema
+from src.models.entry import EntrySchema, StructFieldSchema
 from src.models.file import LocalizationFile
 from src.models.section import SectionHeader, SectionSchema
 
@@ -16,13 +16,38 @@ def _make_entry(
     value: str = "",
     is_append: bool = False,
     line_number: int = 1,
+    struct_fields: list[StructFieldSchema] | None = None,
 ) -> EntrySchema:
     return EntrySchema(
         key=key,
         raw_value=f'"{value}"',
         value=value,
         is_append=is_append,
+        struct_fields=struct_fields,
         line_number=line_number,
+    )
+
+
+def _make_struct_entry(key: str, description: str) -> EntrySchema:
+    """Helper: build a struct-append entry with a single Description field.
+
+    Matches the real XCOM 2 shape `+Key=(Description="...")` and is what
+    `iter_compound_keys_in_section` recognizes as a true append that carries
+    an ordinal suffix on the compound key.
+    """
+    return EntrySchema(
+        key=key,
+        raw_value=f'(Description="{description}")',
+        value=f'(Description="{description}")',
+        is_append=True,
+        struct_fields=[
+            StructFieldSchema(
+                key="Description",
+                raw_value=f'"{description}"',
+                value=description,
+            )
+        ],
+        line_number=1,
     )
 
 
@@ -64,13 +89,17 @@ class TestBuildIndex:
         assert entry.value == "OK"
         assert header.raw == "UIUtilities_Text"
 
-    def test_append_key_ordinal(self, aligner: BilingualAligner) -> None:
+    def test_struct_append_key_ordinal(
+        self, aligner: BilingualAligner
+    ) -> None:
+        """Struct append entries (`+Key=(...)`) retain the `#N` ordinal suffix
+        because they represent genuine array-of-struct appends."""
         section = _make_section(
             "MissionSources X2MissionSourceTemplate",
             [
-                _make_entry("MissionDescriptions", "first", is_append=True),
-                _make_entry("MissionDescriptions", "second", is_append=True),
-                _make_entry("MissionDescriptions", "third", is_append=True),
+                _make_struct_entry("MissionDescriptions", "first"),
+                _make_struct_entry("MissionDescriptions", "second"),
+                _make_struct_entry("MissionDescriptions", "third"),
             ],
         )
         file = _make_file([section])
@@ -80,17 +109,66 @@ class TestBuildIndex:
         k0 = "MissionSources X2MissionSourceTemplate::MissionDescriptions#0"
         k1 = "MissionSources X2MissionSourceTemplate::MissionDescriptions#1"
         k2 = "MissionSources X2MissionSourceTemplate::MissionDescriptions#2"
-        assert index[k0][0].value == "first"
-        assert index[k1][0].value == "second"
-        assert index[k2][0].value == "third"
+        for key, expected in [(k0, "first"), (k1, "second"), (k2, "third")]:
+            entry = index[key][0]
+            assert entry.struct_fields is not None
+            assert entry.struct_fields[0].value == expected
 
-    def test_mixed_append_and_non_append(self, aligner: BilingualAligner) -> None:
+    def test_scalar_append_normalizes_to_non_append(
+        self, aligner: BilingualAligner
+    ) -> None:
+        """Scalar `+Key="value"` entries normalize to the same key as
+        non-append entries — the `+` prefix is effectively a no-op for
+        scalar string properties in UE3 config files. See iter_compound_keys
+        docstring for rationale.
+        """
+        section = _make_section(
+            "Section",
+            [_make_entry("m_strUrgent", "alert", is_append=True)],
+        )
+        file = _make_file([section])
+        index = aligner._build_index(file)
+
+        # Key has no `#N` suffix even though the entry is marked is_append
+        assert "Section::m_strUrgent" in index
+        assert "Section::m_strUrgent#0" not in index
+
+    def test_scalar_append_aligns_with_non_append(
+        self, aligner: BilingualAligner
+    ) -> None:
+        """Regression for LW_Overhaul: source uses `m_strUrgent=...` but
+        target uses `+m_strUrgent=...`. Both must resolve to the same
+        compound key so the aligner pairs them instead of dumping both
+        into source_only / target_only."""
+        src_section = _make_section(
+            "UIMission",
+            [_make_entry("m_strUrgent", "SECURITY BREACH")],
+        )
+        tgt_section = _make_section(
+            "UIMission",
+            [_make_entry("m_strUrgent", "安全漏洞", is_append=True)],
+        )
+        src_file = _make_file([src_section])
+        tgt_file = _make_file([tgt_section], lang="zh_Hans", path="/tmp/tgt.chn")
+        corpus = aligner.align(src_file, tgt_file)
+
+        assert corpus.aligned_count == 1
+        assert corpus.source_only == []
+        assert corpus.target_only == []
+        aligned = corpus.entries[0]
+        assert aligned.source.value == "SECURITY BREACH"
+        assert aligned.target is not None
+        assert aligned.target.value == "安全漏洞"
+
+    def test_mixed_struct_append_and_non_append(
+        self, aligner: BilingualAligner
+    ) -> None:
         section = _make_section(
             "Section",
             [
                 _make_entry("NormalKey", "val"),
-                _make_entry("AppendKey", "a1", is_append=True),
-                _make_entry("AppendKey", "a2", is_append=True),
+                _make_struct_entry("AppendKey", "a1"),
+                _make_struct_entry("AppendKey", "a2"),
             ],
         )
         file = _make_file([section])
@@ -100,7 +178,14 @@ class TestBuildIndex:
         assert "Section::AppendKey#0" in index
         assert "Section::AppendKey#1" in index
 
-    def test_duplicate_non_append_last_wins(self, aligner: BilingualAligner) -> None:
+    def test_duplicate_non_append_indexed_as_array(
+        self, aligner: BilingualAligner
+    ) -> None:
+        """Repeated non-append keys within one section are treated as an
+        array: each occurrence gets an ordinal suffix instead of the old
+        "last wins" behavior. This preserves data when a file genuinely
+        has two `Key="..."` lines meant as separate list entries.
+        """
         section = _make_section(
             "Section",
             [
@@ -111,7 +196,11 @@ class TestBuildIndex:
         file = _make_file([section])
         index = aligner._build_index(file)
 
-        assert index["Section::DupKey"][0].value == "second"
+        assert "Section::DupKey#0" in index
+        assert "Section::DupKey#1" in index
+        assert "Section::DupKey" not in index
+        assert index["Section::DupKey#0"][0].value == "first"
+        assert index["Section::DupKey#1"][0].value == "second"
 
     def test_multiple_sections(self, aligner: BilingualAligner) -> None:
         s1 = _make_section("SectionA", [_make_entry("Key1", "a")])
@@ -320,14 +409,23 @@ class TestAlign:
 
 
 class TestAppendAlignment:
-    def test_equal_append_count(self, aligner: BilingualAligner) -> None:
+    """Tests for true struct-append (`+Key=(...)`) alignment.
+
+    Scalar append entries (`+Key="value"`) are covered separately in
+    TestBuildIndex because they normalize to the same key shape as
+    non-append entries.
+    """
+
+    def test_equal_struct_append_count(
+        self, aligner: BilingualAligner
+    ) -> None:
         src = _make_file(
             [
                 _make_section(
                     "M",
                     [
-                        _make_entry("Desc", "first", is_append=True),
-                        _make_entry("Desc", "second", is_append=True),
+                        _make_struct_entry("Desc", "first"),
+                        _make_struct_entry("Desc", "second"),
                     ],
                 )
             ]
@@ -337,8 +435,8 @@ class TestAppendAlignment:
                 _make_section(
                     "M",
                     [
-                        _make_entry("Desc", "第一", is_append=True),
-                        _make_entry("Desc", "第二", is_append=True),
+                        _make_struct_entry("Desc", "第一"),
+                        _make_struct_entry("Desc", "第二"),
                     ],
                 )
             ],
@@ -351,15 +449,17 @@ class TestAppendAlignment:
         assert corpus.source_only == []
         assert corpus.target_only == []
 
-    def test_source_more_append(self, aligner: BilingualAligner) -> None:
+    def test_source_more_struct_append(
+        self, aligner: BilingualAligner
+    ) -> None:
         src = _make_file(
             [
                 _make_section(
                     "M",
                     [
-                        _make_entry("D", "s0", is_append=True),
-                        _make_entry("D", "s1", is_append=True),
-                        _make_entry("D", "s2", is_append=True),
+                        _make_struct_entry("D", "s0"),
+                        _make_struct_entry("D", "s1"),
+                        _make_struct_entry("D", "s2"),
                     ],
                 )
             ]
@@ -369,8 +469,8 @@ class TestAppendAlignment:
                 _make_section(
                     "M",
                     [
-                        _make_entry("D", "t0", is_append=True),
-                        _make_entry("D", "t1", is_append=True),
+                        _make_struct_entry("D", "t0"),
+                        _make_struct_entry("D", "t1"),
                     ],
                 )
             ],
@@ -383,13 +483,12 @@ class TestAppendAlignment:
         assert corpus.source_only == ["M::D#2"]
         assert corpus.target_only == []
 
-    def test_target_more_append(self, aligner: BilingualAligner) -> None:
+    def test_target_more_struct_append(
+        self, aligner: BilingualAligner
+    ) -> None:
         src = _make_file(
             [
-                _make_section(
-                    "M",
-                    [_make_entry("D", "s0", is_append=True)],
-                )
+                _make_section("M", [_make_struct_entry("D", "s0")]),
             ]
         )
         tgt = _make_file(
@@ -397,8 +496,8 @@ class TestAppendAlignment:
                 _make_section(
                     "M",
                     [
-                        _make_entry("D", "t0", is_append=True),
-                        _make_entry("D", "t1", is_append=True),
+                        _make_struct_entry("D", "t0"),
+                        _make_struct_entry("D", "t1"),
                     ],
                 )
             ],
