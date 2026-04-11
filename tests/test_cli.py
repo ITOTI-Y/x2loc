@@ -475,9 +475,14 @@ class TestUploadCommand:
         instance = mock_weblate.return_value.__enter__.return_value
         instance.get_project.return_value = {"slug": "test"}
         instance.get_component.return_value = {
-            "slug": "XComGame",
+            "slug": "base-xcom2-wotc-XComGame",
             "stats": {"total": 1},
         }
+        # Existing unit already covers the only context in the fixture,
+        # so no create_unit calls should fire.
+        instance.list_units.return_value = iter(
+            [{"context": "UIUtilities_Text::m_strGenericOK"}]
+        )
 
         result = runner.invoke(
             app,
@@ -498,8 +503,189 @@ class TestUploadCommand:
 
         assert result.exit_code == 0, result.stdout
         instance.create_component.assert_not_called()
+        instance.create_unit.assert_not_called()
         # Existing component → upload_file called at least once for target
         assert instance.upload_file.call_count >= 1
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_adds_new_units_to_existing_component(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        """Mode 2: new contexts in the local corpus that don't exist yet
+        in Weblate must be created via `create_unit`, not via a destructive
+        replace upload."""
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+        instance.get_component.return_value = {
+            "slug": "base-xcom2-wotc-XComGame",
+            "stats": {"total": 0},
+        }
+        # Weblate reports zero existing units — the one unit in our fixture
+        # must therefore be added via create_unit.
+        instance.list_units.return_value = iter([])
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+                "--yes",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        instance.create_component.assert_not_called()
+        instance.create_unit.assert_called_once()
+        # Inspect the create_unit call shape.
+        call = instance.create_unit.call_args
+        assert call.args[0] == "base-xcom2-wotc-XComGame"
+        assert call.args[1] == "en"  # source_lang from fixture
+        body = call.args[2]
+        assert body["context"] == "UIUtilities_Text::m_strGenericOK"
+        assert body["source"] == "OK"
+        assert body["state"] == 0
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_glossary_creates_new_component_mode1(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        """Glossary slug should be `glossary-{namespace}` and Mode 1 creates
+        the component via `create_component` with the source CSV."""
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+        glossary_csv = tmp_path / "glossary.csv"
+        glossary_csv.write_text(
+            "source,target,category,do_not_translate,same_as_source\n"
+            "Chain Lightning,闪电链,ability,false,false\n",
+            encoding="utf-8",
+        )
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+        # First get_component call (corpus) → None, Mode 1 create. Second
+        # (glossary) → None too. Third call is in _mark_glossary_flags
+        # which fetches source_language metadata.
+        instance.get_component.side_effect = [
+            None,  # corpus component lookup
+            None,  # glossary component lookup
+            {"source_language": {"code": "en"}},  # metadata after create
+        ]
+        instance.list_units.return_value = iter([])
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--glossary",
+                str(glossary_csv),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+                "--yes",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        # create_component called twice: once for corpus, once for glossary
+        assert instance.create_component.call_count == 2
+        glossary_call = next(
+            c
+            for c in instance.create_component.call_args_list
+            if c.kwargs.get("is_glossary")
+        )
+        assert glossary_call.kwargs["slug"] == "glossary-base-xcom2-wotc"
+
+    @patch("src.cli.app.WeblateClient")
+    def test_upload_glossary_adds_units_to_existing_mode2(
+        self, mock_weblate: MagicMock, tmp_path: Path
+    ) -> None:
+        """Mode 2 for glossary: existing component should receive only
+        the new term as a `create_unit` POST, not a full-file replace."""
+        corpus_dir = tmp_path / "corpus"
+        _write_upload_corpus(corpus_dir, "XComGame")
+        glossary_csv = tmp_path / "glossary.csv"
+        glossary_csv.write_text(
+            "source,target,category,do_not_translate,same_as_source\n"
+            "OldTerm,旧术语,ability,false,false\n"
+            "NewTerm,新术语,ability,false,false\n",
+            encoding="utf-8",
+        )
+
+        instance = mock_weblate.return_value.__enter__.return_value
+        instance.get_project.return_value = {"slug": "test"}
+        instance.get_component.side_effect = [
+            None,  # corpus component (Mode 1, irrelevant here)
+            {
+                "slug": "glossary-base-xcom2-wotc",
+                "file_format": "csv",
+                "source_language": {"code": "en"},
+            },
+            # _mark_glossary_flags re-fetches metadata
+            {"source_language": {"code": "en"}},
+        ]
+        # Corpus goes through Mode 1 (no list_units). Glossary Mode 2 and
+        # _mark_glossary_flags each call list_units once per language pass.
+        instance.list_units.side_effect = [
+            iter([{"context": "OldTerm::ability"}]),  # glossary Mode 2 diff
+            iter([]),  # _mark_glossary_flags source-lang pass
+            iter([]),  # _mark_glossary_flags target-lang pass
+        ]
+
+        result = runner.invoke(
+            app,
+            [
+                "upload",
+                str(corpus_dir),
+                "--glossary",
+                str(glossary_csv),
+                "--target-lang",
+                "zh_Hans",
+                "--url",
+                "https://weblate.example.com/api/",
+                "--token",
+                "wlp_test",
+                "--project",
+                "test",
+                "--yes",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        # Glossary Mode 2: create_component must NOT be called for glossary.
+        glossary_creates = [
+            c
+            for c in instance.create_component.call_args_list
+            if c.kwargs.get("is_glossary")
+        ]
+        assert glossary_creates == []
+        # Exactly one new glossary term was pushed via create_unit.
+        glossary_unit_calls = [
+            c
+            for c in instance.create_unit.call_args_list
+            if c.args[0] == "glossary-base-xcom2-wotc"
+        ]
+        assert len(glossary_unit_calls) == 1
+        body = glossary_unit_calls[0].args[2]
+        assert body["context"] == "NewTerm::ability"
+        assert body["source"] == "NewTerm"
+        assert body["target"] == "新术语"
 
     @patch("src.cli.app.WeblateClient")
     def test_upload_creates_project_when_missing(

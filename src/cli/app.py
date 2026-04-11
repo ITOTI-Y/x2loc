@@ -6,7 +6,7 @@ import tomllib
 from collections import Counter
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Final
+from typing import Annotated, Any, Final
 
 import typer
 from loguru import logger
@@ -429,6 +429,13 @@ def upload(
                 logger.error(f"No corpus JSON files in {corpus_dir}")
                 raise typer.Exit(1)
 
+            # The glossary is uploaded as a single per-mod component
+            # (`glossary-{namespace}`), so we need the namespace up front.
+            # It is read from the first corpus JSON — align-dir writes all
+            # sibling corpora under one namespace dir, so they must all
+            # agree. A mismatch is treated as a data error.
+            namespace = _read_namespace_from_corpora(json_files)
+
             for json_file in json_files:
                 _upload_single_corpus(
                     client,
@@ -444,6 +451,7 @@ def upload(
                 _upload_glossary(
                     client,
                     glossary,
+                    namespace,
                     target_lang,
                     method,
                     license=cfg.license,
@@ -453,6 +461,42 @@ def upload(
         except WeblateAPIError as e:
             logger.error(f"Weblate API error: {e}")
             raise typer.Exit(1) from e
+
+
+def _read_namespace_from_corpora(json_files: list[Path]) -> str:
+    """Extract the namespace from a batch of corpus JSON files.
+
+    All files in the same corpus dir must share one namespace — they
+    were written there by align-dir, which always uses
+    `output/corpus/{namespace}/`. A mismatch indicates the directory
+    was hand-edited or merged incorrectly; we fail loud.
+
+    Parsing goes through the schema so legacy JSON produced before the
+    namespace field existed still validates and picks up the base-game
+    default.
+    """
+    seen: set[str] = set()
+    for jf in json_files:
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+            corpus = BilingualCorpus.model_validate(data)
+        except Exception as e:
+            logger.warning(f"Failed to read namespace from {jf.name}: {e}")
+            continue
+        seen.add(corpus.namespace)
+    if not seen:
+        logger.error(
+            "No namespace found in any corpus JSON; rerun align-dir with "
+            "--sandbox-root or --base-game."
+        )
+        raise typer.Exit(1)
+    if len(seen) > 1:
+        logger.error(
+            f"Corpus dir contains multiple namespaces {sorted(seen)}; each "
+            "namespace must live in its own directory."
+        )
+        raise typer.Exit(1)
+    return next(iter(seen))
 
 
 @app.command()
@@ -749,6 +793,20 @@ def _upload_single_corpus(
     license: str = "",
     license_url: str = "",
 ) -> None:
+    """Upload one corpus JSON file as a Weblate component.
+
+    Behavior:
+        - **Mode 1 (fresh)**: when the component does not exist, create it
+          via `create_component` with the full source CSV (fast bulk load).
+        - **Mode 2 (incremental)**: when the component already exists,
+          diff local units against existing Weblate contexts and POST
+          `create_unit` for the delta only. Existing units' target
+          translations are updated via `upload_file(method=translate)`
+          which is non-destructive — it fills empty slots without
+          overwriting translator edits. The user-supplied `--method`
+          flag only applies to the first (create) path, because Mode 2
+          must not risk wiping existing translations.
+    """
     try:
         data = json.loads(corpus_path.read_text(encoding="utf-8"))
         corpus = BilingualCorpus.model_validate(data)
@@ -761,61 +819,217 @@ def _upload_single_corpus(
         logger.warning(f"{corpus_path.name}: no translatable units, skipping")
         return
 
-    slug = corpus_path.stem  # e.g. "XComGame"
-    source_csv = _units_to_source_csv_bytes(units)
-    translated_csv = _units_to_translation_csv_bytes(units)
+    # Slug encodes the mod namespace so the same loc-file stem across
+    # multiple mods lands in distinct Weblate components. e.g.
+    # `1122837889-more-traits-XComGame` vs `base-xcom2-wotc-XComGame`.
+    slug = f"{corpus.namespace}-{corpus_path.stem}"
 
     component = client.get_component(slug)
     if component is None:
-        logger.info(f"Creating component '{slug}' ({len(units)} units)")
-        client.create_component(
-            name=slug,
-            slug=slug,
-            csv_bytes=source_csv,
-            source_language=corpus.source_lang,
-            license=license,
-            license_url=license_url,
+        _corpus_upload_mode_create(
+            client,
+            slug,
+            corpus,
+            units,
+            target_lang,
+            method,
+            license,
+            license_url,
         )
     else:
-        if method == "replace" and not yes:
-            unit_count = component.get("stats", {}).get("total", "?")
-            logger.warning(
-                f"Component '{slug}' already has {unit_count} units. "
-                "--method=replace will overwrite them."
-            )
-            if not typer.confirm("Continue?", default=False):
-                raise typer.Exit(1)
-        logger.info(
-            f"Component '{slug}' exists; updating target translations only "
-            f"(method={method}). CSV-format source strings cannot be updated "
-            "via file upload — recreate the component if the source changed."
+        _corpus_upload_mode_incremental(
+            client, slug, component, corpus, units, target_lang, method, yes
         )
+
+
+def _corpus_upload_mode_create(
+    client: WeblateClient,
+    slug: str,
+    corpus: BilingualCorpus,
+    units: list[tuple[str, str, str, str]],
+    target_lang: str,
+    method: str,
+    license: str,
+    license_url: str,
+) -> None:
+    """Mode 1 — first-time upload: create component + bulk load."""
+    source_csv = _units_to_source_csv_bytes(units)
+    translated_csv = _units_to_translation_csv_bytes(units)
+
+    logger.info(f"Creating component '{slug}' ({len(units)} units)")
+    client.create_component(
+        name=slug,
+        slug=slug,
+        csv_bytes=source_csv,
+        source_language=corpus.source_lang,
+        license=license,
+        license_url=license_url,
+    )
+    client.create_translation(slug, target_lang)
+
+    if any(tgt for _, _, tgt, _ in units):
+        client.upload_file(slug, target_lang, translated_csv, method=method)
+
+
+def _corpus_upload_mode_incremental(
+    client: WeblateClient,
+    slug: str,
+    component: dict[str, Any],
+    corpus: BilingualCorpus,
+    units: list[tuple[str, str, str, str]],
+    target_lang: str,
+    method: str,
+    yes: bool,
+) -> None:
+    """Mode 2 — component already exists: add only new units, fill empty
+    translations non-destructively.
+
+    `method` only matters for the translation-side upload; the default
+    `translate` mode is forced internally for safety. If the user
+    explicitly passes `--method replace` we respect it (with the usual
+    confirmation prompt) — that is the escape hatch for "I really do
+    want to blow away existing target translations".
+    """
+    # Diff source-language contexts: anything local that Weblate doesn't
+    # know about yet must be POSTed via create_unit.
+    existing_contexts: set[str] = set()
+    try:
+        existing_contexts = {
+            str(u.get("context", ""))
+            for u in client.list_units(slug, corpus.source_lang)
+        }
+    except WeblateAPIError as e:
+        logger.warning(
+            f"Could not list existing units for '{slug}' ({e}); assuming "
+            "none exist. Duplicate-context errors may follow."
+        )
+
+    new_units = [u for u in units if u[0] not in existing_contexts]
+    existing_count = len(units) - len(new_units)
+
+    logger.info(
+        f"Component '{slug}' exists: {existing_count} already present, "
+        f"{len(new_units)} new to add"
+    )
+
+    if new_units:
+        added = 0
+        for context, source, target, _note in new_units:
+            body: dict[str, Any] = {
+                "source": source,
+                "target": target or source,
+                "context": context,
+                "state": 0,  # 0 = empty / untranslated
+            }
+            try:
+                client.create_unit(slug, corpus.source_lang, body)
+                added += 1
+            except WeblateAPIError as e:
+                logger.warning(f"create_unit {context!r} failed: {e}")
+        logger.info(f"Added {added}/{len(new_units)} new units to '{slug}'")
 
     client.create_translation(slug, target_lang)
 
-    if any(target for _, _, target, _ in units):
-        client.upload_file(slug, target_lang, translated_csv, method=method)
+    # Target-side update. Default to `translate` mode in Mode 2 — it only
+    # fills empty slots and never overwrites translator work. Honor an
+    # explicit `--method replace` only after user confirmation.
+    effective_method = method
+    if method == "replace":
+        unit_count = component.get("stats", {}).get("total", "?")
+        logger.warning(
+            f"Component '{slug}' already has {unit_count} units. "
+            "--method=replace will overwrite existing translations."
+        )
+        if not yes and not typer.confirm("Continue?", default=False):
+            raise typer.Exit(1)
+    else:
+        effective_method = "translate"
+
+    if any(tgt for _, _, tgt, _ in units):
+        translated_csv = _units_to_translation_csv_bytes(units)
+        client.upload_file(slug, target_lang, translated_csv, method=effective_method)
 
 
 def _upload_glossary(
     client: WeblateClient,
     glossary_path: Path,
+    namespace: str,
     target_lang: str,
     method: str,
     license: str = "",
     license_url: str = "",
 ) -> None:
-    with glossary_path.open("r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
+    """Upload a P2 glossary CSV as a per-mod Weblate glossary component.
 
+    Slug convention: `glossary-{namespace}`. Each mod (and the base game)
+    gets its own glossary component, so uploads never overwrite another
+    mod's work and Weblate's project-level glossary linking gives
+    translators the combined hint set automatically.
+
+    Behavior:
+        - **Mode 1 (fresh)**: component missing → `create_component` with
+          the full source CSV, then upload target CSV, then apply flags.
+        - **Mode 2 (incremental)**: component exists → fetch existing
+          contexts, POST `create_unit` for new ones only, then refresh
+          flags. No destructive upload_file calls.
+    """
+    rows = _load_glossary_rows(glossary_path)
     if not rows:
         logger.warning(f"Glossary {glossary_path.name} is empty, skipping")
         return
 
-    # Build two CSVs with the correct Weblate column semantics:
-    #   - source CSV for component creation: target column = English (source lang)
-    #   - translation CSV for target-language upload: target column = target lang
+    slug = f"glossary-{namespace}"
+    component = client.get_component(slug)
+    if component is not None and component.get("file_format") != "csv":
+        # Weblate auto-creates a TBX-format glossary on first component
+        # insertion. Delete and recreate as CSV so our upload shape matches.
+        logger.warning(
+            f"Existing glossary component '{slug}' uses file_format="
+            f"{component.get('file_format')!r}; deleting and recreating as csv"
+        )
+        client.delete_component(slug)
+        component = None
+
+    if component is None:
+        _glossary_upload_mode_create(
+            client,
+            slug,
+            rows,
+            target_lang,
+            method,
+            license,
+            license_url,
+        )
+    else:
+        _glossary_upload_mode_incremental(client, slug, rows, target_lang)
+
+    # Source language is usually "en" but we read it from the component
+    # metadata after creation/update because `extra_flags` can only be set
+    # on source-language units.
+    component = client.get_component(slug) or {}
+    source_lang_field = component.get("source_language") or {}
+    source_lang = source_lang_field.get("code", "en")
+    _mark_glossary_flags(client, slug, source_lang, target_lang, rows)
+
+
+def _load_glossary_rows(glossary_path: Path) -> list[dict[str, str]]:
+    """Read a P2 glossary CSV into a list of normalized dict rows."""
+    with glossary_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+def _glossary_rows_to_csvs(
+    rows: list[dict[str, str]],
+) -> tuple[bytes, bytes]:
+    """Split glossary rows into (source CSV, translation CSV) bytes.
+
+    Weblate's `csv` file format treats the `target` column as "current
+    language content", so the source CSV must carry English in `target`
+    (Weblate reads it as the en-language file) while the translation
+    CSV carries the target-language text. Rows without a source are
+    dropped; rows without a target skip the translation CSV.
+    """
     source_buf = io.StringIO()
     source_writer = _make_csv_writer(source_buf)
     source_writer.writeheader()
@@ -846,45 +1060,90 @@ def _upload_glossary(
                     "developer_comments": cat,
                 }
             )
-    source_glossary_csv = source_buf.getvalue().encode("utf-8")
-    translation_glossary_csv = translation_buf.getvalue().encode("utf-8")
+    return (
+        source_buf.getvalue().encode("utf-8"),
+        translation_buf.getvalue().encode("utf-8"),
+    )
 
-    slug = "glossary"
-    component = client.get_component(slug)
-    if component is not None and component.get("file_format") != "csv":
-        # Weblate auto-creates a TBX-format glossary on first component
-        # insertion. Delete and recreate as CSV so our upload shape matches.
-        logger.warning(
-            f"Existing glossary component uses file_format="
-            f"{component.get('file_format')!r}; deleting and recreating as csv"
-        )
-        client.delete_component(slug)
-        component = None
-    if component is None:
-        logger.info("Creating glossary component")
-        client.create_component(
-            name="Glossary",
-            slug=slug,
-            csv_bytes=source_glossary_csv,
-            is_glossary=True,
-            license=license,
-            license_url=license_url,
-        )
-    else:
-        logger.info(
-            "Glossary component exists; updating target translations only "
-            "(CSV-format source strings cannot be updated via file upload)."
-        )
 
+def _glossary_upload_mode_create(
+    client: WeblateClient,
+    slug: str,
+    rows: list[dict[str, str]],
+    target_lang: str,
+    method: str,
+    license: str,
+    license_url: str,
+) -> None:
+    """Mode 1 — component missing: bulk-create via CSV docfile."""
+    source_csv, translation_csv = _glossary_rows_to_csvs(rows)
+
+    logger.info(f"Creating glossary component '{slug}' ({len(rows)} rows)")
+    client.create_component(
+        name=slug,
+        slug=slug,
+        csv_bytes=source_csv,
+        is_glossary=True,
+        license=license,
+        license_url=license_url,
+    )
     client.create_translation(slug, target_lang)
-    if translation_glossary_csv.count(b"\n") > 1:  # header + at least one row
-        client.upload_file(slug, target_lang, translation_glossary_csv, method=method)
+    if translation_csv.count(b"\n") > 1:  # header + at least one row
+        client.upload_file(slug, target_lang, translation_csv, method=method)
 
-    # Find the component's actual source language (usually "en"); needed
-    # because `extra_flags` can only be set on source-language units.
-    component = client.get_component(slug) or {}
-    source_lang = component.get("source_language", {}).get("code", "en")
-    _mark_glossary_flags(client, slug, source_lang, target_lang, rows)
+
+def _glossary_upload_mode_incremental(
+    client: WeblateClient,
+    slug: str,
+    rows: list[dict[str, str]],
+    target_lang: str,
+) -> None:
+    """Mode 2 — component exists: additive unit POSTs, no destructive upload.
+
+    Mod updates and base-game term additions land here. We only POST
+    contexts that Weblate doesn't already know about; existing glossary
+    terms (and any translator edits to them) are left untouched.
+    `_mark_glossary_flags` runs afterwards to re-apply `do_not_translate`
+    / `same_as_source` state — cheap idempotent PATCHes.
+    """
+    client.create_translation(slug, target_lang)
+
+    existing_contexts: set[str] = set()
+    try:
+        existing_contexts = {
+            str(u.get("context", "")) for u in client.list_units(slug, "en")
+        }
+    except WeblateAPIError as e:
+        logger.warning(
+            f"Could not list glossary units for '{slug}' ({e}); "
+            "assuming none exist, duplicate-context errors may follow."
+        )
+
+    added = 0
+    skipped = 0
+    for row in rows:
+        src = row.get("source") or ""
+        tgt = row.get("target") or ""
+        cat = row.get("category") or "term"
+        if not src:
+            continue
+        context = f"{src}::{cat}"
+        if context in existing_contexts:
+            skipped += 1
+            continue
+        body: dict[str, Any] = {
+            "source": src,
+            "target": tgt or src,
+            "context": context,
+            "state": 20 if tgt else 0,
+        }
+        try:
+            client.create_unit(slug, "en", body)
+            added += 1
+        except WeblateAPIError as e:
+            logger.warning(f"glossary create_unit {context!r} failed: {e}")
+
+    logger.info(f"Glossary '{slug}': added={added}, existing={skipped}")
 
 
 def _mark_glossary_flags(
