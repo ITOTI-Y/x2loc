@@ -496,10 +496,6 @@ def _read_namespace_from_corpora(json_files: list[Path]) -> str:
     were written there by align-dir, which always uses
     `output/corpus/{namespace}/`. A mismatch indicates the directory
     was hand-edited or merged incorrectly; we fail loud.
-
-    Parsing goes through the schema so legacy JSON produced before the
-    namespace field existed still validates and picks up the base-game
-    default.
     """
     seen: set[str] = set()
     for jf in json_files:
@@ -741,10 +737,19 @@ def _load_weblate_config(
             logger.error(f"Config file not found: {config_path}")
             raise typer.Exit(1)
         data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        resolved_url = url or data.get("url")
+        resolved_token = token or data.get("token")
+        resolved_project = project or data.get("project_slug")
+        if not (resolved_url and resolved_token and resolved_project):
+            logger.error(
+                f"Weblate config incomplete (from {config_path}): "
+                "url/token/project_slug required"
+            )
+            raise typer.Exit(1)
         return WeblateConfigSchema(
-            url=url or data["url"],
-            token=token or data["token"],
-            project_slug=project or data["project_slug"],
+            url=resolved_url,
+            token=resolved_token,
+            project_slug=resolved_project,
             license=data.get("license", ""),
             license_url=data.get("license_url", ""),
         )
@@ -1057,7 +1062,7 @@ def _append_source_batches(
         except WeblateAPIError as e:
             logger.error(f"source batch {idx}:{end} failed: {e}")
             raise
-        added += int(info.get("accepted", 0))
+        added += info.get("accepted", 0)
         idx = end
     logger.info(f"[{slug}] total source units added this run: {added}")
 
@@ -1114,9 +1119,9 @@ def _upload_translation_batch_with_retry(
     """
     for attempt in range(1, ZERO_ACCEPTED_RETRIES + 1):
         info = client.upload_file(slug, target_lang, csv_bytes, method="translate")
-        accepted = int(info.get("accepted", 0))
-        skipped = int(info.get("skipped", 0))
-        not_found = int(info.get("not_found", 0))
+        accepted = info.get("accepted", 0)
+        skipped = info.get("skipped", 0)
+        not_found = info.get("not_found", 0)
         if accepted > 0 or skipped > 0 or not_found > 0:
             return accepted
         if attempt < ZERO_ACCEPTED_RETRIES:
@@ -1251,8 +1256,7 @@ def _corpus_upload_mode_incremental(
     existing_contexts: set[str] = set()
     try:
         existing_contexts = {
-            str(u.get("context", ""))
-            for u in client.list_units(slug, corpus.source_lang)
+            u.get("context", "") for u in client.list_units(slug, corpus.source_lang)
         }
     except WeblateAPIError as e:
         logger.warning(
@@ -1498,7 +1502,7 @@ def _glossary_upload_mode_incremental(
     existing_contexts: set[str] = set()
     try:
         existing_contexts = {
-            str(u.get("context", "")) for u in client.list_units(slug, "en")
+            u.get("context", "") for u in client.list_units(slug, "en")
         }
     except WeblateAPIError as e:
         logger.warning(
@@ -1573,11 +1577,16 @@ def _mark_glossary_flags(
         row = index.get(unit.get("context", ""))
         if row is None or row.get("do_not_translate") != "true":
             continue
+        unit_id = unit.get("id")
+        if unit_id is None:
+            logger.warning(f"Skipping glossary unit without id: {unit.get('context')}")
+            skipped += 1
+            continue
         try:
-            client.patch_unit(int(unit["id"]), {"extra_flags": "read-only"})
+            client.patch_unit(unit_id, {"extra_flags": "read-only"})
             read_only_count += 1
         except WeblateAPIError as e:
-            logger.warning(f"patch_unit {unit.get('id')} (read-only): {e}")
+            logger.warning(f"patch_unit {unit_id} (read-only): {e}")
             skipped += 1
 
     # Pass 2: same_as_source → state=10 on TARGET-language units. Pass the
@@ -1589,17 +1598,22 @@ def _mark_glossary_flags(
         if row.get("do_not_translate") == "true":
             # Already read-only — state change is not meaningful.
             continue
+        unit_id = unit.get("id")
+        if unit_id is None:
+            logger.warning(f"Skipping glossary unit without id: {unit.get('context')}")
+            skipped += 1
+            continue
         target_value = unit.get("target", [])
         if not isinstance(target_value, list):
             target_value = [str(target_value)]
         try:
             client.patch_unit(
-                int(unit["id"]),
+                unit_id,
                 {"state": 10, "target": target_value},
             )
             needs_editing_count += 1
         except WeblateAPIError as e:
-            logger.warning(f"patch_unit {unit.get('id')} (needs-editing): {e}")
+            logger.warning(f"patch_unit {unit_id} (needs-editing): {e}")
             skipped += 1
 
     logger.info(

@@ -232,6 +232,8 @@ def _create_corpus_dir(base: Path) -> Path:
         "target_lang": "zh_Hans",
         "source_path": "/src/test.int",
         "target_path": "/tgt/test.chn",
+        "namespace": "test-extract-fixture",
+        "mod_title": "Test Extract Fixture",
         "entries": [
             {
                 "compound_key": "Rend X2AbilityTemplate::LocFriendlyName",
@@ -384,6 +386,8 @@ def _write_upload_corpus(corpus_dir: Path, stem: str) -> Path:
         "target_lang": "zh_Hans",
         "source_path": str(corpus_dir / f"{stem}.int"),
         "target_path": str(corpus_dir / f"{stem}.chn"),
+        "namespace": "base-xcom2-wotc",
+        "mod_title": "XCOM 2 War of the Chosen",
         "entries": [
             {
                 "compound_key": "UIUtilities_Text::m_strGenericOK",

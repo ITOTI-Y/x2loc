@@ -15,10 +15,6 @@ from src.core.mod_resolver import (
 )
 from src.models.mod import BASE_GAME_NAMESPACE, ModInfoSchema
 
-# ---------------------------------------------------------------------------
-# Fixture builders — produce fake mod trees under tmp_path
-# ---------------------------------------------------------------------------
-
 ModFactory = Callable[..., Path]
 
 
@@ -61,11 +57,6 @@ def make_mod(tmp_path: Path) -> ModFactory:
         return root
 
     return _make
-
-
-# ---------------------------------------------------------------------------
-# find_mod_root
-# ---------------------------------------------------------------------------
 
 
 class TestFindModRoot:
@@ -195,11 +186,6 @@ class TestReadXcommodTitle:
             read_xcommod_title(manifest)
 
 
-# ---------------------------------------------------------------------------
-# weblate_slug
-# ---------------------------------------------------------------------------
-
-
 class TestWeblateSlug:
     @pytest.mark.parametrize(
         "text,expected",
@@ -230,11 +216,6 @@ class TestWeblateSlug:
         # Length 5 truncates "long-title-name" to "long-" — result must not
         # end with a dangling hyphen.
         assert weblate_slug("long title name", max_len=5) == "long"
-
-
-# ---------------------------------------------------------------------------
-# resolve_mod — end-to-end
-# ---------------------------------------------------------------------------
 
 
 class TestResolveMod:
@@ -331,11 +312,6 @@ class TestResolveMod:
         """Pin the cap — changing it should be a deliberate decision
         backed by rescanning real mod depth distribution."""
         assert MAX_WALKUP_LEVELS == 5
-
-
-# ---------------------------------------------------------------------------
-# Base game special path
-# ---------------------------------------------------------------------------
 
 
 class TestBaseGame:

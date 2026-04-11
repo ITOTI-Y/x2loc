@@ -50,6 +50,7 @@ class BilingualAligner:
             effective_target_path = target.path
         else:
             target_index = {}
+            assert target_lang is not None  # guaranteed by the check above
             effective_target_lang = target_lang
             effective_target_path = None
 
@@ -96,7 +97,7 @@ class BilingualAligner:
 
         return BilingualCorpus(
             source_lang=source.lang,
-            target_lang=effective_target_lang,  # type: ignore
+            target_lang=effective_target_lang,
             source_path=source.path,
             target_path=effective_target_path,
             entries=entries,

@@ -69,6 +69,8 @@ def _corpus(
         source_path=Path("/src/test.int"),
         target_path=Path("/tgt/test.chn"),
         entries=entries,
+        namespace="test-extractor",
+        mod_title="Test Extractor Fixture",
     )
 
 
@@ -654,6 +656,8 @@ class TestEdgeCases:
             source_path=Path("/data/XComGame.int"),
             target_path=Path("/data/XComGame.chn"),
             entries=[entry],
+            namespace="test-extractor",
+            mod_title="Test Extractor Fixture",
         )
         glossary = extractor.extract([corpus])
 

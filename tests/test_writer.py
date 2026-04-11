@@ -52,6 +52,8 @@ def _corpus(
         entries=entries or [],
         source_only=source_only or [],
         target_only=target_only or [],
+        namespace="test-writer",
+        mod_title="Test Writer Fixture",
     )
 
 

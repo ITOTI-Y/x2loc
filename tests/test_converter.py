@@ -61,6 +61,8 @@ def _corpus(entries: list[BilingualEntry]) -> BilingualCorpus:
         source_path=Path("/src/test.int"),
         target_path=Path("/tgt/test.chn"),
         entries=entries,
+        namespace="test-converter",
+        mod_title="Test Converter Fixture",
     )
 
 
