@@ -4,6 +4,7 @@ from src.core._share import iter_compound_keys
 from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.entry import EntrySchema
 from src.models.file import LocalizationFile
+from src.models.mod import ModInfoSchema
 from src.models.section import SectionHeader
 
 
@@ -13,6 +14,7 @@ class BilingualAligner:
         source: LocalizationFile,
         target: LocalizationFile | None = None,
         target_lang: str | None = None,
+        mod_info: ModInfoSchema | None = None,
     ):
         """Align two parsed localization files by compound key.
 
@@ -22,6 +24,10 @@ class BilingualAligner:
                     (new localization with no existing target).
             target_lang: BCP-47 code for target language. Required when
                          target is None; otherwise inferred from target.lang.
+            mod_info: Namespace identity for the mod this pair belongs to.
+                Defaults to the base-game constant when not provided —
+                standalone test usage without a real mod can still produce
+                a well-formed corpus.
 
         Returns:
             BilingualCorpus with aligned entries and diff lists.
@@ -32,6 +38,9 @@ class BilingualAligner:
 
         if target is None and target_lang is None:
             raise ValueError("Either target file or target_lang must be provided")
+
+        if mod_info is None:
+            mod_info = ModInfoSchema.base_game()
 
         source_index = self._build_index(source)
 
@@ -93,6 +102,9 @@ class BilingualAligner:
             entries=entries,
             source_only=source_only_keys,
             target_only=target_only_keys,
+            namespace=mod_info.namespace,
+            steam_id=mod_info.steam_id,
+            mod_title=mod_info.mod_title,
         )
 
     def _build_index(

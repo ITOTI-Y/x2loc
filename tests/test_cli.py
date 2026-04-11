@@ -106,12 +106,13 @@ class TestAlignDirCommand:
                 "align-dir",
                 str(src_dir),
                 str(tgt_dir),
+                "--base-game",
                 "--output-dir",
                 str(out_dir),
             ],
         )
         assert result.exit_code == 0
-        assert (out_dir / "Test.json").exists()
+        assert (out_dir / "_base" / "Test.json").exists()
 
     def test_align_dir_with_target_lang(self, tmp_path: Path) -> None:
         src_dir = tmp_path / "INT"
@@ -128,6 +129,7 @@ class TestAlignDirCommand:
                 "align-dir",
                 str(src_dir),
                 str(tgt_dir),
+                "--base-game",
                 "--target-lang",
                 "zh_Hans",
                 "--output-dir",
@@ -135,7 +137,7 @@ class TestAlignDirCommand:
             ],
         )
         assert result.exit_code == 0
-        assert (out_dir / "Test.json").exists()
+        assert (out_dir / "_base" / "Test.json").exists()
 
     def test_align_dir_csv_format(self, tmp_path: Path) -> None:
         src_dir = tmp_path / "INT"
@@ -153,6 +155,7 @@ class TestAlignDirCommand:
                 "align-dir",
                 str(src_dir),
                 str(tgt_dir),
+                "--base-game",
                 "--output-dir",
                 str(out_dir),
                 "--format",
@@ -160,14 +163,61 @@ class TestAlignDirCommand:
             ],
         )
         assert result.exit_code == 0
-        assert (out_dir / "Test.csv").exists()
+        assert (out_dir / "_base" / "Test.csv").exists()
 
     def test_align_dir_nonexistent_source(self, tmp_path: Path) -> None:
         result = runner.invoke(
             app,
-            ["align-dir", str(tmp_path / "nope"), str(tmp_path)],
+            ["align-dir", str(tmp_path / "nope"), str(tmp_path), "--base-game"],
         )
         assert result.exit_code != 0
+
+    def test_align_dir_requires_sandbox_or_base_game(self, tmp_path: Path) -> None:
+        """Without --sandbox-root and without --base-game, exit non-zero."""
+        src_dir = tmp_path / "INT"
+        tgt_dir = tmp_path / "CHN"
+        src_dir.mkdir()
+        tgt_dir.mkdir()
+        _write_loc_file(src_dir / "Test.int", '[S]\nK="Hello"')
+
+        result = runner.invoke(
+            app,
+            ["align-dir", str(src_dir), str(tgt_dir)],
+        )
+        assert result.exit_code != 0
+
+    def test_align_dir_with_sandbox_and_mod_resolver(self, tmp_path: Path) -> None:
+        """End-to-end: align-dir resolves the mod namespace from .XComMod
+        and writes the corpus under output/{namespace}/."""
+        mod_root = tmp_path / "1122837889"
+        src_dir = mod_root / "Localization"
+        tgt_dir = tmp_path / "translations"
+        out_dir = tmp_path / "out"
+        src_dir.mkdir(parents=True)
+        tgt_dir.mkdir()
+
+        (mod_root / "MoreTraits.XComMod").write_text(
+            "[mod]\npublishedFileId=1122837889\nTitle=More Traits\n",
+            encoding="utf-8",
+        )
+        _write_loc_file(src_dir / "Test.int", '[S]\nK="Hello"')
+        _write_loc_file(tgt_dir / "Test.chn", '[S]\nK="你好"')
+
+        result = runner.invoke(
+            app,
+            [
+                "align-dir",
+                str(src_dir),
+                str(tgt_dir),
+                "--sandbox-root",
+                str(tmp_path),
+                "--output-dir",
+                str(out_dir),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        expected = out_dir / "1122837889-more-traits" / "Test.json"
+        assert expected.exists(), f"{expected} not found"
 
 
 def _create_corpus_dir(base: Path) -> Path:

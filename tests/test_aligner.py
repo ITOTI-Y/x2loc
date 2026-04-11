@@ -89,9 +89,7 @@ class TestBuildIndex:
         assert entry.value == "OK"
         assert header.raw == "UIUtilities_Text"
 
-    def test_struct_append_key_ordinal(
-        self, aligner: BilingualAligner
-    ) -> None:
+    def test_struct_append_key_ordinal(self, aligner: BilingualAligner) -> None:
         """Struct append entries (`+Key=(...)`) retain the `#N` ordinal suffix
         because they represent genuine array-of-struct appends."""
         section = _make_section(
@@ -407,6 +405,42 @@ class TestAlign:
         assert corpus.source_only == []
         assert corpus.target_only == []
 
+    def test_mod_info_flows_into_corpus(self, aligner: BilingualAligner) -> None:
+        """align(mod_info=...) should populate namespace/steam_id/mod_title."""
+        from src.models.mod import ModInfoSchema
+
+        src = _make_file([_make_section("S", [_make_entry("K", "hello")])])
+        tgt = _make_file(
+            [_make_section("S", [_make_entry("K", "你好")])],
+            lang="zh_Hans",
+            path="/tmp/test.chn",
+        )
+        mod = ModInfoSchema(
+            namespace="1122837889-more-traits",
+            steam_id="1122837889",
+            mod_title="More Traits",
+        )
+        corpus = aligner.align(src, tgt, mod_info=mod)
+
+        assert corpus.namespace == "1122837889-more-traits"
+        assert corpus.steam_id == "1122837889"
+        assert corpus.mod_title == "More Traits"
+
+    def test_mod_info_default_is_base_game(self, aligner: BilingualAligner) -> None:
+        """Without mod_info the corpus defaults to the base-game namespace."""
+        from src.models.mod import BASE_GAME_NAMESPACE
+
+        src = _make_file([_make_section("S", [_make_entry("K", "hello")])])
+        tgt = _make_file(
+            [_make_section("S", [_make_entry("K", "你好")])],
+            lang="zh_Hans",
+            path="/tmp/test.chn",
+        )
+        corpus = aligner.align(src, tgt)
+
+        assert corpus.namespace == BASE_GAME_NAMESPACE
+        assert corpus.steam_id is None
+
 
 class TestAppendAlignment:
     """Tests for true struct-append (`+Key=(...)`) alignment.
@@ -416,9 +450,7 @@ class TestAppendAlignment:
     non-append entries.
     """
 
-    def test_equal_struct_append_count(
-        self, aligner: BilingualAligner
-    ) -> None:
+    def test_equal_struct_append_count(self, aligner: BilingualAligner) -> None:
         src = _make_file(
             [
                 _make_section(
@@ -449,9 +481,7 @@ class TestAppendAlignment:
         assert corpus.source_only == []
         assert corpus.target_only == []
 
-    def test_source_more_struct_append(
-        self, aligner: BilingualAligner
-    ) -> None:
+    def test_source_more_struct_append(self, aligner: BilingualAligner) -> None:
         src = _make_file(
             [
                 _make_section(
@@ -483,9 +513,7 @@ class TestAppendAlignment:
         assert corpus.source_only == ["M::D#2"]
         assert corpus.target_only == []
 
-    def test_target_more_struct_append(
-        self, aligner: BilingualAligner
-    ) -> None:
+    def test_target_more_struct_append(self, aligner: BilingualAligner) -> None:
         src = _make_file(
             [
                 _make_section("M", [_make_struct_entry("D", "s0")]),

@@ -145,9 +145,7 @@ class WeblateClient:
         endpoint disappears from the project's component list). Pass
         `wait=False` to skip polling.
         """
-        r = self._request(
-            "DELETE", f"components/{self.config.project_slug}/{slug}/"
-        )
+        r = self._request("DELETE", f"components/{self.config.project_slug}/{slug}/")
         if r.status_code not in (200, 202, 204, 404):
             self._raise_for_status(r)
         if not wait:
@@ -161,13 +159,9 @@ class WeblateClient:
             if check.status_code == 404:
                 return
             time.sleep(1.0)
-        logger.warning(
-            f"Component {slug} still present after 30s delete wait"
-        )
+        logger.warning(f"Component {slug} still present after 30s delete wait")
 
-    def patch_component(
-        self, slug: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def patch_component(self, slug: str, data: dict[str, Any]) -> dict[str, Any]:
         """PATCH an existing component. Used for fields Weblate silently
         drops on the create endpoint — most notably `license`, which must be
         set after creation or the project emits a "missing license" warning.
@@ -199,9 +193,7 @@ class WeblateClient:
         if r.status_code == 400:
             body_lower = r.text.lower()
             if "already exists" in body_lower or "could not add" in body_lower:
-                logger.debug(
-                    f"Translation {lang} for {component_slug} already exists"
-                )
+                logger.debug(f"Translation {lang} for {component_slug} already exists")
                 return
         self._raise_for_status(r)
 

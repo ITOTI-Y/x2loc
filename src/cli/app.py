@@ -17,11 +17,13 @@ from src.core.aligner import BilingualAligner
 from src.core.converter import TRANSLATABLE_STRUCT_FIELDS, CorpusConverter
 from src.core.extractor import TermExtractor
 from src.core.loc_writer import LocFileWriter
+from src.core.mod_resolver import ModResolveError, resolve_mod
 from src.core.parser import LocFileParser
 from src.export.writer import CorpusWriter, GlossaryWriter
 from src.models.corpus import BilingualCorpus
 from src.models.file import LocalizationFile
 from src.models.glossary import Glossary
+from src.models.mod import ModInfoSchema
 from src.models.weblate import WeblateConfigSchema
 from src.services.weblate import WeblateAPIError, WeblateClient
 
@@ -35,6 +37,11 @@ UPLOAD_CSV_COLUMNS: Final[list[str]] = [
     "target",
     "developer_comments",
 ]
+
+# Base-game corpus JSON is written under this subdirectory so it never
+# collides with a mod namespace. The leading underscore makes it visually
+# distinct in directory listings (base game is special, not a mod).
+BASE_GAME_OUTPUT_DIRNAME: Final[str] = "_base"
 
 
 class OutputFormat(StrEnum):
@@ -143,6 +150,41 @@ def align(
 def align_dir(
     source_dir: Annotated[Path, typer.Argument(help="Source language directory.")],
     target_dir: Annotated[Path, typer.Argument(help="Target language directory.")],
+    sandbox_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--sandbox-root",
+            help=(
+                "Absolute root of the current job's sandbox — walk-up when "
+                "resolving the .XComMod manifest will not cross this path. "
+                "Required for mod uploads; for base game use --base-game "
+                "instead."
+            ),
+        ),
+    ] = None,
+    steam_id: Annotated[
+        str | None,
+        typer.Option(
+            "--steam-id",
+            help=(
+                "Explicit Steam Workshop ID. Overrides filesystem-based "
+                "detection. Use when the mod was extracted from a zip whose "
+                "directory name isn't the Steam ID and the .XComMod carries "
+                "`publishedFileId=0`."
+            ),
+        ),
+    ] = None,
+    base_game: Annotated[
+        bool,
+        typer.Option(
+            "--base-game",
+            help=(
+                "Treat source_dir as the official XCOM 2 base game files "
+                "(no .XComMod, fixed namespace). Output is written to "
+                "output/corpus/_base/ regardless of --output-dir subpath."
+            ),
+        ),
+    ] = False,
     target_lang: Annotated[
         str | None,
         typer.Option(
@@ -153,7 +195,7 @@ def align_dir(
     ] = None,
     output_dir: Annotated[
         Path | None,
-        typer.Option("--output-dir", "-o", help="Output directory."),
+        typer.Option("--output-dir", "-o", help="Output directory root."),
     ] = None,
     output_format: Annotated[
         OutputFormat,
@@ -165,13 +207,25 @@ def align_dir(
         logger.error(f"Source directory does not exist: {source_dir}")
         raise typer.Exit(1)
 
+    mod_info = _resolve_mod_info_for_align(
+        source_dir=source_dir,
+        sandbox_root=sandbox_root,
+        steam_id_override=steam_id,
+        base_game=base_game,
+    )
+
     target_ext = _resolve_target_ext(target_lang, target_dir)
     effective_target_lang = target_lang or LANG_EXT_MAP.get(target_ext, "")
     if not effective_target_lang:
         logger.error(f"Cannot determine target language from extension: {target_ext}")
         raise typer.Exit(1)
 
-    out = output_dir or Path("output")
+    # Namespaced output: output/corpus/{namespace}/*.json (or _base/ for base
+    # game). Preserves the mod identity alongside its corpus data so
+    # downstream upload/download know which Weblate components to target.
+    namespace_dirname = BASE_GAME_OUTPUT_DIRNAME if base_game else mod_info.namespace
+    out_root = output_dir or Path("output") / "corpus"
+    out = out_root / namespace_dirname
     out.mkdir(parents=True, exist_ok=True)
 
     source_files = sorted(
@@ -194,10 +248,14 @@ def align_dir(
 
         if tgt_path.exists():
             tgt_file = parser.parse(tgt_path)
-            corpus = aligner.align(src_file, tgt_file)
+            corpus = aligner.align(src_file, tgt_file, mod_info=mod_info)
             matched += 1
         else:
-            corpus = aligner.align(src_file, target_lang=effective_target_lang)
+            corpus = aligner.align(
+                src_file,
+                target_lang=effective_target_lang,
+                mod_info=mod_info,
+            )
             source_only_count += 1
             logger.warning(
                 f"Target not found: {tgt_path.name}, producing source-only corpus"
@@ -211,8 +269,43 @@ def align_dir(
             writer.write_json(corpus, out_path)
 
     logger.info(
-        f"Done: matched={matched}, source_only={source_only_count}, skipped={skipped}"
+        f"Done: namespace={mod_info.namespace}, "
+        f"matched={matched}, source_only={source_only_count}, skipped={skipped}"
     )
+
+
+def _resolve_mod_info_for_align(
+    source_dir: Path,
+    sandbox_root: Path | None,
+    steam_id_override: str | None,
+    base_game: bool,
+) -> ModInfoSchema:
+    """Resolve mod identity for `align-dir`, honoring --base-game.
+
+    Base game has no manifest and is always tagged with the fixed
+    `base-xcom2-wotc` namespace; --steam-id and --sandbox-root are
+    ignored in that branch. Everything else runs through the sandbox-
+    bounded walk-up resolver.
+    """
+    if base_game:
+        if steam_id_override:
+            logger.warning("--steam-id is ignored when --base-game is set")
+        return ModInfoSchema.base_game()
+
+    if sandbox_root is None:
+        logger.error(
+            "--sandbox-root is required (or pass --base-game for the "
+            "official XCOM 2 game files)"
+        )
+        raise typer.Exit(1)
+
+    try:
+        return resolve_mod(
+            source_dir, sandbox_root, steam_id_override=steam_id_override
+        )
+    except ModResolveError as e:
+        logger.error(f"Failed to resolve mod identity: {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -565,9 +658,7 @@ def _make_csv_writer(buf: io.StringIO) -> csv.DictWriter:
     garbled. Forcing `QUOTE_ALL` eliminates the ambiguity — every field is
     wrapped in `"..."`, so the sniffer unambiguously sees comma.
     """
-    return csv.DictWriter(
-        buf, fieldnames=UPLOAD_CSV_COLUMNS, quoting=csv.QUOTE_ALL
-    )
+    return csv.DictWriter(buf, fieldnames=UPLOAD_CSV_COLUMNS, quoting=csv.QUOTE_ALL)
 
 
 def _units_to_source_csv_bytes(
