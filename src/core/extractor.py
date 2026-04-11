@@ -1,6 +1,7 @@
 import re
 from typing import Final
 
+from src.core.converter import loc_unescape
 from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.glossary import Glossary, GlossaryTerm, TermContext
 
@@ -93,8 +94,16 @@ class TermExtractor:
                     continue
 
                 category, priority = result
-                source_text = entry.source.value
-                target_text = entry.target.value if entry.target is not None else ""
+                # Match the CorpusConverter.to_units boundary: `entry.value`
+                # keeps parser-native `\"` escapes, but the glossary is a
+                # Weblate-facing artifact and translators should see the
+                # clean human-readable form. Apply loc_unescape on both
+                # sides so a corpus-side `Hello "world"` and a
+                # glossary-side `Hello "world"` agree as the same source.
+                source_text = loc_unescape(entry.source.value)
+                target_text = (
+                    loc_unescape(entry.target.value) if entry.target is not None else ""
+                )
                 same = entry.target is not None and source_text == target_text
 
                 ctx = TermContext(

@@ -232,6 +232,27 @@ class LocFileParser:
             and raw_value_stripped.endswith('"')
         ):
             value = raw_value_stripped[1:-1]
+        elif raw_value_stripped.startswith('"'):
+            # Unclosed string literal: author forgot the closing `"`.
+            # Observed in real mods (e.g. RealModFiles/2867288932 T2/T3/T4
+            # weapon templates with `AbilityDescName="..."` missing the
+            # trailing quote). Strip the leading `"` alone so downstream
+            # Weblate upload and glossary extraction see the intended text
+            # rather than leaking the stray quote into translator views.
+            logger.warning(
+                f"Unclosed string literal at line {line_number}: "
+                f"{raw_value_stripped[:80]}"
+            )
+            value = raw_value_stripped[1:]
+        elif raw_value_stripped.endswith('"'):
+            # Mirror case: trailing `"` without an opening one. Less
+            # common but still observed (mods with typos like
+            # `Key=value"`). Strip the trailing orphan.
+            logger.warning(
+                f"Unopened string literal at line {line_number}: "
+                f"{raw_value_stripped[:80]}"
+            )
+            value = raw_value_stripped[:-1]
         else:
             value = raw_value_stripped
 

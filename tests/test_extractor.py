@@ -666,3 +666,52 @@ class TestEdgeCases:
         assert term.contexts[0].source_path == Path("/data/XComGame.int")
         assert term.contexts[0].compound_key == "key"
         assert term.contexts[0].section_raw == "Aid X2AbilityTemplate"
+
+
+class TestExtractorQuoteUnescape:
+    """Parity with CorpusConverter: glossary terms must be unescaped the
+    same way corpus units are before the Weblate boundary, or translators
+    would see `\\"Betos\\"` in one view and `"Betos"` in another for the
+    same source string."""
+
+    def test_source_backslash_quote_unescaped(self, extractor: TermExtractor) -> None:
+        hdr = _header(
+            "UFOP_POI_BETOS X2EncyclopediaTemplate",
+            class_name="X2EncyclopediaTemplate",
+            fmt=SectionHeaderFormat.OBJECT_CLASS,
+        )
+        # Parser-native form: value contains literal `\"` (the escape
+        # for a dialogue quote inside the quoted string literal).
+        src = _entry("ListTitle", '\\"Betos\\"')
+        tgt = _entry("ListTitle", '\\"贝托斯\\"')
+        corpus = _corpus([_bilingual("key", src, tgt, hdr)])
+
+        glossary = extractor.extract([corpus])
+
+        term = next(t for t in glossary.terms if "Betos" in t.source)
+        assert term.source == '"Betos"'
+        assert term.target == '"贝托斯"'
+        # After unescape, identical source/target remain non-same
+        assert term.same_as_source is False
+
+    def test_same_as_source_detection_after_unescape(
+        self, extractor: TermExtractor
+    ) -> None:
+        """same_as_source compares the UNESCAPED texts — so `\\"X\\"` in
+        both sides collapses to `"X"` and is correctly flagged.
+        """
+        hdr = _header(
+            "POI X2EncyclopediaTemplate",
+            class_name="X2EncyclopediaTemplate",
+            fmt=SectionHeaderFormat.OBJECT_CLASS,
+        )
+        src = _entry("ListTitle", '\\"Geist\\"')
+        tgt = _entry("ListTitle", '\\"Geist\\"')
+        corpus = _corpus([_bilingual("key", src, tgt, hdr)])
+
+        glossary = extractor.extract([corpus])
+
+        term = next(t for t in glossary.terms if "Geist" in t.source)
+        assert term.source == '"Geist"'
+        assert term.target == '"Geist"'
+        assert term.same_as_source is True

@@ -351,6 +351,29 @@ class TestParseEntry:
         e = parser._parse_entry(("", "key", '""'), 1, [])
         assert e.value == ""
 
+    def test_unclosed_string_literal_strips_leading_quote(self) -> None:
+        """Malformed .int files with missing closing `"` — observed in
+        real mods (e.g. RealModFiles/2867288932 T2/T3/T4 weapon templates).
+        The parser must strip the stray leading `"` so it doesn't leak
+        into Weblate uploads or glossary exports.
+        """
+        e = parser._parse_entry(("", "AbilityDescName", "\"Bala'Kal Cannon"), 1, [])
+        assert e.value == "Bala'Kal Cannon"
+        assert e.raw_value == "\"Bala'Kal Cannon"
+
+    def test_unopened_string_literal_strips_trailing_quote(self) -> None:
+        """Mirror case: trailing `"` without an opening one. Strip the
+        orphan rather than letting it pollute downstream views.
+        """
+        e = parser._parse_entry(("", "Key", 'Psionic Amplifiers"'), 1, [])
+        assert e.value == "Psionic Amplifiers"
+        assert e.raw_value == 'Psionic Amplifiers"'
+
+    def test_lone_quote_strips_to_empty(self) -> None:
+        """Single `"` (author typo): strip to empty string."""
+        e = parser._parse_entry(("", "Key", '"'), 1, [])
+        assert e.value == ""
+
 
 class TestParseStructFields:
     def test_mixed_fields(self) -> None:
