@@ -852,7 +852,14 @@ def _corpus_upload_mode_create(
     license: str,
     license_url: str,
 ) -> None:
-    """Mode 1 — first-time upload: create component + bulk load."""
+    """Mode 1 — first-time upload: create component + bulk load.
+
+    `manage_units=True` + `edit_template=True` are required so later
+    Mode 2 incremental updates can POST `create_unit` to add new source
+    strings. Verified against hosted.weblate.org 2026-04: without both
+    flags, create_unit on a non-glossary bilingual CSV component returns
+    HTTP 403 "Adding strings is disabled in the component configuration".
+    """
     source_csv = _units_to_source_csv_bytes(units)
     translated_csv = _units_to_translation_csv_bytes(units)
 
@@ -864,6 +871,8 @@ def _corpus_upload_mode_create(
         source_language=corpus.source_lang,
         license=license,
         license_url=license_url,
+        manage_units=True,
+        edit_template=True,
     )
     client.create_translation(slug, target_lang)
 
@@ -914,12 +923,17 @@ def _corpus_upload_mode_incremental(
 
     if new_units:
         added = 0
-        for context, source, target, _note in new_units:
+        for context, source, _target, _note in new_units:
+            # Non-glossary bilingual CSV expects monolingual-template shape:
+            # `key` = compound_key (used as both the internal id and the
+            # context), `value` = source string wrapped in a list (Weblate
+            # treats source/target as plural-form list by default). The
+            # target for the new unit arrives empty on zh_Hans side and is
+            # filled by the subsequent upload_file(method=translate) call.
+            # Verified against hosted.weblate.org 2026-04.
             body: dict[str, Any] = {
-                "source": source,
-                "target": target or source,
-                "context": context,
-                "state": 0,  # 0 = empty / untranslated
+                "key": context,
+                "value": [source],
             }
             try:
                 client.create_unit(slug, corpus.source_lang, body)
@@ -1075,7 +1089,14 @@ def _glossary_upload_mode_create(
     license: str,
     license_url: str,
 ) -> None:
-    """Mode 1 — component missing: bulk-create via CSV docfile."""
+    """Mode 1 — component missing: bulk-create via CSV docfile.
+
+    `edit_template=True` is required so Mode 2 can later POST new terms
+    via `create_unit`; glossary already defaults to `manage_units=True`
+    but `edit_template` stays False unless we opt in. Verified against
+    hosted.weblate.org 2026-04: without edit_template, create_unit on a
+    glossary component also returns the 403 "Adding strings is disabled".
+    """
     source_csv, translation_csv = _glossary_rows_to_csvs(rows)
 
     logger.info(f"Creating glossary component '{slug}' ({len(rows)} rows)")
@@ -1086,6 +1107,7 @@ def _glossary_upload_mode_create(
         is_glossary=True,
         license=license,
         license_url=license_url,
+        edit_template=True,
     )
     client.create_translation(slug, target_lang)
     if translation_csv.count(b"\n") > 1:  # header + at least one row
@@ -1100,11 +1122,21 @@ def _glossary_upload_mode_incremental(
 ) -> None:
     """Mode 2 — component exists: additive unit POSTs, no destructive upload.
 
-    Mod updates and base-game term additions land here. We only POST
-    contexts that Weblate doesn't already know about; existing glossary
+    Mod updates and base-game term additions land here. We POST only
+    contexts that Weblate doesn't know about yet; existing glossary
     terms (and any translator edits to them) are left untouched.
-    `_mark_glossary_flags` runs afterwards to re-apply `do_not_translate`
-    / `same_as_source` state — cheap idempotent PATCHes.
+
+    Body shape note: glossary components in Weblate treat their CSV as
+    a monolingual template — `create_unit` requires `{"key": context,
+    "value": [source]}`, same as non-glossary bilingual CSV, **not** the
+    glossary-flavored `{"source", "target", "context"}` shape that some
+    older docs suggest. Target translations for freshly-POSTed units
+    arrive as `[""]` and are filled by the subsequent
+    `upload_file(method=translate)` call, which is additive and safe.
+
+    `_mark_glossary_flags` runs afterwards to re-apply
+    `do_not_translate` / `same_as_source` state — cheap idempotent
+    PATCHes.
     """
     client.create_translation(slug, target_lang)
 
@@ -1123,7 +1155,6 @@ def _glossary_upload_mode_incremental(
     skipped = 0
     for row in rows:
         src = row.get("source") or ""
-        tgt = row.get("target") or ""
         cat = row.get("category") or "term"
         if not src:
             continue
@@ -1132,10 +1163,8 @@ def _glossary_upload_mode_incremental(
             skipped += 1
             continue
         body: dict[str, Any] = {
-            "source": src,
-            "target": tgt or src,
-            "context": context,
-            "state": 20 if tgt else 0,
+            "key": context,
+            "value": [src],
         }
         try:
             client.create_unit(slug, "en", body)
@@ -1144,6 +1173,14 @@ def _glossary_upload_mode_incremental(
             logger.warning(f"glossary create_unit {context!r} failed: {e}")
 
     logger.info(f"Glossary '{slug}': added={added}, existing={skipped}")
+
+    # Push target-language translations. `method=translate` fills empty
+    # slots (the newly-POSTed units) without overwriting existing
+    # translator edits. This is the only path that actually writes the
+    # target text for units we just created via create_unit.
+    _, translation_csv = _glossary_rows_to_csvs(rows)
+    if translation_csv.count(b"\n") > 1:
+        client.upload_file(slug, target_lang, translation_csv, method="translate")
 
 
 def _mark_glossary_flags(

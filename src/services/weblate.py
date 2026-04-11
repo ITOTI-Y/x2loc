@@ -90,16 +90,28 @@ class WeblateClient:
         is_glossary: bool = False,
         license: str = "",
         license_url: str = "",
+        manage_units: bool = False,
+        edit_template: bool = False,
     ) -> dict[str, Any]:
         """Create a component by uploading a CSV docfile.
 
         Internally polls the resulting task URL until the component is ready
         or TASK_POLL_TIMEOUT elapses.
 
-        When `license` (an SPDX identifier like "CC-BY-4.0") is provided,
-        the component is PATCHed with the license after creation — Weblate's
-        create endpoint silently drops license fields on POST, so a separate
-        PATCH is required to actually suppress the "missing license" warning.
+        Post-create PATCHes (Weblate drops these fields silently on POST):
+            - `license` / `license_url` — SPDX identifier + canonical URL
+            - `manage_units` — required for `create_unit` on non-glossary
+              bilingual components; glossary components default to True
+              automatically
+            - `edit_template` — in addition to manage_units, bilingual CSV
+              components need this to accept `create_unit` calls that add
+              new source strings to the en.csv template
+
+        The pair (manage_units=True, edit_template=True) was identified
+        empirically on hosted.weblate.org 2026-04: without edit_template,
+        create_unit returns HTTP 403 "Adding strings is disabled in the
+        component configuration" even when manage_units is True. Glossary
+        components do not need these PATCHes (Weblate sets them implicitly).
         """
         files = {"docfile": (f"{slug}.csv", csv_bytes, "text/csv")}
         data = {
@@ -123,17 +135,23 @@ class WeblateClient:
         if task_url:
             self._wait_for_task(task_url)
 
-        # License must be set via PATCH — POST drops it silently.
+        # Fields POST silently drops — patch them back on in one go.
+        patch_data: dict[str, Any] = {}
         if license:
-            patch_data: dict[str, Any] = {"license": license}
+            patch_data["license"] = license
             if license_url:
                 patch_data["license_url"] = license_url
+        if manage_units:
+            patch_data["manage_units"] = True
+        if edit_template:
+            patch_data["edit_template"] = True
+        if patch_data:
             try:
                 body = self.patch_component(slug, patch_data)
             except WeblateAPIError as e:
                 logger.warning(
-                    f"Failed to set license on {slug}: {e}; "
-                    "component was created but warning may persist"
+                    f"Failed post-create PATCH on {slug}: {e}; "
+                    f"fields attempted: {sorted(patch_data)}"
                 )
         return body
 

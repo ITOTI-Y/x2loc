@@ -547,14 +547,15 @@ class TestUploadCommand:
         assert result.exit_code == 0, result.stdout
         instance.create_component.assert_not_called()
         instance.create_unit.assert_called_once()
-        # Inspect the create_unit call shape.
+        # Inspect the create_unit call shape — for non-glossary bilingual
+        # CSV components Weblate expects monolingual `key` + `value` shape
+        # (value as a list), not glossary-style source/target.
         call = instance.create_unit.call_args
         assert call.args[0] == "base-xcom2-wotc-XComGame"
         assert call.args[1] == "en"  # source_lang from fixture
         body = call.args[2]
-        assert body["context"] == "UIUtilities_Text::m_strGenericOK"
-        assert body["source"] == "OK"
-        assert body["state"] == 0
+        assert body["key"] == "UIUtilities_Text::m_strGenericOK"
+        assert body["value"] == ["OK"]
 
     @patch("src.cli.app.WeblateClient")
     def test_upload_glossary_creates_new_component_mode1(
@@ -683,9 +684,10 @@ class TestUploadCommand:
         ]
         assert len(glossary_unit_calls) == 1
         body = glossary_unit_calls[0].args[2]
-        assert body["context"] == "NewTerm::ability"
-        assert body["source"] == "NewTerm"
-        assert body["target"] == "新术语"
+        # Glossary on hosted.weblate.org (as of 2026-04) uses the
+        # monolingual-template body shape, same as non-glossary bilingual.
+        assert body["key"] == "NewTerm::ability"
+        assert body["value"] == ["NewTerm"]
 
     @patch("src.cli.app.WeblateClient")
     def test_upload_creates_project_when_missing(
