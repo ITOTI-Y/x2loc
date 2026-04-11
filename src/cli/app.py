@@ -1387,21 +1387,20 @@ def _upload_glossary(
     else:
         _glossary_upload_mode_incremental(client, slug, rows, target_lang)
 
-    # Base-game glossary is a read-only reference. Apply the component
-    # flag and skip the per-unit flag-marking loop: component-level
-    # read-only already blocks edits, and patching 5K+ units one at a
-    # time reliably trips hosted.weblate.org's 30s per-request timeout.
-    if namespace == BASE_GAME_NAMESPACE:
-        _apply_base_game_read_only(client, slug, namespace)
-        return
-
-    # Source language is usually "en" but we read it from the component
-    # metadata after creation/update because `extra_flags` can only be set
-    # on source-language units.
-    component = client.get_component(slug) or {}
-    source_lang_field = component.get("source_language") or {}
-    source_lang = source_lang_field.get("code", "en")
-    _mark_glossary_flags(client, slug, source_lang, target_lang, rows)
+    # NOTE: Glossary components must NEVER be marked `read-only`, at any
+    # level (component-level `check_flags` OR unit-level `extra_flags`).
+    # Weblate treats `read-only` source strings as "don't translate" and
+    # auto-fills their target with the source text, which degrades a
+    # glossary term's mapping from `Hello -> 你好` to `Hello -> Hello`.
+    # That defeats the whole point of maintaining a glossary. Even the
+    # base-game glossary — which is conceptually a read-only reference —
+    # must stay editable at the Weblate data-model level so translators
+    # see the real target translations as lookup hints during other
+    # translation work. If the base game needs protection from edits,
+    # the enforcement must happen outside Weblate (source control,
+    # project permissions, or a review workflow), NOT via read-only
+    # flags on the glossary component.
+    _mark_glossary_flags(client, slug, target_lang, rows)
 
 
 def _load_glossary_rows(glossary_path: Path) -> list[dict[str, str]]:
@@ -1564,22 +1563,35 @@ def _glossary_upload_mode_incremental(
 def _mark_glossary_flags(
     client: WeblateClient,
     slug: str,
-    source_lang: str,
     target_lang: str,
     rows: list[dict[str, str]],
 ) -> None:
-    """Apply P2 glossary flags to Weblate units.
+    """Apply per-term state flags to Weblate glossary units.
 
-    Weblate has two distinct concerns that must target different languages:
-      1. `extra_flags="read-only"` — a SOURCE-STRING property; can only be
-         PATCHed on units in the component's source language (e.g. `en`).
-         Trying to set it on a target-language unit raises HTTP 403
-         "Source strings properties can be set only on source strings".
-      2. `state=10` (needs-editing) — a translation-unit property; must be
-         PATCHed on TARGET-language units. Weblate re-validates the target
-         on PATCH, so for plural units we must also pass the existing
-         target back in list form to avoid a 400 "Number of plurals does
-         not match" error.
+    Glossary-specific NEVER-read-only rule
+    --------------------------------------
+    Historically this function also PATCHed `extra_flags="read-only"` on
+    source-language units for rows flagged `do_not_translate=true`. That
+    path is removed. Reason: Weblate treats *any* read-only source
+    string as "don't translate" and auto-fills the target with the
+    source text. For a **glossary** this degrades `Hello -> 你好`
+    mappings into `Hello -> Hello`, which defeats the whole point of
+    the glossary — translators rely on it to look up the real target
+    translations, not to be told "don't bother translating this". The
+    same rule applies at the component level: never set
+    `check_flags='read-only'` on an `is_glossary=True` component.
+
+    What this function still does
+    -----------------------------
+    Pass 2 only — for rows flagged `same_as_source=true` (terms whose
+    target is legitimately identical to the source, e.g. proper nouns
+    or acronyms), PATCH the TARGET-language unit with `state=10`
+    (needs-editing). Weblate re-validates the target on PATCH, so for
+    plural units we must pass the existing target back in list form to
+    avoid a 400 "Number of plurals does not match" error. This keeps
+    the glossary entries visible and editable while signaling to
+    translators that they should confirm the same-as-source state is
+    intentional.
     """
     index: dict[str, dict[str, str]] = {}
     for row in rows:
@@ -1587,35 +1599,14 @@ def _mark_glossary_flags(
         cat = row.get("category") or "term"
         index[f"{src}::{cat}"] = row
 
-    read_only_count = 0
     needs_editing_count = 0
     skipped = 0
 
-    # Pass 1: do_not_translate → extra_flags on SOURCE-language units
-    for unit in client.list_units(slug, source_lang):
-        row = index.get(unit.get("context", ""))
-        if row is None or row.get("do_not_translate") != "true":
-            continue
-        unit_id = unit.get("id")
-        if unit_id is None:
-            logger.warning(f"Skipping glossary unit without id: {unit.get('context')}")
-            skipped += 1
-            continue
-        try:
-            client.patch_unit(unit_id, {"extra_flags": "read-only"})
-            read_only_count += 1
-        except WeblateAPIError as e:
-            logger.warning(f"patch_unit {unit_id} (read-only): {e}")
-            skipped += 1
-
-    # Pass 2: same_as_source → state=10 on TARGET-language units. Pass the
+    # same_as_source → state=10 on TARGET-language units. Pass the
     # existing target list-form back so Weblate's plural re-validation passes.
     for unit in client.list_units(slug, target_lang):
         row = index.get(unit.get("context", ""))
         if row is None or row.get("same_as_source") != "true":
-            continue
-        if row.get("do_not_translate") == "true":
-            # Already read-only — state change is not meaningful.
             continue
         unit_id = unit.get("id")
         if unit_id is None:
@@ -1636,8 +1627,8 @@ def _mark_glossary_flags(
             skipped += 1
 
     logger.info(
-        f"Glossary flags applied: read-only={read_only_count}, "
-        f"needs-editing={needs_editing_count}, skipped={skipped}"
+        f"Glossary flags applied: needs-editing={needs_editing_count}, "
+        f"skipped={skipped}"
     )
 
 

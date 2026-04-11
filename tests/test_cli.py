@@ -579,12 +579,12 @@ class TestUploadCommand:
         instance = mock_weblate.return_value.__enter__.return_value
         instance.get_project.return_value = {"slug": "test"}
         # First get_component call (corpus) → None, Mode 1 create. Second
-        # (glossary) → None too. Third call is in _mark_glossary_flags
-        # which fetches source_language metadata.
+        # (glossary) → None too, Mode 1 create. No third metadata lookup
+        # now that _mark_glossary_flags is target-only (no source-lang
+        # extra_flags patching).
         instance.get_component.side_effect = [
             None,  # corpus component lookup
             None,  # glossary component lookup
-            {"source_language": {"code": "en"}},  # metadata after create
         ]
         instance.list_units.return_value = iter([])
 
@@ -642,14 +642,12 @@ class TestUploadCommand:
                 "file_format": "csv",
                 "source_language": {"code": "en"},
             },
-            # _mark_glossary_flags re-fetches metadata
-            {"source_language": {"code": "en"}},
         ]
-        # Corpus goes through Mode 1 (no list_units). Glossary Mode 2 and
-        # _mark_glossary_flags each call list_units once per language pass.
+        # Corpus goes through Mode 1 (no list_units). Glossary Mode 2 calls
+        # list_units for its context diff; _mark_glossary_flags additionally
+        # calls list_units once for the target-lang same_as_source pass.
         instance.list_units.side_effect = [
             iter([{"context": "OldTerm::ability"}]),  # glossary Mode 2 diff
-            iter([]),  # _mark_glossary_flags source-lang pass
             iter([]),  # _mark_glossary_flags target-lang pass
         ]
 
