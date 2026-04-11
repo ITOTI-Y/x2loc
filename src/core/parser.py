@@ -264,6 +264,27 @@ class LocFileParser:
                     f"{raw_value_stripped[:80]}"
                 )
                 value = value[:-1]
+
+            # Middle stray-quote upgrade (Bug 4):
+            #   LocLongDescription="A ... single action." 3 turn cooldown."
+            # The middle `"` after "single action." is an UNescaped
+            # literal quote that UE3's parser would treat as a premature
+            # string terminator, truncating "3 turn cooldown." in-game.
+            # Our parser reads the full text permissively (because strict
+            # outer-strip takes [1:-1]), but leaves the stray middle `"`
+            # inside the value. Upgrade those strays to `\"` so:
+            #   - Weblate translators see clean text with visible escapes
+            #   - Writeback output is syntactically valid and the
+            #     translated .chn actually shows BOTH halves in-game
+            #     (arguably a better outcome than the broken original .int)
+            # Legitimate `\"` escapes are left alone by walking the string
+            # with backslash lookahead.
+            value, upgrade_count = _upgrade_middle_stray_quotes(value)
+            if upgrade_count:
+                logger.warning(
+                    f'Upgraded {upgrade_count} middle stray `"` to `\\"` '
+                    f"at line {line_number}: {raw_value_stripped[:80]}"
+                )
         elif raw_value_stripped.startswith('"'):
             # Unclosed string literal: author forgot the closing `"`.
             # Observed in real mods (e.g. RealModFiles/2867288932 T2/T3/T4
@@ -397,6 +418,42 @@ class LocFileParser:
             )
 
         return result
+
+
+def _upgrade_middle_stray_quotes(value: str) -> tuple[str, int]:
+    """Upgrade every unescaped `"` in `value` to `\\"`.
+
+    After the outer-quote strip, any remaining `"` in the middle of a
+    value is an author's literal quote that UE3 treats as a premature
+    string terminator. We upgrade it to `\\"` (the legitimate escape
+    form) so the resulting text survives the round-trip cleanly:
+        - TermExtractor → glossary sees the unescaped text via
+          `loc_unescape` at the Weblate boundary
+        - CorpusConverter.to_units → Weblate translators see clean text
+        - writeback output contains the proper `\\"` escape, which the
+          game's loc parser accepts
+
+    Legitimate escapes (already `\\"` in the input) are left alone by
+    inspecting the previously-emitted char: if the last char appended
+    to `result` is a literal `\\`, the current `"` is part of an
+    escape and we pass it through.
+
+    Returns:
+        (new_value, count) — the transformed string and how many strays
+        were upgraded (0 means unchanged, non-zero means the caller
+        should log a warning).
+    """
+    if '"' not in value:
+        return value, 0
+    result: list[str] = []
+    count = 0
+    for c in value:
+        if c == '"' and (not result or result[-1] != "\\"):
+            result.append('\\"')
+            count += 1
+        else:
+            result.append(c)
+    return "".join(result), count
 
 
 def _strip_inline_comment(raw_value: str) -> str:

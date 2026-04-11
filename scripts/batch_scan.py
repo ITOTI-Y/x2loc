@@ -26,8 +26,10 @@ TSV columns (tab-separated):
 from __future__ import annotations
 
 import csv
+import re
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT: Path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -38,6 +40,7 @@ from src.core.aligner import BilingualAligner  # noqa: E402
 from src.core.mod_resolver import ModResolveError, resolve_mod  # noqa: E402
 from src.core.parser import LocFileParser  # noqa: E402
 from src.export.writer import CorpusWriter  # noqa: E402
+
 REAL_MOD_ROOT: Path = ROOT / "data" / "RealModFiles"
 OUTPUT_CORPUS: Path = ROOT / "output" / "corpus"
 OUTPUT_TSV: Path = ROOT / "output" / "batch_scan.tsv"
@@ -54,6 +57,86 @@ TSV_COLUMNS: list[str] = [
     "status",
     "reason",
 ]
+
+MALFORMED_TSV: Path = ROOT / "output" / "malformed_lines.tsv"
+MALFORMED_TSV_COLUMNS: list[str] = [
+    "mod_id",
+    "file",
+    "line",
+    "warning_type",
+    "raw_value",
+]
+
+# Sink collector for malformed-line warnings emitted by LocFileParser.
+# Populated by `_malformed_sink` below and drained into MALFORMED_TSV at
+# end of main(). Keyed by the (mod_id, file) that was active when the
+# warning fired — `_process_mod` updates the loguru contextualize() scope
+# around each parse call so the sink can enrich the record accordingly.
+_MALFORMED_RECORDS: list[dict[str, str]] = []
+
+_MALFORMED_PREFIXES: tuple[str, ...] = (
+    "Unclosed string literal",
+    "Unopened string literal",
+    "Extra leading",
+    "Extra trailing",
+    "Upgraded",  # middle stray quote upgrade
+)
+
+
+def _classify_warning(msg: str) -> str | None:
+    """Return a short warning-type label when `msg` is a malformed-line
+    warning the parser can emit, else None.
+    """
+    for prefix in _MALFORMED_PREFIXES:
+        if msg.startswith(prefix):
+            if prefix == "Upgraded":
+                return "middle_stray_upgraded"
+            if prefix == "Unclosed string literal":
+                return "unclosed"
+            if prefix == "Unopened string literal":
+                return "unopened"
+            if prefix == "Extra leading":
+                return "extra_leading"
+            if prefix == "Extra trailing":
+                return "extra_trailing"
+    return None
+
+
+def _malformed_sink(message: Any) -> None:
+    """Loguru sink that drains malformed-line warnings into a TSV."""
+    record = message.record
+    if record["level"].name != "WARNING":
+        return
+    msg = record["message"]
+    warning_type = _classify_warning(msg)
+    if warning_type is None:
+        return
+
+    extra = record["extra"]
+    mod_id = extra.get("mod_id", "")
+    file_stem = extra.get("file", "")
+    if not mod_id:
+        return
+
+    # Extract `at line N:` and the trailing raw snippet.
+    line_num = ""
+    raw_value = ""
+    m = re.search(r"at line (\d+):\s*(.*)", msg)
+    if m:
+        line_num = m.group(1)
+        raw_value = m.group(2)[:200]
+    else:
+        raw_value = msg[:200]
+
+    _MALFORMED_RECORDS.append(
+        {
+            "mod_id": mod_id,
+            "file": file_stem,
+            "line": line_num,
+            "warning_type": warning_type,
+            "raw_value": raw_value,
+        }
+    )
 
 
 def _find_localization_dir(mod_root: Path) -> Path | None:
@@ -148,14 +231,18 @@ def _process_mod(
     for int_path in int_files:
         chn_path = loc_dir / f"{int_path.stem}.chn"
         try:
-            src_file = parser.parse(int_path)
+            with logger.contextualize(mod_id=mod_dir.name, file=int_path.stem):
+                src_file = parser.parse(int_path)
         except Exception as e:
             logger.warning(f"{mod_dir.name}/{int_path.name}: parse failed ({e})")
             continue
 
         if chn_path.exists():
             try:
-                tgt_file = parser.parse(chn_path)
+                with logger.contextualize(
+                    mod_id=mod_dir.name, file=f"{int_path.stem}.chn"
+                ):
+                    tgt_file = parser.parse(chn_path)
                 corpus = aligner.align(src_file, tgt_file, mod_info=mod_info)
             except Exception as e:
                 logger.warning(
@@ -189,6 +276,9 @@ def main() -> None:
         level="WARNING",
         format="{time:HH:mm:ss} | {level: <7} | {message}",
     )
+    # Also drain malformed-line warnings into _MALFORMED_RECORDS for
+    # the output/malformed_lines.tsv dump at end of main().
+    logger.add(_malformed_sink, level="WARNING")
 
     parser = LocFileParser()
     aligner = BilingualAligner()
@@ -248,6 +338,24 @@ def main() -> None:
 
         dup = [(n, c) for n, c in Counter(namespaces).items() if c > 1]
         print(f"\n⚠️  Duplicate namespaces detected: {dup}")
+
+    # Drain malformed-line collector → TSV
+    if _MALFORMED_RECORDS:
+        with MALFORMED_TSV.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=MALFORMED_TSV_COLUMNS, delimiter="\t")
+            w.writeheader()
+            w.writerows(_MALFORMED_RECORDS)
+        by_type: dict[str, int] = {}
+        for r in _MALFORMED_RECORDS:
+            by_type[r["warning_type"]] = by_type.get(r["warning_type"], 0) + 1
+        print(
+            f"\nMalformed-line report ({len(_MALFORMED_RECORDS)} warnings) "
+            f"written to {MALFORMED_TSV}"
+        )
+        for kind, count in sorted(by_type.items(), key=lambda kv: -kv[1]):
+            print(f"  {kind}: {count}")
+    else:
+        print("\nNo malformed-line warnings emitted.")
 
 
 if __name__ == "__main__":

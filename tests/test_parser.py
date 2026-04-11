@@ -440,6 +440,46 @@ class TestParseEntry:
         e = parser._parse_entry(("", "Key", '"\\"Hello\\""'), 1, [])
         assert e.value == '\\"Hello\\"'
 
+    def test_middle_stray_quote_upgraded_to_escape(self) -> None:
+        # Real-mod case (Bug 4) from RealModFiles/1123582370 line 16:
+        #   LocLongDescription="A powerful form... any single action." 3 turn cooldown."
+        # Three quotes total. The strict strip takes [1:-1], producing
+        #   A powerful form... any single action." 3 turn cooldown.
+        # The middle stray `"` must be upgraded to `\"` so writeback
+        # produces a valid escaped string that round-trips cleanly.
+        raw = (
+            '"A powerful form of Overwatch. Instead of firing '
+            'automatically, perform any single action." 3 turn cooldown."'
+        )
+        e = parser._parse_entry(("", "LocLongDescription", raw), 1, [])
+        expected = (
+            "A powerful form of Overwatch. Instead of firing "
+            'automatically, perform any single action.\\" 3 turn cooldown.'
+        )
+        assert e.value == expected
+
+    def test_legitimate_escape_not_double_upgraded(self) -> None:
+        # Already-escaped `\"` must pass through untouched — the
+        # previously-emitted `\` blocks the upgrade.
+        e = parser._parse_entry(("", "Key", '"She said \\"hi\\" again"'), 1, [])
+        assert e.value == 'She said \\"hi\\" again'
+
+    def test_multiple_middle_strays_all_upgraded(self) -> None:
+        # Multiple stray quotes in a single value — each gets upgraded
+        # independently.
+        e = parser._parse_entry(("", "Key", '"a"b"c"d"'), 1, [])
+        # Strict strip: a"b"c"d → Bug 4 upgrade: a\"b\"c\"d
+        assert e.value == 'a\\"b\\"c\\"d'
+
+    def test_mixed_legitimate_and_stray_upgrades_only_strays(self) -> None:
+        # Input: `"already \"clean\" and "dirty" mixed"`
+        # Strict strip: `already \"clean\" and "dirty" mixed`
+        # Bug 4: upgrades the two stray `"` around "dirty" but leaves
+        # the `\"clean\"` escapes intact.
+        raw = '"already \\"clean\\" and "dirty" mixed"'
+        e = parser._parse_entry(("", "Key", raw), 1, [])
+        assert e.value == 'already \\"clean\\" and \\"dirty\\" mixed'
+
 
 class TestParseStructFields:
     def test_mixed_fields(self) -> None:
