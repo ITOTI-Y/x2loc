@@ -421,27 +421,10 @@ class LocFileParser:
 
 
 def _upgrade_middle_stray_quotes(value: str) -> tuple[str, int]:
-    """Upgrade every unescaped `"` in `value` to `\\"`.
+    """Upgrade unescaped `"` to `\\"`, returning (new_value, upgrade_count).
 
-    After the outer-quote strip, any remaining `"` in the middle of a
-    value is an author's literal quote that UE3 treats as a premature
-    string terminator. We upgrade it to `\\"` (the legitimate escape
-    form) so the resulting text survives the round-trip cleanly:
-        - TermExtractor → glossary sees the unescaped text via
-          `loc_unescape` at the Weblate boundary
-        - CorpusConverter.to_units → Weblate translators see clean text
-        - writeback output contains the proper `\\"` escape, which the
-          game's loc parser accepts
-
-    Legitimate escapes (already `\\"` in the input) are left alone by
-    inspecting the previously-emitted char: if the last char appended
-    to `result` is a literal `\\`, the current `"` is part of an
-    escape and we pass it through.
-
-    Returns:
-        (new_value, count) — the transformed string and how many strays
-        were upgraded (0 means unchanged, non-zero means the caller
-        should log a warning).
+    A `"` preceded by `\\` is treated as an existing escape and left alone.
+    Caller context (UE3 round-trip rationale) lives at the call site.
     """
     if '"' not in value:
         return value, 0

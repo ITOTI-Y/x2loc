@@ -74,32 +74,24 @@ MALFORMED_TSV_COLUMNS: list[str] = [
 # around each parse call so the sink can enrich the record accordingly.
 _MALFORMED_RECORDS: list[dict[str, str]] = []
 
-_MALFORMED_PREFIXES: tuple[str, ...] = (
-    "Unclosed string literal",
-    "Unopened string literal",
-    "Extra leading",
-    "Extra trailing",
-    "Upgraded",  # middle stray quote upgrade
-)
+_MALFORMED_LABELS: dict[str, str] = {
+    "Unclosed string literal": "unclosed",
+    "Unopened string literal": "unopened",
+    "Extra leading": "extra_leading",
+    "Extra trailing": "extra_trailing",
+    "Upgraded": "middle_stray_upgraded",
+}
 
 
 def _classify_warning(msg: str) -> str | None:
-    """Return a short warning-type label when `msg` is a malformed-line
-    warning the parser can emit, else None.
-    """
-    for prefix in _MALFORMED_PREFIXES:
-        if msg.startswith(prefix):
-            if prefix == "Upgraded":
-                return "middle_stray_upgraded"
-            if prefix == "Unclosed string literal":
-                return "unclosed"
-            if prefix == "Unopened string literal":
-                return "unopened"
-            if prefix == "Extra leading":
-                return "extra_leading"
-            if prefix == "Extra trailing":
-                return "extra_trailing"
-    return None
+    return next(
+        (
+            label
+            for prefix, label in _MALFORMED_LABELS.items()
+            if msg.startswith(prefix)
+        ),
+        None,
+    )
 
 
 def _malformed_sink(message: Any) -> None:
