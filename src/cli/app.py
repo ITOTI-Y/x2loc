@@ -886,6 +886,18 @@ MERGED_SEED_SIZE: Final[int] = 1000
 # batches start to hit server-side import timeouts.
 MERGED_BATCH_SIZE: Final[int] = 5000
 
+# Target-side batch size is deliberately smaller than the source-side
+# append batch. `upload_file(method='translate')` is O(batch_size) in
+# server-side work but ALSO O(component_total) because it has to
+# match every row against existing source units by context — the
+# per-batch processing grows quickly and a 5000-row target batch can
+# spend 100+s in Weblate's import pipeline on a 26K-unit merged
+# component, tripping Cloudflare's fixed 524 proxy timeout. 2000
+# keeps each batch comfortably under that ceiling while the
+# `method='add'` source path (no context matching) still runs at the
+# larger size without regression.
+MERGED_TARGET_BATCH_SIZE: Final[int] = 2000
+
 # When method=translate returns accepted=0 despite a CSV full of non-empty
 # targets, Weblate's unit index hasn't caught up with the preceding bulk
 # source upload yet. Retry with backoff rather than silently dropping
@@ -932,10 +944,14 @@ def _upload_merged_corpus(
            index rebuild and silently drops all rows with
            accepted=0/skipped=0/not_found=0. `_upload_translation_batch`
            also retries on that zero-accepted signature.
-        4. **Push targets** in MERGED_BATCH_SIZE chunks via
+        4. **Push targets** in MERGED_TARGET_BATCH_SIZE chunks via
            `upload_file(method='translate')`, which fills empty target
            slots without clobbering translator edits (importantly, this
-           path is re-runnable for incremental base-game updates).
+           path is re-runnable for incremental base-game updates). The
+           target batch is deliberately smaller than the source append
+           batch — translate-mode has to context-match every row
+           against the full component, so per-row work grows with the
+           total unit count.
     """
     slug = namespace
     merged_units: list[tuple[str, str, str, str]] = []
@@ -987,11 +1003,6 @@ def _upload_merged_corpus(
     # Append remaining source strings in batches via the additive path.
     _append_source_batches(client, slug, merged_units, source_lang, seed_end)
 
-    # Base-game reference uploads are read-only for translators. Apply
-    # the component-level flag here so it is set before translators ever
-    # see the zh_Hans side populated below.
-    _apply_base_game_read_only(client, slug, namespace)
-
     # Let Weblate finish indexing the new source units before writing
     # target translations — without this wait, the first few target
     # batches race the index and return zero-accepted. The subsequent
@@ -1004,6 +1015,14 @@ def _upload_merged_corpus(
         time.sleep(ZERO_ACCEPTED_BACKOFF)
         client.create_translation(slug, target_lang)
         _push_target_batches(client, slug, merged_units, target_lang)
+
+    # Base-game reference uploads are read-only for translators. Apply
+    # the component-level flag AFTER target translations are pushed —
+    # applying it earlier locks ourselves out of the target upload
+    # (Weblate's `read-only` check rejects every target write with
+    # HTTP 403 "The translation is read-only", regardless of who is
+    # writing).
+    _apply_base_game_read_only(client, slug, namespace)
 
 
 def _create_merged_component_seed(
@@ -1083,7 +1102,7 @@ def _push_target_batches(
     grand_accepted = 0
     idx = 0
     while idx < total:
-        end = min(idx + MERGED_BATCH_SIZE, total)
+        end = min(idx + MERGED_TARGET_BATCH_SIZE, total)
         batch = merged_units[idx:end]
         csv_bytes = _units_to_translation_csv_bytes(batch)
         # Skip all-empty-target batches: the CSV writer would emit a

@@ -17,6 +17,19 @@ HTTP_TIMEOUT: Final[float] = 30.0
 # the next list_units then shows partial state. Use a longer ceiling for
 # upload_file and create_component specifically.
 HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
+# 504 and `component-update` lock-busy 400 both mean "the previous
+# request is still running on the server". Retrying too quickly races
+# the in-flight work and trips the same lock again. The base delay is
+# long enough for a typical import task to complete (larger than most
+# reverse-proxy upstream timeouts) and still exponentially backs off
+# for pathological cases.
+LOCK_BUSY_BASE_DELAY: Final[float] = 60.0
+# Substring used to detect Weblate's component-update lock-busy 400:
+#   {"detail": "Lock on x2loc/base-xcom2-wotc (component-update)
+#    could not be acquired in 5s"}
+# Treating this status/body combo as "wait and retry" instead of a hard
+# client error avoids losing work after a 504 retry race.
+LOCK_BUSY_ERROR_SUBSTRING: Final[str] = "could not be acquired"
 TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 300.0
 
@@ -207,11 +220,18 @@ class WeblateClient:
           - "Could not add '{lang}'!"              (newer, observed on
             hosted.weblate.org 2026-04)
         Both are treated as success so upload workflows can be re-run safely.
+
+        Timeout note: creating a translation for a large component is
+        O(unit_count) on the server — Weblate materializes one empty
+        target unit per source unit. For the 26K-unit merged base-game
+        component this exceeds the default 30s read timeout on
+        self-hosted instances, so we pass the longer upload timeout.
         """
         r = self._request(
             "POST",
             f"components/{self.config.project_slug}/{component_slug}/translations/",
             json={"language_code": lang},
+            timeout=HTTP_UPLOAD_TIMEOUT,
         )
         if r.status_code in (200, 201):
             return
@@ -325,6 +345,21 @@ class WeblateClient:
         `RETRY_MAX_ATTEMPTS` is the total number of HTTP calls on persistent
         failure (1 initial attempt + N-1 retries). The gate uses `<` so that
         attempt N is the last call, matching the constant's name.
+
+        Retry policy:
+            - **429**: respect Retry-After header (or 1s default).
+            - **500/501/502/503**: exponential 1s / 2s / 4s. The server
+              errored out fast and nothing is still running.
+            - **504 Gateway Timeout** and **component-update lock-busy
+              400**: exponential 60s / 120s. A 504 from the reverse
+              proxy doesn't mean the server gave up — it means the
+              proxy did, while Weblate's import pipeline is still
+              holding the `component-update` lock. A short retry hits
+              the same lock and returns 400 "Lock ... could not be
+              acquired in 5s". Waiting the full proxy-timeout budget
+              lets the in-flight import finish; then
+              `upload_file(method='add')` is idempotent so the retry
+              either no-ops (prior work landed) or finally succeeds.
         """
         attempt = 0
         while True:
@@ -339,6 +374,16 @@ class WeblateClient:
                 )
                 time.sleep(retry_after)
                 continue
+            if self._is_lock_busy(r) and attempt < RETRY_MAX_ATTEMPTS:
+                delay = LOCK_BUSY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"Weblate {r.status_code} (lock busy / upstream timeout) "
+                    f"on {method} {url}; retry {attempt}/{RETRY_MAX_ATTEMPTS} "
+                    f"after {delay:.0f}s (in-flight request may still be "
+                    "completing)"
+                )
+                time.sleep(delay)
+                continue
             if 500 <= r.status_code < 600 and attempt < RETRY_MAX_ATTEMPTS:
                 delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
@@ -348,6 +393,29 @@ class WeblateClient:
                 time.sleep(delay)
                 continue
             return r
+
+    @staticmethod
+    def _is_lock_busy(response: httpx.Response) -> bool:
+        """True when the response signals `wait for an in-flight task`.
+
+        Three distinct server conditions share the same recovery
+        strategy (long wait, then retry):
+
+          - **504 Gateway Timeout** — the reverse proxy gave up on an
+            upload while Weblate was still importing.
+          - **524 A Timeout Occurred** — Cloudflare's equivalent of 504.
+            Fires when origin processing exceeds Cloudflare's fixed
+            100s upload window. Same recovery: the origin may still be
+            working.
+          - **400 with body containing "could not be acquired"** —
+            Weblate's `component-update` lock is held by a still-running
+            request; the 5s internal acquisition window expired.
+        """
+        if response.status_code in (504, 524):
+            return True
+        return (
+            response.status_code == 400 and LOCK_BUSY_ERROR_SUBSTRING in response.text
+        )
 
     def _respect_rate_limit(self, response: httpx.Response) -> None:
         remaining_header = response.headers.get("X-RateLimit-Remaining")
