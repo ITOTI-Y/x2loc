@@ -896,14 +896,14 @@ MERGED_BATCH_SIZE: Final[int] = 5000
 # keeps each batch comfortably under that ceiling while the
 # `method='add'` source path (no context matching) still runs at the
 # larger size without regression.
-MERGED_TARGET_BATCH_SIZE: Final[int] = 2000
+MERGED_TARGET_BATCH_SIZE: Final[int] = 500
 
 # When method=translate returns accepted=0 despite a CSV full of non-empty
 # targets, Weblate's unit index hasn't caught up with the preceding bulk
 # source upload yet. Retry with backoff rather than silently dropping
 # those translations on the floor.
 ZERO_ACCEPTED_RETRIES: Final[int] = 3
-ZERO_ACCEPTED_BACKOFF: Final[float] = 15.0
+ZERO_ACCEPTED_BACKOFF: Final[float] = 30.0
 
 
 def _upload_merged_corpus(
@@ -1137,7 +1137,20 @@ def _upload_translation_batch_with_retry(
     before giving up on a batch.
     """
     for attempt in range(1, ZERO_ACCEPTED_RETRIES + 1):
-        info = client.upload_file(slug, target_lang, csv_bytes, method="translate")
+        try:
+            info = client.upload_file(slug, target_lang, csv_bytes, method="translate")
+        except Exception as e:
+            # Network-level failures (ReadTimeout on hosted.weblate.org
+            # libre instances, ConnectTimeout, etc.) are non-fatal for
+            # target pushes — the source data is already safely on the
+            # server, and re-running the upload will retry this batch
+            # via the idempotent translate path. Log and move on rather
+            # than crashing the entire multi-hour upload.
+            logger.warning(
+                f"[{slug}] target batch upload failed: "
+                f"{type(e).__name__}: {e}; skipping batch"
+            )
+            return 0
         accepted = info.get("accepted", 0)
         skipped = info.get("skipped", 0)
         not_found = info.get("not_found", 0)
