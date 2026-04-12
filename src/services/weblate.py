@@ -398,7 +398,7 @@ class WeblateClient:
     def _is_lock_busy(response: httpx.Response) -> bool:
         """True when the response signals `wait for an in-flight task`.
 
-        Three distinct server conditions share the same recovery
+        Four distinct server conditions share the same recovery
         strategy (long wait, then retry):
 
           - **504 Gateway Timeout** — the reverse proxy gave up on an
@@ -407,11 +407,16 @@ class WeblateClient:
             Fires when origin processing exceeds Cloudflare's fixed
             100s upload window. Same recovery: the origin may still be
             working.
+          - **423 Locked** — Weblate's repository lock is held by a
+            background task (e.g. unit materialization after
+            `create_component`). Observed on hosted.weblate.org when
+            `create_translation` fires before the component's initial
+            import task has finished.
           - **400 with body containing "could not be acquired"** —
             Weblate's `component-update` lock is held by a still-running
             request; the 5s internal acquisition window expired.
         """
-        if response.status_code in (504, 524):
+        if response.status_code in (504, 524, 423):
             return True
         return (
             response.status_code == 400 and LOCK_BUSY_ERROR_SUBSTRING in response.text
