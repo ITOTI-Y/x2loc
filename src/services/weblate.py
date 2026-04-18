@@ -11,24 +11,8 @@ RATE_LIMIT_FLOOR: Final[int] = 100
 RETRY_MAX_ATTEMPTS: Final[int] = 3
 RETRY_BASE_DELAY: Final[float] = 1.0
 HTTP_TIMEOUT: Final[float] = 30.0
-# Bulk file uploads (a few thousand CSV rows) can spend 30-120s in
-# Weblate's server-side import pipeline before the POST returns — a 30s
-# read timeout aborts the client while the server keeps processing, and
-# the next list_units then shows partial state. Use a longer ceiling for
-# upload_file and create_component specifically.
 HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
-# 504 and `component-update` lock-busy 400 both mean "the previous
-# request is still running on the server". Retrying too quickly races
-# the in-flight work and trips the same lock again. The base delay is
-# long enough for a typical import task to complete (larger than most
-# reverse-proxy upstream timeouts) and still exponentially backs off
-# for pathological cases.
 LOCK_BUSY_BASE_DELAY: Final[float] = 60.0
-# Substring used to detect Weblate's component-update lock-busy 400:
-#   {"detail": "Lock on x2loc/base-xcom2-wotc (component-update)
-#    could not be acquired in 5s"}
-# Treating this status/body combo as "wait and retry" instead of a hard
-# client error avoids losing work after a 504 retry race.
 LOCK_BUSY_ERROR_SUBSTRING: Final[str] = "could not be acquired"
 TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 300.0
@@ -271,10 +255,25 @@ class WeblateClient:
         return r.content
 
     def list_units(
-        self, component_slug: str, lang: str, q: str | None = None
+        self,
+        component_slug: str,
+        lang: str,
+        q: str | None = None,
+        page_size: int = 1000,
     ) -> Iterator[dict[str, Any]]:
+        """Stream every unit in a (component, lang) pair, optionally filtered by `q`.
+
+        `page_size` defaults to 1000 to minimize round trips on large
+        components — Weblate's DRF pagination will silently clamp to the
+        instance's `MAX_PAGE_SIZE` (100 on most self-hosted setups, 1000
+        on hosted.weblate.org), so requesting more than supported is
+        harmless. A 10k-unit glossary drops from ~500 sequential page
+        requests (default 20/page) to 10 or fewer.
+        """
         path = f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
-        params = {"q": q} if q else None
+        params: dict[str, Any] = {"page_size": page_size}
+        if q:
+            params["q"] = q
         yield from self._paginate(path, params=params)
 
     def patch_unit(self, unit_id: int, data: dict[str, Any]) -> dict[str, Any]:
@@ -321,6 +320,38 @@ class WeblateClient:
         self._raise_for_status(r)
         return r.json()
 
+    def list_units_page(
+        self,
+        component_slug: str,
+        lang: str,
+        q: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> tuple[int, list[dict[str, Any]]]:
+        path = f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
+        if q:
+            params["q"] = q
+        r = self._request("GET", path, params=params)
+        self._raise_for_status(r)
+        body = r.json()
+        return body["count"], body["results"]
+
+    def search_units(self, q: str, page_size: int = 50) -> list[dict[str, Any]]:
+        """Search units globally across all components."""
+        r = self._request("GET", "units/", params={"q": q, "page_size": page_size})
+        self._raise_for_status(r)
+        return r.json().get("results", [])
+
+    def get_translation(self, component_slug: str, lang: str) -> dict[str, Any]:
+        """Get translation stats for a component+language pair."""
+        r = self._request(
+            "GET",
+            f"translations/{self.config.project_slug}/{component_slug}/{lang}/",
+        )
+        self._raise_for_status(r)
+        return r.json()
+
     def get_task(self, url: str) -> dict[str, Any]:
         r = self._request("GET", url)
         self._raise_for_status(r)
@@ -347,6 +378,9 @@ class WeblateClient:
         attempt N is the last call, matching the constant's name.
 
         Retry policy:
+            - **Network errors** (``httpx.TransportError``): connection
+              refused, DNS failure, read/write timeout, pool exhaustion.
+              Exponential 1s / 2s / 4s, then re-raise on final attempt.
             - **429**: respect Retry-After header (or 1s default).
             - **500/501/502/503**: exponential 1s / 2s / 4s. The server
               errored out fast and nothing is still running.
@@ -364,7 +398,18 @@ class WeblateClient:
         attempt = 0
         while True:
             attempt += 1
-            r = self._client.request(method, url, **kwargs)
+            try:
+                r = self._client.request(method, url, **kwargs)
+            except httpx.TransportError as exc:
+                if attempt < RETRY_MAX_ATTEMPTS:
+                    delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                    logger.warning(
+                        f"Weblate network error on {method} {url}: {exc!r}; "
+                        f"retry {attempt}/{RETRY_MAX_ATTEMPTS} after {delay}s"
+                    )
+                    time.sleep(delay)
+                    continue
+                raise
             self._respect_rate_limit(r)
 
             if r.status_code == 429 and attempt < RETRY_MAX_ATTEMPTS:
