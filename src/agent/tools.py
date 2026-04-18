@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import Any
+from typing import Any, Final
 
 from src.agent.state import GlossaryMatch
 from src.services.weblate import WeblateClient
 
-TAG_PATTERNS: list[str] = [
+TAG_PATTERNS: Final = [
     r"<[^>]+>",
     r"%[dsiufxXpc]",
     r"\{[^}]*\}",

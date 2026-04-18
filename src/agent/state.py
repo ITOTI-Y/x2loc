@@ -88,5 +88,3 @@ class AgentState(TypedDict):
 
     should_continue: bool
     needs_review: bool
-
-    target_lang: str

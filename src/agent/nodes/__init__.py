@@ -25,21 +25,17 @@ class WorkflowNodes:
         self.glossary_loader = partial(
             glossary_loader, client=client, agent_config=config
         )
-        self.fetch_empty = partial(
-            fetch_empty, client=client, agent_config=config)
+        self.fetch_empty = partial(fetch_empty, client=client, agent_config=config)
         self.context_collector = partial(
             context_collector, client=client, agent_config=config
         )
-        self.translator = partial(
-            translator, agent_config=config)
-        self.tag_validator = partial(
-            tag_validator, agent_config=config)
+        self.translator = partial(translator, agent_config=config)
+        self.tag_validator = partial(tag_validator, agent_config=config)
         self.scorer = partial(scorer, agent_config=config)
         self.decision_router = partial(decision_router, agent_config=config)
-        self.auto_uploader = partial(
-            auto_uploader, client=client, agent_config=config)
-        self.user_review = staticmethod(user_review)
+        self.auto_uploader = partial(auto_uploader, client=client, agent_config=config)
+        self.user_review = user_review
         self.review_uploader = partial(
             review_uploader, client=client, agent_config=config
         )
-        self.pattern_extractor = staticmethod(pattern_extractor)
+        self.pattern_extractor = pattern_extractor

@@ -37,7 +37,8 @@
                 "--config",
                 "configs/weblate.toml",
                 "--batch-size",
-                "10"
+                "10",
+                "--auto-skip"
             ],
             "console": "integratedTerminal"
         }

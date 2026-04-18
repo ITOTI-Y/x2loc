@@ -50,8 +50,7 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge(START, "glossary_loader")
     builder.add_edge("glossary_loader", "fetch_empty")
     builder.add_conditional_edges(
-        "fetch_empty", route_after_fetch, {
-            "continue": "context_collector", "end": END}
+        "fetch_empty", route_after_fetch, {"continue": "context_collector", "end": END}
     )
     builder.add_edge("context_collector", "translator")
     builder.add_edge("translator", "tag_validator")

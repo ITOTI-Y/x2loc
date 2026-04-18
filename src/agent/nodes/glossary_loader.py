@@ -42,22 +42,29 @@ def glossary_loader(
     }
 
 
+def _cache_path(mode: Literal["base", "mods"], lang: str) -> Path:
+    return Path(f"temp/{mode}_{lang}.json")
+
+
 def _load_data(
-    mode: Literal["base", "mods"], lang: str, agent_config: AgentConfigSchema, client: WeblateClient
+    mode: Literal["base", "mods"],
+    lang: str,
+    agent_config: AgentConfigSchema,
+    client: WeblateClient,
 ) -> list[dict]:
-    cache_file = f"temp/{mode}_{lang}.json"
-    if Path(cache_file).exists():
-        return json.load(open(cache_file))
+    path = _cache_path(mode, lang)
+    if path.exists():
+        return json.loads(path.read_text("utf-8"))
     if mode == "base":
         slug = agent_config.base_glossary_slug
-    elif mode == "mods":
+    else:
         slug = agent_config.component_slug
     data = list(client.list_units(slug, lang, q="state:translated"))
     _save_data(mode, lang, data)
     return data
 
 
-def _save_data(mode: Literal["base", "mods"], lang: str, data: list[dict]):
-    cache_file = f"temp/{mode}_{lang}.json"
-    with open(cache_file, "w") as f:
-        json.dump(data, f)
+def _save_data(mode: Literal["base", "mods"], lang: str, data: list[dict]) -> None:
+    path = _cache_path(mode, lang)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False), "utf-8")

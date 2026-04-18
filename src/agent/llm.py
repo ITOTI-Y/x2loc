@@ -73,4 +73,5 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
         if isinstance(node, list):
             return [_resolve(v) for v in node]
         return node
+
     return _resolve(schema)

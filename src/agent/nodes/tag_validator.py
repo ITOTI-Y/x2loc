@@ -22,8 +22,7 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
 
         passed, missing, extra = validate_tags(c["source"], c["translation"])
         if passed:
-            c["tag_valid"] = True
-            return c
+            return {**c, "tag_valid": True}  # type: ignore
 
         translation = c["translation"]
         for _ in range(MAX_TAG_RETRIES):
@@ -33,7 +32,9 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
                 missing=missing,
                 extra=extra,
             )
-            response = await tag_validator_llm.ainvoke([HumanMessage(content=fix_prompt)])
+            response = await tag_validator_llm.ainvoke(
+                [HumanMessage(content=fix_prompt)]
+            )
             content = response.content
             if not isinstance(content, str):
                 raise TypeError(
@@ -50,10 +51,7 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
         else:
             logger.warning(f"[TAG FAIL] {c['source']}: {missing=} {extra=}")
 
-        c["translation"] = translation
-        c["tag_valid"] = passed
-
-        return c
+        return {**c, "translation": translation, "tag_valid": passed}  # type: ignore
 
     results = await asyncio.gather(*[_validate_one(c) for c in state["candidates"]])
     return {"candidates": list(results)}

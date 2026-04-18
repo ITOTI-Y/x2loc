@@ -15,7 +15,7 @@ class AgentConfigSchema(BaseSchema):
     scoring_model_name: str = "gemini-3.1-flash-lite-preview"
     base_url: str = "https://api.anthropic.com/v1"
     api_key: SecretStr = Field(...)
-    translation_temperature: float = 0.3
+    translation_temperature: float = 0.2
     scoring_temperature: float = 0.0
     batch_size: int = DEFAULT_BATCH_SIZE
     auto_approve_threshold: int = AUTO_APPROVE_THRESHOLD
@@ -30,16 +30,21 @@ def load_config(
 ) -> AgentConfigSchema:
     with open(weblate_config_path, "rb") as f:
         raw = tomllib.load(f)
-    if raw.get("validate_model_name") is None:
+
+    if raw.get("validate_model_name") is None and "translation_model_name" in raw:
         raw["validate_model_name"] = raw["translation_model_name"]
-    if raw.get("scoring_model_name") is None:
+    if raw.get("scoring_model_name") is None and "translation_model_name" in raw:
         raw["scoring_model_name"] = raw["translation_model_name"]
-    weblate = WeblateConfigSchema(**raw)
-    return AgentConfigSchema(
-        weblate=weblate,
-        api_key=SecretStr(raw["api_key"]),
-        base_url=raw["base_url"],
-        translation_model_name=raw["translation_model_name"],
-        validate_model_name=raw["validate_model_name"],
-        scoring_model_name=raw["scoring_model_name"],
+
+    weblate = WeblateConfigSchema(
+        **{k: v for k, v in raw.items() if k in WeblateConfigSchema.model_fields}
     )
+    agent_fields = {
+        k: v
+        for k, v in raw.items()
+        if k in AgentConfigSchema.model_fields and k != "weblate"
+    }
+    if "api_key" in agent_fields:
+        agent_fields["api_key"] = SecretStr(agent_fields["api_key"])
+
+    return AgentConfigSchema(weblate=weblate, **agent_fields)

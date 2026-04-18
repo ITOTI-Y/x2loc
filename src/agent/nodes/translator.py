@@ -78,8 +78,11 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
         )
         response = await translator_llm.ainvoke(
             [
-                SystemMessage(content=TRANSLATION_SYSTEM.format(
-                    target_lang=agent_config.target_lang)),
+                SystemMessage(
+                    content=TRANSLATION_SYSTEM.format(
+                        target_lang=agent_config.target_lang
+                    )
+                ),
                 HumanMessage(content=prompt),
             ]
         )

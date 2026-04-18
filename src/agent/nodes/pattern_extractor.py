@@ -59,13 +59,13 @@ def _detect_patterns(
             words_b = b["source"].split()
 
             prefix: list[str] = []
-            for wa, wb in zip(words_a, words_b, strict=True):
+            for wa, wb in zip(words_a, words_b, strict=False):
                 if wa != wb:
                     break
                 prefix.append(wa)
 
             suffix: list[str] = []
-            for wa, wb in zip(reversed(words_a), reversed(words_b), strict=True):
+            for wa, wb in zip(reversed(words_a), reversed(words_b), strict=False):
                 if wa != wb:
                     break
                 suffix.insert(0, wa)

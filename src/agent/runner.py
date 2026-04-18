@@ -40,7 +40,7 @@ def _initial_state() -> dict:
     }
 
 
-def _prompt_user_review(items: list[dict]) -> list[dict]:
+def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict]:
     decisions: list[dict] = []
     for idx, item in enumerate(items, 1):
         print(f"\n{'━' * 50}")
@@ -49,16 +49,18 @@ def _prompt_user_review(items: list[dict]) -> list[dict]:
             reasons = ", ".join(
                 f"{d['dim']} {d['pts']} ({d['reason']})" for d in item["deductions"]
             )
-            print(f"  扣分: {reasons}")
+            print(f"  Deductions: {reasons}")
 
         suggested = item.get("suggested_alternative")
         if suggested:
-            print(f"  建议: {suggested}")
-            print(f'  [1] 改为 "{suggested}" (推荐)  [2] 通过原版  [3] 跳过')
+            print(f"  Suggested: {suggested}")
+            print(
+                f'  [1] Modify to "{suggested}" (recommended)  [2] Accept original  [3] Skip'
+            )
         else:
-            print("  [1] 通过  [2] 跳过")
+            print("  [1] Accept  [2] Skip")
 
-        choice = input("  选择: ").strip()
+        choice = "3" if auto_skip else input("  Choice: ").strip()
 
         if suggested:
             if choice == "1":
@@ -94,16 +96,14 @@ def _prompt_user_review(items: list[dict]) -> list[dict]:
 
 
 def _print_summary(stats: dict[str, int], remaining: int) -> None:
-    print(f"\n{'━' * 30}")
-    print(f"  Auto (≥95):   {stats.get('auto', 0)}")
-    print(f"  Approved:     {stats.get('approved', 0)}")
-    print(f"  Modified:     {stats.get('modified', 0)}")
-    print(f"  Skipped:      {stats.get('skipped', 0)}")
-    print(f"  Remaining:    {remaining}")
-    print(f"{'━' * 30}")
+    logger.info(
+        f"Batch complete: auto={stats.get('auto', 0)} approved={stats.get('approved', 0)} "
+        f"modified={stats.get('modified', 0)} skipped={stats.get('skipped', 0)} "
+        f"remaining={remaining}"
+    )
 
 
-async def _run_async(config: AgentConfigSchema) -> None:
+async def _run_async(config: AgentConfigSchema, auto_skip: bool) -> None:
     """Drive the graph through its async API."""
     graph = build_graph(config)
     thread: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
@@ -133,7 +133,9 @@ async def _run_async(config: AgentConfigSchema) -> None:
             logger.warning("Graph paused without interrupt value, exiting")
             break
 
-        decisions = await asyncio.to_thread(_prompt_user_review, interrupt_value)
+        decisions = await asyncio.to_thread(
+            _prompt_user_review, interrupt_value, auto_skip=auto_skip
+        )
         stream_input = Command(resume=decisions)
 
 
@@ -144,11 +146,12 @@ def run(
     ],
     batch_size: Annotated[int, typer.Option("--batch-size", "-b", help="Batch size.")],
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Dry run.")] = False,
+    auto_skip: Annotated[bool, typer.Option("--auto-skip", help="Auto skip.")] = False,
 ) -> None:
     """Run the glossary translation agent."""
     config = load_config(str(config_path))
     config = config.model_copy(update={"batch_size": batch_size, "dry_run": dry_run})
-    asyncio.run(_run_async(config))
+    asyncio.run(_run_async(config, auto_skip=auto_skip))
 
 
 if __name__ == "__main__":

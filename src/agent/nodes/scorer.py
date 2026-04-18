@@ -46,7 +46,9 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         else:
             to_score.append(c)
 
-    async def _score_one(c: TranslationCandidate, *, agent_config: AgentConfigSchema) -> ScoreResult:
+    async def _score_one(
+        c: TranslationCandidate, *, agent_config: AgentConfigSchema
+    ) -> ScoreResult:
         prompt = format_scoring_prompt(
             c["source"],
             c["translation"],
@@ -58,8 +60,14 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         )
         try:
             raw = await scorer_llm.ainvoke(
-                [SystemMessage(content=SCORING_SYSTEM.format(target_lang=agent_config.target_lang)),
-                 HumanMessage(content=prompt)]
+                [
+                    SystemMessage(
+                        content=SCORING_SYSTEM.format(
+                            target_lang=agent_config.target_lang
+                        )
+                    ),
+                    HumanMessage(content=prompt),
+                ]
             )
             result = ScoreOutputSchema.model_validate(raw)
             score_result: ScoreResult = ScoreResult(
@@ -81,8 +89,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
             score_result = ScoreResult(
                 unit_id=c["unit_id"],
                 score=0,
-                deductions=[
-                    Deduction(dim="parse_error", pts=-100, reason=str(e))],
+                deductions=[Deduction(dim="parse_error", pts=-100, reason=str(e))],
                 suggested_alternative=None,
                 notes="scorer error",
             )
@@ -90,7 +97,9 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         return score_result
 
     if to_score:
-        llm_scores = await asyncio.gather(*[_score_one(c, agent_config=agent_config) for c in to_score])
+        llm_scores = await asyncio.gather(
+            *[_score_one(c, agent_config=agent_config) for c in to_score]
+        )
         instant.extend(llm_scores)
 
     return {"scores": instant}
