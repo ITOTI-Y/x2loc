@@ -49,6 +49,9 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
     async def _score_one(
         c: TranslationCandidate, *, agent_config: AgentConfigSchema
     ) -> ScoreResult:
+        match_patterns = []
+        for single_word in c["source"].split():
+            match_patterns.extend(i for i in state["session_patterns"] if single_word.lower() in i["src_pattern"].lower())
         prompt = format_scoring_prompt(
             c["source"],
             c["translation"],
@@ -56,7 +59,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
             c["glossary_base"],
             c["glossary_mods"],
             c["context_result"],
-            state["session_patterns"],
+            match_patterns,
         )
         try:
             raw = await scorer_llm.ainvoke(

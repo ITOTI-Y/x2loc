@@ -1,3 +1,4 @@
+import threading
 import time
 from collections.abc import Iterator
 from typing import Any, Final
@@ -48,6 +49,8 @@ class WeblateClient:
             timeout=HTTP_TIMEOUT,
             follow_redirects=True,
         )
+        self._throttle_lock = threading.Lock()
+        self._throttle_until = 0.0
 
     def close(self) -> None:
         self._client.close()
@@ -398,6 +401,7 @@ class WeblateClient:
         attempt = 0
         while True:
             attempt += 1
+            self._wait_throttle()
             try:
                 r = self._client.request(method, url, **kwargs)
             except httpx.TransportError as exc:
@@ -417,7 +421,7 @@ class WeblateClient:
                 logger.warning(
                     f"Weblate 429 on {method} {url}; sleeping {retry_after}s"
                 )
-                time.sleep(retry_after)
+                self._set_throttle_deadline(time.time() + retry_after)
                 continue
             if self._is_lock_busy(r) and attempt < RETRY_MAX_ATTEMPTS:
                 delay = LOCK_BUSY_BASE_DELAY * (2 ** (attempt - 1))
@@ -467,6 +471,18 @@ class WeblateClient:
             response.status_code == 400 and LOCK_BUSY_ERROR_SUBSTRING in response.text
         )
 
+    def _wait_throttle(self) -> None:
+        with self._throttle_lock:
+            deadline = self._throttle_until
+        wait = deadline - time.time()
+        if wait > 0:
+            time.sleep(wait)
+
+    def _set_throttle_deadline(self, deadline: float) -> None:
+        with self._throttle_lock:
+            if deadline > self._throttle_until:
+                self._throttle_until = deadline
+
     def _respect_rate_limit(self, response: httpx.Response) -> None:
         remaining_header = response.headers.get("X-RateLimit-Remaining")
         if remaining_header is None:
@@ -484,12 +500,12 @@ class WeblateClient:
             reset_ts = float(reset)
         except ValueError:
             return
-        sleep_for = max(reset_ts - time.time(), 0)
-        if sleep_for > 0:
+        if reset_ts > time.time():
             logger.warning(
-                f"Weblate rate limit low ({remaining}); sleeping {sleep_for:.1f}s"
+                f"Weblate rate limit low ({remaining}); "
+                f"throttling all threads for {reset_ts - time.time():.1f}s"
             )
-            time.sleep(sleep_for)
+            self._set_throttle_deadline(reset_ts)
 
     def _raise_for_status(self, response: httpx.Response) -> None:
         if response.is_success:

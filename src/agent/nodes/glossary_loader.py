@@ -36,7 +36,6 @@ def glossary_loader(
         "mods_glossary": mods,
         "stats": {"auto": 0, "approved": 0, "modified": 0, "skipped": 0},
         "skip_ids": [],
-        "session_patterns": [],
         "current_page": 1,
         "should_continue": True,
     }

@@ -53,7 +53,7 @@ def upload_batch(
 
 def common_prefix(a: str, b: str) -> str:
     i = 0
-    for ca, cb in zip(a, b):
+    for ca, cb in zip(a, b, strict=False):
         if ca != cb:
             break
         i += 1
@@ -64,7 +64,7 @@ def common_suffix(a: str, b: str) -> str:
     if not a or not b:
         return ""
     i = 0
-    for ca, cb in zip(reversed(a), reversed(b)):
+    for ca, cb in zip(reversed(a), reversed(b), strict=False):
         if ca != cb:
             break
         i += 1

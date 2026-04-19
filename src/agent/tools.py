@@ -105,10 +105,11 @@ def collect_context_for_term(
 
     nearby: list[dict] = []
     seen_sources: set[str] = set()
+    _page_size = 100
     page = 1
     while True:
         _count, units = client.list_units_page(
-            best_slug, lang, page=page, page_size=100
+            best_slug, lang, page=page, page_size=_page_size
         )
         for u in units:
             pos = u["position"]
@@ -126,7 +127,7 @@ def collect_context_for_term(
                     "tgt": u["target"][0] if u["target"][0] else None,
                 }
             )
-        if not units or units[-1]["position"] > hi:
+        if not units or len(units) < _page_size or units[-1]["position"] > hi:
             break
         page += 1
 

@@ -1105,8 +1105,6 @@ def _push_target_batches(
         end = min(idx + MERGED_TARGET_BATCH_SIZE, total)
         batch = merged_units[idx:end]
         csv_bytes = _units_to_translation_csv_bytes(batch)
-        # Skip all-empty-target batches: the CSV writer would emit a
-        # header-only file that Weblate rejects with nothing to do.
         if csv_bytes.count(b"\n") <= 1:
             idx = end
             continue

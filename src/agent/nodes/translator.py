@@ -68,13 +68,16 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
     ) -> TranslationCandidate:
         base_matches = lookup_glossary(unit["source"], state["base_glossary"])
         mods_matches = lookup_glossary(unit["source"], state["mods_glossary"])
+        match_patterns = []
+        for single_word in unit["source"].split():
+            match_patterns.extend(i for i in state["session_patterns"] if single_word.lower() in i["src_pattern"].lower())
         prompt = format_translation_prompt(
             unit["source"],
             unit["category"],
             base_matches,
             mods_matches,
             ctx,
-            state["session_patterns"],
+            match_patterns,
         )
         response = await translator_llm.ainvoke(
             [

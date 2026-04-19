@@ -34,7 +34,7 @@ def build_translator_llm(config: AgentConfigSchema) -> Runnable:
         openai_api_key=config.api_key,
         model_name=config.translation_model_name,
         temperature=config.translation_temperature,
-        max_tokens=2048,
+        max_tokens=4096,
     ).with_structured_output(TranslationOutputSchema)
 
 
@@ -44,7 +44,7 @@ def build_tag_validator_llm(config: AgentConfigSchema) -> Runnable:
         openai_api_key=config.api_key,
         model_name=config.validate_model_name,
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=4096,
     )
 
 
@@ -56,7 +56,7 @@ def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
         openai_api_key=config.api_key,
         model_name=config.scoring_model_name,
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=4096,
     ).with_structured_output(schema)
 
 
