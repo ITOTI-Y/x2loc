@@ -15,7 +15,7 @@ class AgentConfigSchema(BaseSchema):
     scoring_model_name: str = "gemini-3.1-flash-lite-preview"
     base_url: str = "https://api.anthropic.com/v1"
     api_key: SecretStr = Field(...)
-    translation_temperature: float = 0.2
+    translation_temperature: float = 1.0
     scoring_temperature: float = 0.0
     batch_size: int = DEFAULT_BATCH_SIZE
     auto_approve_threshold: int = AUTO_APPROVE_THRESHOLD

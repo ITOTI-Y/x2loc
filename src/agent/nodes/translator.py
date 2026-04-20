@@ -79,19 +79,34 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
             ctx,
             match_patterns,
         )
-        response = await translator_llm.ainvoke(
-            [
-                SystemMessage(
-                    content=TRANSLATION_SYSTEM.format(
-                        target_lang=agent_config.target_lang
-                    )
-                ),
-                HumanMessage(content=prompt),
-            ]
-        )
-        if not isinstance(response, TranslationOutputSchema):
-            raise TypeError(
-                f"Expected TranslationOutputSchema, got {type(response).__name__}"
+        try:
+            response = await translator_llm.ainvoke(
+                [
+                    SystemMessage(
+                        content=TRANSLATION_SYSTEM.format(
+                            target_lang=agent_config.target_lang
+                        )
+                    ),
+                    HumanMessage(content=prompt),
+                ]
+            )
+            if not isinstance(response, TranslationOutputSchema):
+                raise TypeError(
+                    f"Expected TranslationOutputSchema, got {type(response).__name__}"
+                )
+        except Exception as e:
+            logger.error(f"Translation failed for {unit['source']}: {e}")
+            return TranslationCandidate(
+                unit_id=unit["id"],
+                source=unit["source"],
+                context=unit["context"],
+                category=unit["category"],
+                translation="",
+                pattern_matched=False,
+                glossary_base=[],
+                glossary_mods=[],
+                context_result=ctx,
+                tag_valid=False,
             )
         result = response.result
         logger.info(f"[TRANSLATE] {unit['source']} → {result}")
