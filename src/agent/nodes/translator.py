@@ -70,7 +70,11 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
         mods_matches = lookup_glossary(unit["source"], state["mods_glossary"])
         match_patterns = []
         for single_word in unit["source"].split():
-            match_patterns.extend(i for i in state["session_patterns"] if single_word.lower() in i["src_pattern"].lower())
+            match_patterns.extend(
+                i
+                for i in state["session_patterns"]
+                if single_word.lower() in i["src_pattern"].lower()
+            )
         prompt = format_translation_prompt(
             unit["source"],
             unit["category"],

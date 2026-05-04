@@ -51,7 +51,11 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
     ) -> ScoreResult:
         match_patterns = []
         for single_word in c["source"].split():
-            match_patterns.extend(i for i in state["session_patterns"] if single_word.lower() in i["src_pattern"].lower())
+            match_patterns.extend(
+                i
+                for i in state["session_patterns"]
+                if single_word.lower() in i["src_pattern"].lower()
+            )
         prompt = format_scoring_prompt(
             c["source"],
             c["translation"],
