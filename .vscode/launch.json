@@ -27,6 +27,20 @@
                 "-v"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Run Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.agent.runner",
+            "args": [
+                "--config",
+                "configs/weblate.toml",
+                "--batch-size",
+                "50",
+                "--auto-skip"
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }
