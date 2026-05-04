@@ -68,7 +68,8 @@ def _detect_patterns(
             for wa, wb in zip(reversed(words_a), reversed(words_b), strict=False):
                 if wa != wb:
                     break
-                suffix.insert(0, wa)
+                suffix.append(wa)
+            suffix.reverse()
 
             if len(prefix) + len(suffix) == 0:
                 continue
@@ -88,9 +89,9 @@ def _detect_patterns(
             regex_parts.append("(.+)")
             if suffix:
                 regex_parts.append(re.escape(" ".join(suffix)))
-            regex = r"^" + r"\s+".join(regex_parts) + r"$"
+            pattern_re = re.compile(r"^" + r"\s+".join(regex_parts) + r"$")
 
-            matches = [h for h in history if re.fullmatch(regex, h["source"])]
+            matches = [h for h in history if pattern_re.fullmatch(h["source"])]
             if len(matches) < PATTERN_MIN_EXAMPLES:
                 continue
 

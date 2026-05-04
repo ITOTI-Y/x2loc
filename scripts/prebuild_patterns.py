@@ -1,10 +1,17 @@
 """Bootstrap data/patterns.json from existing approved Weblate translations.
 
 Treats every translated unit in `temp/*.json` as an approved history
-entry and runs the same prefix/suffix pattern detection as the agent's
-`pattern_extractor`. Output is written to `data/patterns.json` so that
-fresh agent runs start with prior pattern knowledge instead of an
-empty cache.
+entry and detects prefix/suffix patterns by bucketing source words into
+(prefix, suffix) tuples and applying a `next_pres` / `next_sufs`
+diversity filter (see `_detect_patterns`). Output is written to
+`data/patterns.json` so that fresh agent runs start with prior pattern
+knowledge instead of an empty cache.
+
+Note: the algorithm here is NOT identical to the agent's runtime
+`pattern_extractor`, which uses pairwise comparison plus regex
+fullmatch validation against history. Given the same input, the two
+methods can produce different pattern sets — `data/patterns.json` may
+diverge from what the online agent extracts during a session.
 
 Run:
     uv run python scripts/prebuild_patterns.py
@@ -23,28 +30,10 @@ sys.path.insert(0, str(ROOT))
 from loguru import logger  # noqa: E402
 
 from src.agent._share import PATTERN_CACHE_PATH, PATTERN_MIN_EXAMPLES  # noqa: E402
+from src.agent.nodes._helpers import common_prefix as _common_prefix  # noqa: E402
+from src.agent.nodes._helpers import common_suffix as _common_suffix  # noqa: E402
 
 TEMP_DIR: Path = ROOT / "temp"
-
-
-def _common_prefix(a: str, b: str) -> str:
-    i = 0
-    for ca, cb in zip(a, b, strict=False):
-        if ca != cb:
-            break
-        i += 1
-    return a[:i]
-
-
-def _common_suffix(a: str, b: str) -> str:
-    if not a or not b:
-        return ""
-    i = 0
-    for ca, cb in zip(reversed(a), reversed(b), strict=False):
-        if ca != cb:
-            break
-        i += 1
-    return a[len(a) - i :] if i > 0 else ""
 
 
 def _load_history() -> list[dict]:

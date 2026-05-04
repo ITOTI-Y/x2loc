@@ -45,17 +45,22 @@ def user_review(state: AgentState) -> dict:
 
         if action == "modify":
             translation = d.get("translation", "")
-            passed, _, _ = validate_tags(original["source"], translation)
-            if not passed:
-                logger.warning(
-                    f"[REVIEW] Modified translation has tag errors, skipping: {uid}"
-                )
-                skip_ids.append(uid)
-                stats["skipped"] += 1
-                continue
-            stats["modified"] += 1
         else:
             translation = original["translation"]
+
+        passed, _, _ = validate_tags(original["source"], translation)
+        if not passed:
+            logger.warning(
+                f"[REVIEW] {action.capitalize()} translation has tag errors, "
+                f"skipping: {uid}"
+            )
+            skip_ids.append(uid)
+            stats["skipped"] += 1
+            continue
+
+        if action == "modify":
+            stats["modified"] += 1
+        else:
             stats["approved"] += 1
 
         approved.append(

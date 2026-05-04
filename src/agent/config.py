@@ -13,7 +13,7 @@ class AgentConfigSchema(BaseSchema):
     translation_model_name: str = "gemini-3.1-flash-lite-preview"
     validate_model_name: str = ""
     scoring_model_name: str = ""
-    base_url: str = "https://api.anthropic.com/v1"
+    base_url: str = "https://openrouter.ai/api/v1"
     api_key: SecretStr = Field(...)
     translation_temperature: float = 1.0
     scoring_temperature: float = 0.0

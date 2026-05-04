@@ -14,21 +14,21 @@ from src.services.weblate import WeblateClient
 def glossary_loader(
     state: AgentState, *, client: WeblateClient, agent_config: AgentConfigSchema
 ) -> dict:
-    base: dict[str, dict] = {}
-    base_datas = _load_data("base", agent_config.target_lang, agent_config, client)
-    for unit in base_datas:
-        base[unit["source"][0]] = {
-            "target": unit["target"][0],
-            "context": unit["context"],
-        }
+    def _index(units: list[dict]) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for unit in units:
+            src = unit.get("source") or []
+            tgt = unit.get("target") or []
+            if not (isinstance(src, list) and src and isinstance(tgt, list) and tgt):
+                logger.warning(
+                    f"Skipping glossary unit with empty source/target: id={unit.get('id')}"
+                )
+                continue
+            out[src[0]] = {"target": tgt[0], "context": unit.get("context", "")}
+        return out
 
-    mods: dict[str, dict] = {}
-    mods_datas = _load_data("mods", agent_config.target_lang, agent_config, client)
-    for unit in mods_datas:
-        mods[unit["source"][0]] = {
-            "target": unit["target"][0],
-            "context": unit["context"],
-        }
+    base = _index(_load_data("base", agent_config.target_lang, agent_config, client))
+    mods = _index(_load_data("mods", agent_config.target_lang, agent_config, client))
 
     logger.info(f"Loaded glossaries: {len(base)} base + {len(mods)} mods")
     return {

@@ -7,12 +7,13 @@ from loguru import logger
 
 from src.agent.config import AgentConfigSchema
 from src.agent.llm import ScoreOutputSchema, build_scorer_llm
-from src.agent.prompts import SCORING_SYSTEM, format_scoring_prompt
+from src.agent.prompts import format_scoring_prompt, scoring_system_blocks
 from src.agent.state import AgentState, Deduction, ScoreResult, TranslationCandidate
 
 
 async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
     scorer_llm = build_scorer_llm(agent_config)
+    system_blocks = scoring_system_blocks(agent_config.target_lang)
     instant: list[ScoreResult] = []
     to_score: list[TranslationCandidate] = []
 
@@ -68,11 +69,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         try:
             raw = await scorer_llm.ainvoke(
                 [
-                    SystemMessage(
-                        content=SCORING_SYSTEM.format(
-                            target_lang=agent_config.target_lang
-                        )
-                    ),
+                    SystemMessage(content=system_blocks),
                     HumanMessage(content=prompt),
                 ]
             )

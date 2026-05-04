@@ -2,23 +2,28 @@ from __future__ import annotations
 
 import asyncio
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
 from src.agent._share import MAX_TAG_RETRIES
 from src.agent.config import AgentConfigSchema
 from src.agent.llm import build_tag_validator_llm
-from src.agent.prompts import TAG_FIX_TEMPLATE
+from src.agent.prompts import TAG_FIX_TEMPLATE, tag_fix_system_blocks
 from src.agent.state import AgentState, TranslationCandidate
 from src.agent.tools import validate_tags
 
 
 async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
     tag_validator_llm = build_tag_validator_llm(agent_config)
+    system_blocks = tag_fix_system_blocks(agent_config.target_lang)
 
     async def _validate_one(c: TranslationCandidate) -> TranslationCandidate:
         if c["pattern_matched"]:
             return c
+
+        if not c["translation"].strip():
+            logger.warning(f"[TAG FAIL] {c['source']}: empty translation")
+            return {**c, "tag_valid": False}  # type: ignore
 
         passed, missing, extra = validate_tags(c["source"], c["translation"])
         if passed:
@@ -32,17 +37,25 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
                 missing=missing,
                 extra=extra,
             )
-            response = await tag_validator_llm.ainvoke(
-                [HumanMessage(content=fix_prompt)]
-            )
-            content = response.content
-            if not isinstance(content, str):
-                raise TypeError(
-                    f"Expected str content from LLM, got {type(content).__name__}"
+            try:
+                response = await tag_validator_llm.ainvoke(
+                    [
+                        SystemMessage(content=system_blocks),
+                        HumanMessage(content=fix_prompt),
+                    ]
                 )
-            raw = content.strip()
-            translation = raw.split("\n")[0].strip().strip('"')
-            passed, missing, extra = validate_tags(c["source"], translation)
+                content = response.content
+                if not isinstance(content, str):
+                    raise TypeError(
+                        f"Expected str content from LLM, got {type(content).__name__}"
+                    )
+                raw = content.strip()
+                translation = raw.split("\n")[0].strip().strip('"')
+                passed, missing, extra = validate_tags(c["source"], translation)
+            except Exception as e:
+                logger.warning(f"[TAG FIX ERROR] {c['source']}: {e}")
+                passed = False
+                break
             if passed:
                 break
 

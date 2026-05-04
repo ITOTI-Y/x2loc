@@ -8,7 +8,7 @@ from loguru import logger
 
 from src.agent.config import AgentConfigSchema
 from src.agent.llm import TranslationOutputSchema, build_translator_llm
-from src.agent.prompts import TRANSLATION_SYSTEM, format_translation_prompt
+from src.agent.prompts import format_translation_prompt, translation_system_blocks
 from src.agent.state import (
     AgentState,
     ContextResult,
@@ -21,6 +21,7 @@ from src.agent.tools import lookup_glossary
 
 async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
     translator_llm = build_translator_llm(agent_config)
+    system_blocks = translation_system_blocks(agent_config.target_lang)
     candidates: list[TranslationCandidate] = []
     context_map = {c["unit_id"]: c for c in state["context_results"]}
     to_translate: list[tuple[TranslationUnit, ContextResult]] = []
@@ -65,7 +66,7 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
 
     async def _translate_one(
         unit: TranslationUnit, ctx: ContextResult
-    ) -> TranslationCandidate:
+    ) -> TranslationCandidate | None:
         base_matches = lookup_glossary(unit["source"], state["base_glossary"])
         mods_matches = lookup_glossary(unit["source"], state["mods_glossary"])
         match_patterns = []
@@ -86,11 +87,7 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
         try:
             response = await translator_llm.ainvoke(
                 [
-                    SystemMessage(
-                        content=TRANSLATION_SYSTEM.format(
-                            target_lang=agent_config.target_lang
-                        )
-                    ),
+                    SystemMessage(content=system_blocks),
                     HumanMessage(content=prompt),
                 ]
             )
@@ -100,18 +97,7 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
                 )
         except Exception as e:
             logger.error(f"Translation failed for {unit['source']}: {e}")
-            return TranslationCandidate(
-                unit_id=unit["id"],
-                source=unit["source"],
-                context=unit["context"],
-                category=unit["category"],
-                translation="",
-                pattern_matched=False,
-                glossary_base=[],
-                glossary_mods=[],
-                context_result=ctx,
-                tag_valid=False,
-            )
+            return None
         result = response.result
         logger.info(f"[TRANSLATE] {unit['source']} → {result}")
         return TranslationCandidate(
@@ -128,7 +114,15 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
         )
 
     llm_results = await asyncio.gather(*[_translate_one(u, c) for u, c in to_translate])
-    candidates.extend(llm_results)
+    failed_ids = [
+        u["id"] for (u, _), r in zip(to_translate, llm_results, strict=False) if r is None
+    ]
+    candidates.extend(r for r in llm_results if r is not None)
+    if failed_ids:
+        return {
+            "candidates": candidates,
+            "skip_ids": list(state["skip_ids"]) + failed_ids,
+        }
     return {"candidates": candidates}
 
 

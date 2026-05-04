@@ -149,6 +149,8 @@ def run(
     auto_skip: Annotated[bool, typer.Option("--auto-skip", help="Auto skip.")] = False,
 ) -> None:
     """Run the glossary translation agent."""
+    if batch_size <= 0:
+        raise typer.BadParameter("--batch-size must be a positive integer")
     config = load_config(str(config_path))
     config = config.model_copy(update={"batch_size": batch_size, "dry_run": dry_run})
     asyncio.run(_run_async(config, auto_skip=auto_skip))
