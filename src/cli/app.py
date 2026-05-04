@@ -13,6 +13,7 @@ import typer
 from loguru import logger
 
 from src._share import EXT_LANG_MAP, LANG_EXT_MAP
+from src.agent.runner import app as agent_app
 from src.core._share import iter_compound_keys
 from src.core.aligner import BilingualAligner
 from src.core.converter import TRANSLATABLE_STRUCT_FIELDS, CorpusConverter
@@ -31,6 +32,8 @@ from src.services.weblate import WeblateAPIError, WeblateClient
 app = typer.Typer(
     name="x2loc", help="XCOM 2 localization file toolkit.", no_args_is_help=True
 )
+
+agent_app.add_typer(app, name="agent")
 
 UPLOAD_CSV_COLUMNS: Final[list[str]] = [
     "context",
