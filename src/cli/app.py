@@ -33,7 +33,7 @@ app = typer.Typer(
     name="x2loc", help="XCOM 2 localization file toolkit.", no_args_is_help=True
 )
 
-agent_app.add_typer(app, name="agent")
+app.add_typer(agent_app, name="agent")
 
 UPLOAD_CSV_COLUMNS: Final[list[str]] = [
     "context",
