@@ -11,9 +11,9 @@ from src.models._share import BaseSchema
 
 
 class DeductionSchema(BaseSchema):
-    dim: str
-    pts: int
-    reason: str
+    dim: str = Field(description="The dimension of the deduction")
+    pts: int = Field(description="The points of the deduction")
+    reason: str = Field(description="The reason for the deduction")
 
 
 class TranslationOutputSchema(BaseSchema):
@@ -22,7 +22,7 @@ class TranslationOutputSchema(BaseSchema):
 
 class ScoreOutputSchema(BaseSchema):
     raw_translation: str = Field(description="The raw translation")
-    score: int = Field(ge=0, le=100)
+    score: int = Field(ge=0, le=100, description="The score of the translation between 0 and 100")
     deductions: list[DeductionSchema] = Field(
         ...,
         description="The deductions resulting from the scoring , should respond with target language",
