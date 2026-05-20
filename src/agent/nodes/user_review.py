@@ -17,8 +17,8 @@ def user_review(state: AgentState) -> dict:
             "category": c["category"],
             "score": score_map.get(c["unit_id"], {}).get("score", 0),
             "deductions": score_map.get(c["unit_id"], {}).get("deductions", []),
-            "suggested_alternative": score_map.get(c["unit_id"], {}).get(
-                "suggested_alternative"
+            "suggested_translation": score_map.get(c["unit_id"], {}).get(
+                "suggested_translation"
             ),
         }
         for c in state["review_batch"]

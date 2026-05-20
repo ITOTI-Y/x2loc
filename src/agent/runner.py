@@ -51,7 +51,7 @@ def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict
             )
             print(f"  Deductions: {reasons}")
 
-        suggested = item.get("suggested_alternative")
+        suggested = item.get("suggested_translation")
         if suggested:
             print(f"  Suggested: {suggested}")
             print(

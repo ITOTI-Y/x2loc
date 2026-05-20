@@ -22,17 +22,22 @@ class TranslationOutputSchema(BaseSchema):
 
 class ScoreOutputSchema(BaseSchema):
     raw_translation: str = Field(description="The raw translation")
-    score: int = Field(ge=0, le=100, description="The score of the translation between 0 and 100")
+    score: int = Field(
+        ge=0, le=100, description="The score of the translation between 0 and 100"
+    )
     deductions: list[DeductionSchema] = Field(
         ...,
-        description="The deductions resulting from the scoring , should respond with target language",
+        description="The deductions resulting from the scoring, must reply in target language, if no deduction is needed, return an empty list",
         default_factory=list,
     )
     suggested_translation: str | None = Field(
         None,
-        description="The suggested translation if the score is below threshold",
+        description="The suggested translation if the score is below threshold, must reply in target language, if no suggested translation is needed, return null",
     )
-    notes: str | None = None
+    notes: str | None = Field(
+        None,
+        description="The notes for the scoring, must reply in target language, if no notes are needed, return null",
+    )
 
 
 def build_translator_llm(config: AgentConfigSchema) -> Runnable:
@@ -71,7 +76,6 @@ def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
 
 
 def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
-    """Inline $ref/$defs so Gemini's response_schema can consume the JSON Schema."""
     defs = schema.get("$defs", {})
 
     def _resolve(node: Any) -> Any:

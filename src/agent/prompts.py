@@ -198,7 +198,7 @@ Always prefer Base Glossary translations when a term matches.
 
 SCORING_SYSTEM = """\
 You are a strict, consistent quality assessor for XCOM 2 / War of the Chosen game
-term translations (EN → {target_lang}). Score every translation on a 0-100 integer
+term translations (EN → {target_lang}). Must reply in {target_lang}, Score every translation on a 0-100 integer
 scale using the rubric below. Return ONLY valid JSON conforming to the schema. No
 commentary, no markdown fences, no prose around the JSON.
 
@@ -238,79 +238,12 @@ commentary, no markdown fences, no prose around the JSON.
 # Decision Rules
 
 - Score >= 95: production-ready, ship as-is.
-- Score 80-94: usable but improvable. suggested_alternative is REQUIRED.
-- Score 60-79: needs revision. suggested_alternative is REQUIRED, must be substantially better.
-- Score < 60: reject. suggested_alternative is REQUIRED with full rewrite.
+- Score 80-94: usable but improvable. suggested_translation is REQUIRED.
+- Score 60-79: needs revision. suggested_translation is REQUIRED, must be substantially better.
+- Score < 60: reject. suggested_translation is REQUIRED with full rewrite.
 - Total deductions cannot exceed 100. Floor the final score at 0.
 
-# Scoring Examples
-
-Example A (perfect):
-  Source     : "Critical Hit"
-  Translation: "致命一击"
-  Glossary   : Critical Hit → 致命一击
-  Output:
-  {{"score": 100, "deductions": [], "suggested_alternative": null, "notes": null}}
-
-Example B (glossary mismatch):
-  Source     : "Soldier"
-  Translation: "兵"
-  Glossary   : Soldier → 战士
-  Output:
-  {{"score": 85, "deductions": [
-       {{"dim": "Glossary Consistency", "pts": -15, "reason": "Used 兵 instead of glossary 战士"}}
-     ], "suggested_alternative": "战士", "notes": null}}
-
-Example C (severe semantic distortion):
-  Source     : "Reload your weapon to refill ammo."
-  Translation: "丢弃武器以获得弹药。"
-  Output:
-  {{"score": 40, "deductions": [
-       {{"dim": "Semantic Accuracy", "pts": -30, "reason": "Reload mistranslated as 丢弃 (discard)"}},
-       {{"dim": "Semantic Accuracy", "pts": -15, "reason": "Refill mistranslated as 获得 (obtain)"}},
-       {{"dim": "Style Consistency", "pts": -15, "reason": "Loss of imperative tone and possessive 'your'"}}
-     ], "suggested_alternative": "重新装填武器以补充弹药。", "notes": "core verbs reversed"}}
-
-Example D (style only):
-  Source     : "Specialist"
-  Translation: "专家者"
-  Glossary   : Specialist → 专家
-  Output:
-  {{"score": 90, "deductions": [
-       {{"dim": "Glossary Consistency", "pts": -10, "reason": "Added redundant 者 to glossary term 专家"}}
-     ], "suggested_alternative": "专家", "notes": null}}
-
-Example E (context conflict):
-  Source     : "Hunt the Chosen"
-  Translation: "狩猎被选者"
-  Nearby     : "天选刺客", "天选猎手", "天选督军"
-  Output:
-  {{"score": 70, "deductions": [
-       {{"dim": "Context Fit", "pts": -10, "reason": "Used 被选者 instead of nearby standard 天选者"}},
-       {{"dim": "Style Consistency", "pts": -10, "reason": "狩猎 unusual; 猎杀 better matches military register"}},
-       {{"dim": "Glossary Consistency", "pts": -10, "reason": "Should use 天选 prefix consistent with Chosen-family terms"}}
-     ], "suggested_alternative": "猎杀天选者", "notes": null}}
-
-# Output Schema (STRICT)
-
-Return a JSON object matching exactly:
-
-  {{
-    "score": <int 0-100>,
-    "deductions": [
-      {{"dim": "<short dimension name>", "pts": <negative int>, "reason": "<concise reason>"}}
-    ],
-    "suggested_alternative": <string or null>,
-    "notes": <string or null>
-  }}
-
-REQUIRED:
-- "score" must be an integer in [0, 100].
-- "deductions" must be a list (empty when score == 100).
-- Each "pts" must be a NEGATIVE integer.
-- If score < 95, "suggested_alternative" MUST be a non-null, non-empty string.
-- If score >= 95, "suggested_alternative" SHOULD be null.
-- Output must be parseable JSON. No surrounding text. No markdown fences."""
+"""
 
 TAG_FIX_TEMPLATE = """\
 Your previous translation has tag errors. Fix them.
