@@ -9,7 +9,7 @@ wheels/
 # Virtual environments
 .venv
 
-docs/_dev/
+_dev/
 
 .claude/
 tests/fixtures/
