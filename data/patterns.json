@@ -19216,5 +19216,43 @@
         "target": "穿甲精炼"
       }
     ]
+  },
+  {
+    "src_pattern": "Healing {X}",
+    "tgt_pattern": "治疗{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Healing Aid",
+        "target": "治疗援助"
+      },
+      {
+        "source": "Healing Takedown",
+        "target": "治疗击倒"
+      },
+      {
+        "source": "Healing Critical",
+        "target": "暴击治疗"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Kostura {X}",
+    "tgt_pattern": "科斯图拉{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Kostura Bolt",
+        "target": "科斯图拉弹"
+      },
+      {
+        "source": "Kostura Resonance",
+        "target": "科斯图拉共鸣"
+      },
+      {
+        "source": "Kostura Surge",
+        "target": "科斯图拉激涌"
+      }
+    ]
   }
 ]

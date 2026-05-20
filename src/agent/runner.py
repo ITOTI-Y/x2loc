@@ -60,7 +60,7 @@ def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict
         else:
             print("  [1] Accept  [2] Skip")
 
-        choice = "3" if auto_skip else input("  Choice: ").strip()
+        choice = "3" if auto_skip else input("  Choice or Translation: ").strip()
 
         if suggested:
             if choice == "1":
@@ -79,6 +79,16 @@ def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict
                         "translation": item["translation"],
                     }
                 )
+            elif choice == "3":
+                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
+            elif choice:
+                decisions.append(
+                    {
+                        "unit_id": item["unit_id"],
+                        "action": "modify",
+                        "translation": choice,
+                    }
+                )
             else:
                 decisions.append({"unit_id": item["unit_id"], "action": "skip"})
         else:
@@ -88,6 +98,16 @@ def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict
                         "unit_id": item["unit_id"],
                         "action": "approve",
                         "translation": item["translation"],
+                    }
+                )
+            elif choice == "2":
+                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
+            elif choice:
+                decisions.append(
+                    {
+                        "unit_id": item["unit_id"],
+                        "action": "approve",
+                        "translation": choice,
                     }
                 )
             else:
