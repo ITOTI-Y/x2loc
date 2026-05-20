@@ -770,7 +770,7 @@ class TestUploadCommand:
         corpus_dir = tmp_path / "corpus"
         _write_upload_corpus(corpus_dir, "XComGame")
 
-        config_path = tmp_path / "weblate.toml"
+        config_path = tmp_path / "weblate.local.toml"
         config_path.write_text(
             'url = "https://weblate.example.com/api/"\n'
             'token = "wlp_from_file"\n'

@@ -26,7 +26,7 @@ class AgentConfigSchema(BaseSchema):
 
 
 def load_config(
-    weblate_config_path: str | Path = "configs/weblate.toml",
+    weblate_config_path: str | Path = "configs/weblate.local.toml",
 ) -> AgentConfigSchema:
     with open(weblate_config_path, "rb") as f:
         raw = tomllib.load(f)

@@ -41,7 +41,7 @@ MOD_CORPUS_ROOT: Path = ROOT / "output" / "corpus"
 
 OUTPUT_BASE_CSV: Path = ROOT / "output" / "glossary_base.csv"
 OUTPUT_MODS_CSV: Path = ROOT / "output" / "glossary_mods.csv"
-CONFIG_TOML: Path = ROOT / "configs" / "weblate.toml"
+CONFIG_TOML: Path = ROOT / "configs" / "weblate.local.toml"
 
 # Weblate component slugs via the `glossary-{namespace}` convention.
 BASE_GLOSSARY_NAMESPACE: str = "base-xcom2-wotc"  # → slug: glossary-base-xcom2-wotc

@@ -44,7 +44,7 @@ from src.services.weblate import WeblateAPIError, WeblateClient  # noqa: E402
 SCAN_TSV: Path = ROOT / "output" / "batch_scan.tsv"
 CORPUS_ROOT: Path = ROOT / "output" / "corpus"
 REPORT_TSV: Path = ROOT / "output" / "batch_upload_report.tsv"
-CONFIG_TOML: Path = ROOT / "configs" / "weblate.toml"
+CONFIG_TOML: Path = ROOT / "configs" / "weblate.local.toml"
 
 REPORT_COLUMNS: list[str] = [
     "mod_id",

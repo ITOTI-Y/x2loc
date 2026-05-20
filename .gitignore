@@ -15,4 +15,4 @@ _dev/
 tests/fixtures/
 output/
 temp/
-configs/weblate.toml
+configs/weblate.local.toml

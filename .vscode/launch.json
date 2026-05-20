@@ -35,7 +35,7 @@
             "module": "src.agent.runner",
             "args": [
                 "--config",
-                "configs/weblate.toml",
+                "configs/weblate.local.toml",
                 "--batch-size",
                 "50",
                 "--auto-skip"
