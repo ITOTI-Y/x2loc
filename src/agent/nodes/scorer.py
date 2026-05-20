@@ -24,7 +24,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
                     "unit_id": c["unit_id"],
                     "score": 100,
                     "deductions": [],
-                    "suggested_alternative": None,
+                    "suggested_translation": None,
                     "notes": "pattern-matched",
                 }
             )
@@ -40,7 +40,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
                             reason="Tag validation failed",
                         )
                     ],
-                    suggested_alternative=None,
+                    suggested_translation=None,
                     notes="requires manual review",
                 )
             )
@@ -85,7 +85,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
                     )
                     for d in result.deductions
                 ],
-                suggested_alternative=result.suggested_alternative,
+                suggested_translation=result.suggested_translation,
                 notes=result.notes,
             )
         except Exception as e:
@@ -94,7 +94,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
                 unit_id=c["unit_id"],
                 score=0,
                 deductions=[Deduction(dim="parse_error", pts=-100, reason=str(e))],
-                suggested_alternative=None,
+                suggested_translation=None,
                 notes="scorer error",
             )
         logger.info(f"[SCORE] {c['source']}: {score_result['score']}")

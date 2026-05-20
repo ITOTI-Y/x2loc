@@ -3,7 +3,6 @@ from typing import Final
 
 PATTERN_CACHE_PATH: Final = Path("data/patterns.json")
 
-AUTO_APPROVE_THRESHOLD: Final = 95
 MAX_TAG_RETRIES: Final = 2
 DEFAULT_BATCH_SIZE: Final = 10
 DEFAULT_NEARBY_RANGE: Final = 10

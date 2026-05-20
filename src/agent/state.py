@@ -46,7 +46,7 @@ class ScoreResult(TypedDict):
     unit_id: int
     score: int
     deductions: list[Deduction]
-    suggested_alternative: str | None
+    suggested_translation: str | None
     notes: str | None
 
 

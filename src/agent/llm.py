@@ -23,8 +23,15 @@ class TranslationOutputSchema(BaseSchema):
 class ScoreOutputSchema(BaseSchema):
     raw_translation: str = Field(description="The raw translation")
     score: int = Field(ge=0, le=100)
-    deductions: list[DeductionSchema] = Field(default_factory=list)
-    suggested_alternative: str | None = None
+    deductions: list[DeductionSchema] = Field(
+        ...,
+        description="The deductions resulting from the scoring , should respond with target language",
+        default_factory=list,
+    )
+    suggested_translation: str | None = Field(
+        None,
+        description="The suggested translation if the score is below threshold",
+    )
     notes: str | None = None
 
 
@@ -51,6 +58,9 @@ def build_tag_validator_llm(config: AgentConfigSchema) -> Runnable:
 def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
     schema = _inline_refs(ScoreOutputSchema.model_json_schema())
     schema.setdefault("title", "ScoreOutputSchema")
+    schema["properties"]["suggested_translation"]["description"] = (
+        f"The suggested translation if the score is less than {config.auto_approve_threshold}"
+    )
     return ChatOpenAI(
         openai_api_base=config.base_url,
         openai_api_key=config.api_key,

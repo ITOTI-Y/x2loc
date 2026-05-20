@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic import Field, SecretStr
 
-from src.agent._share import AUTO_APPROVE_THRESHOLD, DEFAULT_BATCH_SIZE
+from src.agent._share import DEFAULT_BATCH_SIZE
 from src.models._share import BaseSchema
 from src.models.weblate import WeblateConfigSchema
 
@@ -18,7 +18,7 @@ class AgentConfigSchema(BaseSchema):
     translation_temperature: float = 1.0
     scoring_temperature: float = 0.0
     batch_size: int = DEFAULT_BATCH_SIZE
-    auto_approve_threshold: int = AUTO_APPROVE_THRESHOLD
+    auto_approve_threshold: int = 95
     component_slug: str = "glossary-mods"
     base_glossary_slug: str = "glossary-base-xcom2-wotc"
     target_lang: str = "zh_Hans"

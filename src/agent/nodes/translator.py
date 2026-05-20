@@ -115,7 +115,9 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
 
     llm_results = await asyncio.gather(*[_translate_one(u, c) for u, c in to_translate])
     failed_ids = [
-        u["id"] for (u, _), r in zip(to_translate, llm_results, strict=False) if r is None
+        u["id"]
+        for (u, _), r in zip(to_translate, llm_results, strict=False)
+        if r is None
     ]
     candidates.extend(r for r in llm_results if r is not None)
     if failed_ids:
