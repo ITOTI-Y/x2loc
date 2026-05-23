@@ -19254,5 +19254,625 @@
         "target": "科斯图拉激涌"
       }
     ]
+  },
+  {
+    "src_pattern": "Night {X}",
+    "tgt_pattern": "暗夜{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Night Dive",
+        "target": "暗夜潜入"
+      },
+      {
+        "source": "Night Rounds",
+        "target": "暗夜子弹"
+      },
+      {
+        "source": "Night Terrors",
+        "target": "夜惊"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Phantasmal {X}",
+    "tgt_pattern": "幻影{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Phantasmal Killer",
+        "target": "幻影杀手"
+      },
+      {
+        "source": "Phantasmal Prison",
+        "target": "幻影囚笼"
+      },
+      {
+        "source": "Phantasmal Weird",
+        "target": "幻影怪异"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Rounds",
+    "tgt_pattern": "{X}弹",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Night Rounds",
+        "target": "暗夜子弹"
+      },
+      {
+        "source": "Advanced Redscreen Rounds",
+        "target": "高级红屏弹"
+      },
+      {
+        "source": "Advanced Talon Rounds",
+        "target": "高级爪子弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Focus",
+    "tgt_pattern": "{X}专注",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Purge Focus",
+        "target": "净化专注"
+      },
+      {
+        "source": "Priority Focus",
+        "target": "优先专注"
+      },
+      {
+        "source": "Purging Focus",
+        "target": "净化专注"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Power: {X}",
+    "tgt_pattern": "能力：{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Power: Heartseeker",
+        "target": "能力：寻心者"
+      },
+      {
+        "source": "Power: Sunder",
+        "target": "能力：碎裂"
+      },
+      {
+        "source": "Power: Sundering Strike",
+        "target": "能力：裂地打击"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Reverse {X}",
+    "tgt_pattern": "逆{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Reverse Counters",
+        "target": "逆转反击"
+      },
+      {
+        "source": "Reverse Iron Blade",
+        "target": "逆铁刀锋"
+      },
+      {
+        "source": "Reverse Iron Nail",
+        "target": "反向铁钉"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Transcendence: {X}",
+    "tgt_pattern": "超{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Transcendence: Beyond Mortal",
+        "target": "超凡：超脱凡俗"
+      },
+      {
+        "source": "Transcendence: The Inexorable Will",
+        "target": "超脱：不可动摇的意志"
+      },
+      {
+        "source": "Transcendence: Terror Incarnate",
+        "target": "超凡：惊惧化身"
+      },
+      {
+        "source": "Transcendence: The Blade of Biedde",
+        "target": "超凡：比德之刃"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Armor",
+    "tgt_pattern": "{X}甲",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Sealed Armor",
+        "target": "密封式装甲"
+      },
+      {
+        "source": "Icarus Armor",
+        "target": "伊卡洛斯护甲"
+      },
+      {
+        "source": "Light Kevlar Armor",
+        "target": "轻型凯芙拉护甲"
+      },
+      {
+        "source": "Grand Titan Armor",
+        "target": "大泰坦护甲"
+      },
+      {
+        "source": "Hive Queen Armor",
+        "target": "蜂后护甲"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Andromedon {X}",
+    "tgt_pattern": "仙女座外星人{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Andromedon Icepurger Shell",
+        "target": "仙女座外星人冰霜净化者外壳"
+      },
+      {
+        "source": "Andromedon Backburner",
+        "target": "仙女座外星人焚烧者"
+      },
+      {
+        "source": "Andromedon Backburner Shell",
+        "target": "仙女座外星人余烬外壳"
+      },
+      {
+        "source": "Andromedon Icepurger",
+        "target": "仙女座外星人冰霜净化者"
+      },
+      {
+        "source": "Andromedon Plaguebearer",
+        "target": "仙女座外星人瘟疫携带者"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shell",
+    "tgt_pattern": "仙女座{X}外壳",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Andromedon Icepurger Shell",
+        "target": "仙女座外星人冰霜净化者外壳"
+      },
+      {
+        "source": "Andromedon Backburner Shell",
+        "target": "仙女座外星人余烬外壳"
+      },
+      {
+        "source": "Andromelid Shell",
+        "target": "仙女座蚁外壳"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Deployed Drone {X}",
+    "tgt_pattern": "已部署无人机MK{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Deployed Drone MK1",
+        "target": "已部署无人机MK1"
+      },
+      {
+        "source": "Deployed Drone MK2",
+        "target": "已部署无人机MK2"
+      },
+      {
+        "source": "Deployed Drone MK3",
+        "target": "已部署无人机 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Andromelid {X}",
+    "tgt_pattern": "仙女座蚁{X}侍从",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Andromelid Coutillier",
+        "target": "仙女座蚁佩刀侍从"
+      },
+      {
+        "source": "Andromelid Ecuyer",
+        "target": "仙女座蚁侍从"
+      },
+      {
+        "source": "Andromelid Gendarme",
+        "target": "仙女座蚁宪兵"
+      },
+      {
+        "source": "Andromelid Shell",
+        "target": "仙女座蚁外壳"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Big {X} Boy",
+    "tgt_pattern": "{X}小子",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Big 'Ard Boy",
+        "target": "欧克小子"
+      },
+      {
+        "source": "Big Burna Boy",
+        "target": "喷火小子"
+      },
+      {
+        "source": "Big Shoota Boy",
+        "target": "巨型射击小子"
+      },
+      {
+        "source": "Big Skar Boy",
+        "target": "巨型疤脸小子"
+      },
+      {
+        "source": "Big Slugga Boy",
+        "target": "巨型砍刀小子"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Big {X}",
+    "tgt_pattern": "{X}小子",
+    "approved_count": 11,
+    "examples": [
+      {
+        "source": "Big 'Ard Boy",
+        "target": "欧克小子"
+      },
+      {
+        "source": "Big Burna Boy",
+        "target": "喷火小子"
+      },
+      {
+        "source": "Big Deff Dread",
+        "target": "巨型杀戮机甲"
+      },
+      {
+        "source": "Big Loota",
+        "target": "巨型搜刮小子"
+      },
+      {
+        "source": "Big Meganob",
+        "target": "巨型重装老大"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chryssalid Hive {X}",
+    "tgt_pattern": "寄生兽蜂巢{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Chryssalid Hive Drone",
+        "target": "寄生兽蜂巢无人机"
+      },
+      {
+        "source": "Chryssalid Hive Guard",
+        "target": "寄生兽蜂巢守卫"
+      },
+      {
+        "source": "Chryssalid Hive Queen",
+        "target": "寄生兽蜂后"
+      },
+      {
+        "source": "Chryssalid Hive Warrior",
+        "target": "寄生兽蜂巢战士"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chryssalid {X}",
+    "tgt_pattern": "寄生兽{X}",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "Chryssalid Hive Drone",
+        "target": "寄生兽蜂巢无人机"
+      },
+      {
+        "source": "Chryssalid Hive Guard",
+        "target": "寄生兽蜂巢守卫"
+      },
+      {
+        "source": "Chryssalid Hive Queen",
+        "target": "寄生兽蜂后"
+      },
+      {
+        "source": "Chryssalid Hive Warrior",
+        "target": "寄生兽蜂巢战士"
+      },
+      {
+        "source": "Chryssalid Juvenile Hive Queen",
+        "target": "寄生兽幼体蜂后"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Trained {X}",
+    "tgt_pattern": "受训{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Trained Sniper (Squadsight)",
+        "target": "受训狙击手 (小队视野)"
+      },
+      {
+        "source": "Trained Sniper",
+        "target": "受训狙击手"
+      },
+      {
+        "source": "Trained Sniper (Long Watch)",
+        "target": "受训狙击手（守望）"
+      },
+      {
+        "source": "Trained Necromancer",
+        "target": "受训死灵法师"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Sniper",
+    "tgt_pattern": "{X}狙击手",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Trained Sniper",
+        "target": "受训狙击手"
+      },
+      {
+        "source": "Renegade Sniper",
+        "target": "变节狙击手"
+      },
+      {
+        "source": "Rogue Sniper",
+        "target": "叛逃狙击手"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Boy",
+    "tgt_pattern": "{X}小子",
+    "approved_count": 9,
+    "examples": [
+      {
+        "source": "Big 'Ard Boy",
+        "target": "欧克小子"
+      },
+      {
+        "source": "Big Burna Boy",
+        "target": "喷火小子"
+      },
+      {
+        "source": "Big Shoota Boy",
+        "target": "巨型射击小子"
+      },
+      {
+        "source": "Big Skar Boy",
+        "target": "巨型疤脸小子"
+      },
+      {
+        "source": "Big Slugga Boy",
+        "target": "巨型砍刀小子"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Veteran Andromelid {X}",
+    "tgt_pattern": "老兵仙女座蚁{X}侍从",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Veteran Andromelid Coutillier",
+        "target": "老兵仙女座蚁佩刀侍从"
+      },
+      {
+        "source": "Veteran Andromelid Ecuyer",
+        "target": "老兵仙女座蚁侍从"
+      },
+      {
+        "source": "Veteran Andromelid Gendarme",
+        "target": "老兵仙女座蚁宪兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Renegade {X}",
+    "tgt_pattern": "{X}兵",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Renegade MEC Trooper",
+        "target": "叛逆MEC兵"
+      },
+      {
+        "source": "Renegade Sniper",
+        "target": "变节狙击手"
+      },
+      {
+        "source": "Renegade Assault",
+        "target": "变节突击兵"
+      },
+      {
+        "source": "Renegade Heavy",
+        "target": "变节重装兵"
+      },
+      {
+        "source": "Renegade Support",
+        "target": "变节支援兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Rogue {X}",
+    "tgt_pattern": "叛逃{X}兵",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Rogue Assault",
+        "target": "叛逃突击兵"
+      },
+      {
+        "source": "Rogue Heavy",
+        "target": "叛逃重装兵"
+      },
+      {
+        "source": "Rogue Sniper",
+        "target": "叛逃狙击手"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Servitor {X}",
+    "tgt_pattern": "远古{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Servitor Ancien",
+        "target": "远古仆从"
+      },
+      {
+        "source": "Servitor Archaique",
+        "target": "远古伺服机"
+      },
+      {
+        "source": "Servitor Ratatine",
+        "target": "远古仆役"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Tuff {X}",
+    "tgt_pattern": "塔夫{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Tuff Burna Boy",
+        "target": "塔夫喷火小子"
+      },
+      {
+        "source": "Tuff Meganob",
+        "target": "塔夫重装老大"
+      },
+      {
+        "source": "Tuff Nob",
+        "target": "塔夫老大"
+      },
+      {
+        "source": "Tuff Shoota Boy",
+        "target": "塔夫射击小子"
+      },
+      {
+        "source": "Tuff Skar Boy",
+        "target": "塔夫疤脸小子"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Tuff {X} Boy",
+    "tgt_pattern": "塔夫{X}小子",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Tuff Burna Boy",
+        "target": "塔夫喷火小子"
+      },
+      {
+        "source": "Tuff Shoota Boy",
+        "target": "塔夫射击小子"
+      },
+      {
+        "source": "Tuff Skar Boy",
+        "target": "塔夫疤脸小子"
+      },
+      {
+        "source": "Tuff Slugga Boy",
+        "target": "塔夫砍刀小子"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Shield {X}",
+    "tgt_pattern": "盾{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Shield Wall",
+        "target": "盾墙"
+      },
+      {
+        "source": "Shield Trauma",
+        "target": "盾牌创伤"
+      },
+      {
+        "source": "Shield Splitters",
+        "target": "护盾撕裂者"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Elite {X}",
+    "tgt_pattern": "精英{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Elite Andromelid Coutillier",
+        "target": "精英仙女座短刃侍从"
+      },
+      {
+        "source": "Elite Andromelid Ecuyer",
+        "target": "精英仙女座侍从"
+      },
+      {
+        "source": "Elite Combatants",
+        "target": "精英士兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "<font {X}",
+    "tgt_pattern": "<font color='#{X}</font>",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Mechtoids</font>",
+        "target": "<font color='#df07b7'>机甲异种</font>"
+      },
+      {
+        "source": "<font color='#fc7405'>Decay</font>",
+        "target": "<font color='#fc7405'>衰变</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>The Corrosion</font>",
+        "target": "<font color='#df07b7'>腐蚀</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>The Requiem Legion</font>",
+        "target": "<font color='#df07b7'>安魂军团</font>"
+      }
+    ]
   }
 ]
