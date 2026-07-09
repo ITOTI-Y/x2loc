@@ -23,11 +23,11 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
 
         if not c["translation"].strip():
             logger.warning(f"[TAG FAIL] {c['source']}: empty translation")
-            return {**c, "tag_valid": False}  # type: ignore
+            return {**c, "tag_valid": False}
 
         passed, missing, extra = validate_tags(c["source"], c["translation"])
         if passed:
-            return {**c, "tag_valid": True}  # type: ignore
+            return {**c, "tag_valid": True}
 
         translation = c["translation"]
         for _ in range(MAX_TAG_RETRIES):
@@ -64,7 +64,7 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
         else:
             logger.warning(f"[TAG FAIL] {c['source']}: {missing=} {extra=}")
 
-        return {**c, "translation": translation, "tag_valid": passed}  # type: ignore
+        return {**c, "translation": translation, "tag_valid": passed}
 
     results = await asyncio.gather(*[_validate_one(c) for c in state["candidates"]])
     return {"candidates": list(results)}

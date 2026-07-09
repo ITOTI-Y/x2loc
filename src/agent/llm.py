@@ -42,21 +42,21 @@ class ScoreOutputSchema(BaseSchema):
 
 def build_translator_llm(config: AgentConfigSchema) -> Runnable:
     return ChatOpenAI(
-        openai_api_base=config.base_url,
-        openai_api_key=config.api_key,
-        model_name=config.translation_model_name,
+        base_url=config.base_url,
+        api_key=config.api_key,
+        model=config.translation_model_name,
         temperature=config.translation_temperature,
-        max_tokens=4096,
+        max_completion_tokens=4096,
     ).with_structured_output(TranslationOutputSchema)
 
 
 def build_tag_validator_llm(config: AgentConfigSchema) -> Runnable:
     return ChatOpenAI(
-        openai_api_base=config.base_url,
-        openai_api_key=config.api_key,
-        model_name=config.validate_model_name,
+        base_url=config.base_url,
+        api_key=config.api_key,
+        model=config.validate_model_name,
         temperature=0.0,
-        max_tokens=4096,
+        max_completion_tokens=4096,
     )
 
 
@@ -67,11 +67,11 @@ def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
         f"The suggested translation if the score is less than {config.auto_approve_threshold}"
     )
     return ChatOpenAI(
-        openai_api_base=config.base_url,
-        openai_api_key=config.api_key,
-        model_name=config.scoring_model_name,
+        base_url=config.base_url,
+        api_key=config.api_key,
+        model=config.scoring_model_name,
         temperature=config.scoring_temperature,
-        max_tokens=4096,
+        max_completion_tokens=4096,
     ).with_structured_output(schema)
 
 
