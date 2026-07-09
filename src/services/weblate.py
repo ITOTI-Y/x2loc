@@ -3,7 +3,7 @@ import time
 from collections.abc import Iterator
 from typing import Any, Final
 
-import httpx
+import httpx2
 from loguru import logger
 
 from src.models.weblate import WeblateConfigSchema
@@ -40,7 +40,7 @@ class WeblateClient:
     def __init__(self, config: WeblateConfigSchema) -> None:
         self.config = config
         self.base_url = config.url.rstrip("/") + "/"
-        self._client = httpx.Client(
+        self._client = httpx2.Client(
             base_url=self.base_url,
             headers={
                 "Authorization": f"Token {config.token}",
@@ -373,7 +373,7 @@ class WeblateClient:
             yield from body.get("results", [])
             next_url = body.get("next")
 
-    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx2.Response:
         """Send an HTTP request with rate-limit + 5xx/429 retry.
 
         `RETRY_MAX_ATTEMPTS` is the total number of HTTP calls on persistent
@@ -404,7 +404,7 @@ class WeblateClient:
             self._wait_throttle()
             try:
                 r = self._client.request(method, url, **kwargs)
-            except httpx.TransportError as exc:
+            except httpx2.TransportError as exc:
                 if attempt < RETRY_MAX_ATTEMPTS:
                     delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
                     logger.warning(
@@ -444,7 +444,7 @@ class WeblateClient:
             return r
 
     @staticmethod
-    def _is_lock_busy(response: httpx.Response) -> bool:
+    def _is_lock_busy(response: httpx2.Response) -> bool:
         """True when the response signals `wait for an in-flight task`.
 
         Four distinct server conditions share the same recovery
@@ -483,7 +483,7 @@ class WeblateClient:
             if deadline > self._throttle_until:
                 self._throttle_until = deadline
 
-    def _respect_rate_limit(self, response: httpx.Response) -> None:
+    def _respect_rate_limit(self, response: httpx2.Response) -> None:
         remaining_header = response.headers.get("X-RateLimit-Remaining")
         if remaining_header is None:
             return
@@ -507,7 +507,7 @@ class WeblateClient:
             )
             self._set_throttle_deadline(reset_ts)
 
-    def _raise_for_status(self, response: httpx.Response) -> None:
+    def _raise_for_status(self, response: httpx2.Response) -> None:
         if response.is_success:
             return
         raise WeblateAPIError(response.status_code, response.text[:500])
