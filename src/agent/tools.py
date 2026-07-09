@@ -4,22 +4,34 @@ import re
 from collections import Counter
 from typing import Any, Final
 
-from src.agent.state import GlossaryMatch
+from src.agent._share import (
+    CONTEXT_MIN_SOURCE_LEN,
+    CONTEXT_NEARBY_PAGE_SIZE,
+    CONTEXT_SEARCH_PAGE_SIZE,
+    DEFAULT_NEARBY_RANGE,
+)
+from src.agent.state import GlossaryMatch, SessionPattern
 from src.services.weblate import WeblateClient
 
-TAG_PATTERNS: Final = [
-    r"<[^>]+>",
-    r"%[dsiufxXpc]",
-    r"\{[^}]*\}",
-    r"\\[nt]",
-    r"<XGParam:[^/]*/>",
+TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
+    re.compile(p)
+    for p in (
+        r"<[^>]+>",
+        r"%[dsiufxXpc]",
+        r"\{[^}]*\}",
+        r"\\[nt]",
+        r"<XGParam:[^/]*/>",
+    )
 ]
+
+_HTML_TAG_RE: Final = re.compile(r"<[^>]+>")
+_WORD_RE: Final = re.compile(r"[A-Za-z]{3,}")
 
 
 def extract_tags(text: str) -> list[str]:
     tags: list[str] = []
     for pattern in TAG_PATTERNS:
-        tags.extend(re.findall(pattern, text))
+        tags.extend(pattern.findall(text))
     return tags
 
 
@@ -36,12 +48,32 @@ def validate_tags(source: str, translation: str) -> tuple[bool, dict, dict]:
 
 
 def strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text).strip()
+    return _HTML_TAG_RE.sub("", text).strip()
 
 
 def tokenize(text: str) -> set[str]:
-    plain = re.sub(r"<[^>]+>", "", text)
-    return {w.lower() for w in re.findall(r"[A-Za-z]{3,}", plain)}
+    return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
+
+
+def make_glossary_entry(source: str, target: str, context: str) -> dict:
+    """Build a glossary cache entry with its source tokens precomputed.
+
+    `lookup_glossary` matches by token overlap; precomputing here avoids
+    re-tokenizing every entry on every lookup.
+    """
+    return {"target": target, "context": context, "tokens": tokenize(source)}
+
+
+def match_session_patterns(
+    source: str, patterns: list[SessionPattern]
+) -> list[SessionPattern]:
+    """Collect session patterns whose src_pattern contains any word of `source`."""
+    matched: list[SessionPattern] = []
+    for single_word in source.split():
+        matched.extend(
+            p for p in patterns if single_word.lower() in p["src_pattern"].lower()
+        )
+    return matched
 
 
 def lookup_glossary(
@@ -53,7 +85,7 @@ def lookup_glossary(
 
     scored: list[tuple[int, int, str, dict]] = []
     for src, info in cache.items():
-        cache_tokens = tokenize(src)
+        cache_tokens = info.get("tokens") or tokenize(src)
         if not cache_tokens:
             continue
         overlap = src_tokens & cache_tokens
@@ -70,11 +102,13 @@ def lookup_glossary(
 def collect_context_for_term(
     client: WeblateClient,
     source_text: str,
-    lang: str = "zh_Hans",
-    nearby_range: int = 2,
+    lang: str,
+    nearby_range: int = DEFAULT_NEARBY_RANGE,
 ) -> dict[str, Any]:
     search_query = strip_html(source_text) or source_text
-    results = client.search_units(f'source:"{search_query}"', page_size=50)
+    results = client.search_units(
+        f'source:"{search_query}"', page_size=CONTEXT_SEARCH_PAGE_SIZE
+    )
 
     components: dict[str, list[int]] = {}
     for u in results:
@@ -105,18 +139,20 @@ def collect_context_for_term(
 
     nearby: list[dict] = []
     seen_sources: set[str] = set()
-    _page_size = 100
-    page = 1
+    # Positions are 1-based and page-ordered (the break test below relies on
+    # that), so start directly at the page containing the window's low end
+    # instead of scanning from page 1.
+    page = max(1, (lo - 1) // CONTEXT_NEARBY_PAGE_SIZE + 1)
     while True:
         _count, units = client.list_units_page(
-            best_slug, lang, page=page, page_size=_page_size
+            best_slug, lang, page=page, page_size=CONTEXT_NEARBY_PAGE_SIZE
         )
         for u in units:
             pos = u["position"]
             if not (lo <= pos <= hi) or pos == target_pos:
                 continue
             src = u["source"][0]
-            if src in seen_sources or len(strip_html(src)) <= 2:
+            if src in seen_sources or len(strip_html(src)) <= CONTEXT_MIN_SOURCE_LEN:
                 continue
             seen_sources.add(src)
             nearby.append(
@@ -127,7 +163,11 @@ def collect_context_for_term(
                     "tgt": u["target"][0] if u["target"][0] else None,
                 }
             )
-        if not units or len(units) < _page_size or units[-1]["position"] > hi:
+        if (
+            not units
+            or len(units) < CONTEXT_NEARBY_PAGE_SIZE
+            or units[-1]["position"] > hi
+        ):
             break
         page += 1
 

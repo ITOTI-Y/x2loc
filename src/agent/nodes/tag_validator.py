@@ -3,18 +3,19 @@ from __future__ import annotations
 import asyncio
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from loguru import logger
 
 from src.agent._share import MAX_TAG_RETRIES
 from src.agent.config import AgentConfigSchema
-from src.agent.llm import build_tag_validator_llm
 from src.agent.prompts import TAG_FIX_TEMPLATE, tag_fix_system_blocks
 from src.agent.state import AgentState, TranslationCandidate
 from src.agent.tools import validate_tags
 
 
-async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
-    tag_validator_llm = build_tag_validator_llm(agent_config)
+async def tag_validator(
+    state: AgentState, *, agent_config: AgentConfigSchema, llm: Runnable
+) -> dict:
     system_blocks = tag_fix_system_blocks(agent_config.target_lang)
 
     async def _validate_one(c: TranslationCandidate) -> TranslationCandidate:
@@ -38,7 +39,7 @@ async def tag_validator(state: AgentState, *, agent_config: AgentConfigSchema) -
                 extra=extra,
             )
             try:
-                response = await tag_validator_llm.ainvoke(
+                response = await llm.ainvoke(
                     [
                         SystemMessage(content=system_blocks),
                         HumanMessage(content=fix_prompt),

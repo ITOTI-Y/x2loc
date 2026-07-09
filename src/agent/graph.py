@@ -15,13 +15,8 @@ def route_after_fetch(state: AgentState) -> str:
 
 
 def route_after_decision(state: AgentState) -> str:
-    has_auto = len(state["auto_batch"]) > 0
-    has_review = state["needs_review"]
-    if has_auto and has_review:
-        return "both"
-    if has_auto:
-        return "auto_only"
-    return "review_only"
+    # Whether review is also needed is decided later by route_after_auto_upload.
+    return "auto" if state["auto_batch"] else "review"
 
 
 def route_after_auto_upload(state: AgentState) -> str:
@@ -59,11 +54,7 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_conditional_edges(
         "decision_router",
         route_after_decision,
-        {
-            "auto_only": "auto_uploader",
-            "review_only": "user_review",
-            "both": "auto_uploader",
-        },
+        {"auto": "auto_uploader", "review": "user_review"},
     )
     builder.add_conditional_edges(
         "auto_uploader",

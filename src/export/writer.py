@@ -3,8 +3,20 @@ import io
 import json
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from src.models.corpus import BilingualCorpus
 from src.models.glossary import Glossary
+
+
+def _model_to_json_string(model: BaseModel) -> str:
+    return json.dumps(model.model_dump(mode="json"), indent=4, ensure_ascii=False)
+
+
+def _write_text(content: str, output: Path, encoding: str) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(content, encoding=encoding)
+
 
 CSV_COLUMNS: list[str] = [
     "compound_key",
@@ -70,23 +82,15 @@ class CorpusWriter:
 
     def write_csv(self, corpus: BilingualCorpus, output: Path) -> None:
         """Write corpus to CSV file with UTF-8 BOM (Excel-compatible)."""
-        content = self.to_csv_string(corpus)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(content, encoding="utf-8-sig")
+        _write_text(self.to_csv_string(corpus), output, encoding="utf-8-sig")
 
     def to_json_string(self, corpus: BilingualCorpus) -> str:
         """Serialize corpus to formatted JSON string."""
-        return json.dumps(
-            corpus.model_dump(mode="json"),
-            indent=4,
-            ensure_ascii=False,
-        )
+        return _model_to_json_string(corpus)
 
     def write_json(self, corpus: BilingualCorpus, output: Path) -> None:
         """Write corpus to JSON file."""
-        content = self.to_json_string(corpus)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(content, encoding="utf-8")
+        _write_text(self.to_json_string(corpus), output, encoding="utf-8")
 
 
 class GlossaryWriter:
@@ -114,20 +118,12 @@ class GlossaryWriter:
 
     def write_csv(self, glossary: Glossary, output: Path) -> None:
         """Write glossary to CSV file with UTF-8 BOM (Weblate-compatible)."""
-        content = self.to_csv_string(glossary)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(content, encoding="utf-8-sig")
+        _write_text(self.to_csv_string(glossary), output, encoding="utf-8-sig")
 
     def to_json_string(self, glossary: Glossary) -> str:
         """Serialize glossary to formatted JSON string."""
-        return json.dumps(
-            glossary.model_dump(mode="json"),
-            indent=4,
-            ensure_ascii=False,
-        )
+        return _model_to_json_string(glossary)
 
     def write_json(self, glossary: Glossary, output: Path) -> None:
         """Write glossary to JSON file."""
-        content = self.to_json_string(glossary)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(content, encoding="utf-8")
+        _write_text(self.to_json_string(glossary), output, encoding="utf-8")

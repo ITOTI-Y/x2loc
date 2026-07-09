@@ -2,9 +2,13 @@ from pathlib import Path
 from typing import Final
 
 PATTERN_CACHE_PATH: Final = Path("data/patterns.json")
+GLOSSARY_CACHE_DIR: Final = Path("temp")
 
 MAX_TAG_RETRIES: Final = 2
 DEFAULT_BATCH_SIZE: Final = 10
-DEFAULT_NEARBY_RANGE: Final = 10
+DEFAULT_NEARBY_RANGE: Final = 2
 PATTERN_MIN_EXAMPLES: Final = 3
 CONTEXT_COLLECTOR_CONCURRENCY: Final = 10
+CONTEXT_SEARCH_PAGE_SIZE: Final = 50
+CONTEXT_NEARBY_PAGE_SIZE: Final = 100
+CONTEXT_MIN_SOURCE_LEN: Final = 2

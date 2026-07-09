@@ -1,12 +1,28 @@
 import threading
 import time
+import tomllib
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any, Final
 
 import httpx2
 from loguru import logger
 
 from src.models.weblate import WeblateConfigSchema
+
+
+def load_weblate_config(path: Path) -> WeblateConfigSchema:
+    """Load a flat Weblate TOML config (url/token/project_slug at top level)."""
+    with path.open("rb") as f:
+        data = tomllib.load(f)
+    return WeblateConfigSchema(
+        url=data["url"],
+        token=data["token"],
+        project_slug=data["project_slug"],
+        license=data.get("license", ""),
+        license_url=data.get("license_url", ""),
+    )
+
 
 RATE_LIMIT_FLOOR: Final[int] = 100
 RETRY_MAX_ATTEMPTS: Final[int] = 3

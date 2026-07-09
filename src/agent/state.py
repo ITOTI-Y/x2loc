@@ -52,7 +52,7 @@ class ScoreResult(TypedDict):
 
 class PatchResult(TypedDict):
     unit_id: int
-    status: Literal["ok", "tag_fail", "error"]
+    status: Literal["ok", "error"]
     error: str | None
 
 

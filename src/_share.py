@@ -16,4 +16,16 @@ LANG_EXT_MAP: Final[dict[str, str]] = {
 
 EXT_LANG_MAP: Final[dict[str, str]] = {v: k for k, v in LANG_EXT_MAP.items()}
 
-SUPPORTED_ENCODINGS: Final[list[str]] = ["utf-16-le"]
+
+def make_glossary_context(source: str, category: str) -> str:
+    """Build the Weblate unit context for a glossary term.
+
+    Single source of truth for the `{source}::{category}` encoding shared
+    by the CLI glossary upload paths and the agent's `fetch_empty` decode.
+    """
+    return f"{source}::{category}"
+
+
+def glossary_context_category(context: str) -> str | None:
+    """Inverse of `make_glossary_context`: extract the category segment."""
+    return context.split("::")[-1] if "::" in context else None

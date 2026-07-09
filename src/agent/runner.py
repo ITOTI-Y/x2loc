@@ -40,6 +40,40 @@ def _initial_state() -> dict:
     }
 
 
+def _decide(item: dict, choice: str) -> dict:
+    """Map one user input to a review decision.
+
+    Numbered choices resolve via the option table; any other non-empty
+    input is a hand-typed translation and must be recorded as "modify" —
+    user_review only honors the custom text for that action; empty input
+    skips.
+    """
+    suggested = item.get("suggested_translation")
+    if suggested:
+        options = {
+            "1": ("modify", suggested),
+            "2": ("approve", item["translation"]),
+            "3": ("skip", None),
+        }
+    else:
+        options = {
+            "1": ("approve", item["translation"]),
+            "2": ("skip", None),
+        }
+
+    if choice in options:
+        action, translation = options[choice]
+    elif choice:
+        action, translation = "modify", choice
+    else:
+        action, translation = "skip", None
+
+    decision: dict = {"unit_id": item["unit_id"], "action": action}
+    if translation is not None:
+        decision["translation"] = translation
+    return decision
+
+
 def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict]:
     decisions: list[dict] = []
     for idx, item in enumerate(items, 1):
@@ -60,58 +94,10 @@ def _prompt_user_review(items: list[dict], auto_skip: bool = False) -> list[dict
         else:
             print("  [1] Accept  [2] Skip")
 
-        choice = "3" if auto_skip else input("  Choice or Translation: ").strip()
-
-        if suggested:
-            if choice == "1":
-                decisions.append(
-                    {
-                        "unit_id": item["unit_id"],
-                        "action": "modify",
-                        "translation": suggested,
-                    }
-                )
-            elif choice == "2":
-                decisions.append(
-                    {
-                        "unit_id": item["unit_id"],
-                        "action": "approve",
-                        "translation": item["translation"],
-                    }
-                )
-            elif choice == "3":
-                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
-            elif choice:
-                decisions.append(
-                    {
-                        "unit_id": item["unit_id"],
-                        "action": "modify",
-                        "translation": choice,
-                    }
-                )
-            else:
-                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
-        else:
-            if choice == "1":
-                decisions.append(
-                    {
-                        "unit_id": item["unit_id"],
-                        "action": "approve",
-                        "translation": item["translation"],
-                    }
-                )
-            elif choice == "2":
-                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
-            elif choice:
-                decisions.append(
-                    {
-                        "unit_id": item["unit_id"],
-                        "action": "approve",
-                        "translation": choice,
-                    }
-                )
-            else:
-                decisions.append({"unit_id": item["unit_id"], "action": "skip"})
+        # Empty input maps to "skip" regardless of the option table, so
+        # auto-skip never depends on a numbered choice existing.
+        choice = "" if auto_skip else input("  Choice or Translation: ").strip()
+        decisions.append(_decide(item, choice))
     return decisions
 
 

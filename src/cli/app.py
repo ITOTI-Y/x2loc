@@ -7,20 +7,21 @@ import tomllib
 from collections import Counter
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any, Final
+from typing import Annotated, Any, Final, Literal
 
 import typer
 from loguru import logger
 
-from src._share import EXT_LANG_MAP, LANG_EXT_MAP
+from src._share import EXT_LANG_MAP, LANG_EXT_MAP, make_glossary_context
 from src.agent.runner import app as agent_app
-from src.core._share import iter_compound_keys
+from src.core._share import iter_compound_keys, make_struct_field_key
 from src.core.aligner import BilingualAligner
 from src.core.converter import TRANSLATABLE_STRUCT_FIELDS, CorpusConverter
 from src.core.extractor import TermExtractor
 from src.core.loc_writer import LocFileWriter
 from src.core.mod_resolver import ModResolveError, resolve_mod
 from src.core.parser import LocFileParser
+from src.export.loader import load_corpus
 from src.export.writer import CorpusWriter, GlossaryWriter
 from src.models.corpus import BilingualCorpus
 from src.models.file import LocalizationFile
@@ -51,6 +52,21 @@ BASE_GAME_OUTPUT_DIRNAME: Final[str] = "_base"
 class OutputFormat(StrEnum):
     CSV = "csv"
     JSON = "json"
+
+
+def _emit_output(text: str, output: Path | None, output_format: OutputFormat) -> None:
+    """Write serialized command output to a file (or stdout when no path).
+
+    CSV goes out with a UTF-8 BOM for Excel/Weblate compatibility, matching
+    the writers in src/export.
+    """
+    if output:
+        enc = "utf-8-sig" if output_format == OutputFormat.CSV else "utf-8"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding=enc)
+        logger.info(f"Written to {output}")
+    else:
+        sys.stdout.write(text)
 
 
 parser = LocFileParser()
@@ -109,13 +125,7 @@ def parse(
                 )
         text = buf.getvalue()
 
-    if output:
-        enc = "utf-8-sig" if output_format == OutputFormat.CSV else "utf-8"
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(text, encoding=enc)
-        logger.info(f"Written to {output}")
-    else:
-        sys.stdout.write(text)
+    _emit_output(text, output, output_format)
 
 
 @app.command()
@@ -140,14 +150,7 @@ def align(
     else:
         text = writer.to_json_string(corpus)
 
-    if output:
-        if output_format == OutputFormat.CSV:
-            writer.write_csv(corpus, output)
-        else:
-            writer.write_json(corpus, output)
-        logger.info(f"Written to {output}")
-    else:
-        sys.stdout.write(text)
+    _emit_output(text, output, output_format)
 
 
 @app.command("align-dir")
@@ -346,12 +349,9 @@ def extract(
             continue
 
         for json_file in json_files:
-            try:
-                data = json.loads(json_file.read_text(encoding="utf-8"))
-                corpus = BilingualCorpus.model_validate(data)
+            corpus = load_corpus(json_file)
+            if corpus is not None:
                 corpora.append(corpus)
-            except Exception as e:
-                logger.warning(f"Failed to load {json_file}: {e}")
 
     if not corpora:
         logger.error("No valid corpus files found")
@@ -373,14 +373,7 @@ def extract(
     else:
         text = glossary_writer.to_json_string(glossary)
 
-    if output:
-        if output_format == OutputFormat.CSV:
-            glossary_writer.write_csv(glossary, output)
-        else:
-            glossary_writer.write_json(glossary, output)
-        logger.info(f"Written to {output}")
-    else:
-        sys.stdout.write(text)
+    _emit_output(text, output, output_format)
 
 
 @app.command()
@@ -448,27 +441,31 @@ def upload(
                 logger.error(f"No corpus JSON files in {corpus_dir}")
                 raise typer.Exit(1)
 
+            # Load every corpus exactly once: the namespace check and the
+            # upload paths below share the parsed objects.
+            corpora = [(jf, corpus) for jf in json_files if (corpus := load_corpus(jf))]
+
             # The glossary is uploaded as a single per-mod component
             # (`glossary-{namespace}`), so we need the namespace up front.
-            # It is read from the first corpus JSON — align-dir writes all
-            # sibling corpora under one namespace dir, so they must all
-            # agree. A mismatch is treated as a data error.
-            namespace = _read_namespace_from_corpora(json_files)
+            # align-dir writes all sibling corpora under one namespace dir,
+            # so they must all agree. A mismatch is treated as a data error.
+            namespace = _namespace_from_corpora([c for _, c in corpora])
 
             if single_component:
                 _upload_merged_corpus(
                     client,
-                    json_files,
+                    corpora,
                     namespace,
                     target_lang,
                     license=cfg.license,
                     license_url=cfg.license_url,
                 )
             else:
-                for json_file in json_files:
+                for jf, corpus in corpora:
                     _upload_single_corpus(
                         client,
-                        json_file,
+                        corpus,
+                        jf.stem,
                         target_lang,
                         method,
                         yes,
@@ -492,23 +489,15 @@ def upload(
             raise typer.Exit(1) from e
 
 
-def _read_namespace_from_corpora(json_files: list[Path]) -> str:
-    """Extract the namespace from a batch of corpus JSON files.
+def _namespace_from_corpora(corpora: list[BilingualCorpus]) -> str:
+    """Extract the shared namespace from a batch of loaded corpora.
 
     All files in the same corpus dir must share one namespace — they
     were written there by align-dir, which always uses
     `output/corpus/{namespace}/`. A mismatch indicates the directory
     was hand-edited or merged incorrectly; we fail loud.
     """
-    seen: set[str] = set()
-    for jf in json_files:
-        try:
-            data = json.loads(jf.read_text(encoding="utf-8"))
-            corpus = BilingualCorpus.model_validate(data)
-        except Exception as e:
-            logger.warning(f"Failed to read namespace from {jf.name}: {e}")
-            continue
-        seen.add(corpus.namespace)
+    seen = {corpus.namespace for corpus in corpora}
     if not seen:
         logger.error(
             "No namespace found in any corpus JSON; rerun align-dir with "
@@ -776,55 +765,33 @@ def _make_csv_writer(buf: io.StringIO) -> csv.DictWriter:
     return csv.DictWriter(buf, fieldnames=UPLOAD_CSV_COLUMNS, quoting=csv.QUOTE_ALL)
 
 
-def _units_to_source_csv_bytes(
+def _units_to_csv_bytes(
     units: list[tuple[str, str, str, str]],
+    *,
+    content: Literal["source", "target"],
 ) -> bytes:
-    """CSV for initial component creation (source-language docfile).
+    """Serialize units into a Weblate language-specific CSV file.
 
     Weblate's `csv` file format treats the CSV as a **language-specific
     file**: the `target` column holds the actual text for that file's
-    language. When creating a component with source_language=en, the
-    docfile IS the English-language file, so the `target` column must
-    contain the English strings. We also write `source` = English for
-    consistency/reference.
-    """
-    buf = io.StringIO()
-    writer = _make_csv_writer(buf)
-    writer.writeheader()
-    for context, source, _target, note in units:
-        if not source:
-            continue
-        writer.writerow(
-            {
-                "context": context,
-                "source": source,
-                "target": source,  # Weblate reads target col as file content
-                "developer_comments": note,
-            }
-        )
-    return buf.getvalue().encode("utf-8")
-
-
-def _units_to_translation_csv_bytes(
-    units: list[tuple[str, str, str, str]],
-) -> bytes:
-    """CSV for target-language translation upload.
-
-    The target column holds the target-language text (e.g. Chinese); the
-    source column holds the English reference for matching. Rows with an
-    empty target are skipped because they carry no translation.
+    language. `content="source"` builds the source-language docfile used
+    for component creation and `method=add` appends (target column carries
+    the English strings). `content="target"` builds the translation upload
+    (target column carries the target-language text; rows with an empty
+    target are skipped because they carry no translation).
     """
     buf = io.StringIO()
     writer = _make_csv_writer(buf)
     writer.writeheader()
     for context, source, target, note in units:
-        if not target:
+        value = source if content == "source" else target
+        if not value:
             continue
         writer.writerow(
             {
                 "context": context,
                 "source": source,
-                "target": target,
+                "target": value,
                 "developer_comments": note,
             }
         )
@@ -911,7 +878,7 @@ ZERO_ACCEPTED_BACKOFF: Final[float] = 30.0
 
 def _upload_merged_corpus(
     client: WeblateClient,
-    json_files: list[Path],
+    corpora: list[tuple[Path, BilingualCorpus]],
     namespace: str,
     target_lang: str,
     license: str = "",
@@ -961,14 +928,7 @@ def _upload_merged_corpus(
     template_corpus: BilingualCorpus | None = None
     contributing_files = 0
 
-    for jf in json_files:
-        try:
-            data = json.loads(jf.read_text(encoding="utf-8"))
-            corpus = BilingualCorpus.model_validate(data)
-        except Exception as e:
-            logger.warning(f"Failed to load {jf.name}: {e}")
-            continue
-
+    for jf, corpus in corpora:
         file_units = converter.to_units(corpus)
         if not file_units:
             continue
@@ -984,7 +944,7 @@ def _upload_merged_corpus(
         contributing_files += 1
 
     if template_corpus is None or not merged_units:
-        logger.error(f"No translatable units found in {len(json_files)} JSON files")
+        logger.error(f"No translatable units found in {len(corpora)} JSON files")
         raise typer.Exit(1)
 
     logger.info(
@@ -1038,7 +998,7 @@ def _create_merged_component_seed(
 ) -> None:
     """Create the merged component with a small seed batch of source units."""
     seed = merged_units[:MERGED_SEED_SIZE]
-    seed_csv = _units_to_source_csv_bytes(seed)
+    seed_csv = _units_to_csv_bytes(seed, content="source")
     logger.info(
         f"Creating merged component '{slug}' with seed of {len(seed)} units "
         f"({len(seed_csv) / 1024:.0f} KB)"
@@ -1074,7 +1034,7 @@ def _append_source_batches(
     while idx < total:
         end = min(idx + MERGED_BATCH_SIZE, total)
         batch = merged_units[idx:end]
-        csv_bytes = _units_to_source_csv_bytes(batch)
+        csv_bytes = _units_to_csv_bytes(batch, content="source")
         logger.info(
             f"[{slug}] source batch {idx}:{end} "
             f"({len(batch)} units, {len(csv_bytes) / 1024:.0f} KB)"
@@ -1107,7 +1067,7 @@ def _push_target_batches(
     while idx < total:
         end = min(idx + MERGED_TARGET_BATCH_SIZE, total)
         batch = merged_units[idx:end]
-        csv_bytes = _units_to_translation_csv_bytes(batch)
+        csv_bytes = _units_to_csv_bytes(batch, content="target")
         if csv_bytes.count(b"\n") <= 1:
             idx = end
             continue
@@ -1171,14 +1131,18 @@ def _upload_translation_batch_with_retry(
 
 def _upload_single_corpus(
     client: WeblateClient,
-    corpus_path: Path,
+    corpus: BilingualCorpus,
+    stem: str,
     target_lang: str,
     method: str,
     yes: bool,
     license: str = "",
     license_url: str = "",
 ) -> None:
-    """Upload one corpus JSON file as a Weblate component.
+    """Upload one loaded corpus as a Weblate component.
+
+    `stem` is the corpus JSON's file stem (e.g. `XComGame`), used to build
+    the component slug.
 
     Behavior:
         - **Mode 1 (fresh)**: when the component does not exist, create it
@@ -1192,22 +1156,15 @@ def _upload_single_corpus(
           flag only applies to the first (create) path, because Mode 2
           must not risk wiping existing translations.
     """
-    try:
-        data = json.loads(corpus_path.read_text(encoding="utf-8"))
-        corpus = BilingualCorpus.model_validate(data)
-    except Exception as e:
-        logger.warning(f"Failed to load {corpus_path.name}: {e}")
-        return
-
     units = converter.to_units(corpus)
     if not units:
-        logger.warning(f"{corpus_path.name}: no translatable units, skipping")
+        logger.warning(f"{stem}: no translatable units, skipping")
         return
 
     # Slug encodes the mod namespace so the same loc-file stem across
     # multiple mods lands in distinct Weblate components. e.g.
     # `1122837889-more-traits-XComGame` vs `base-xcom2-wotc-XComGame`.
-    slug = f"{corpus.namespace}-{corpus_path.stem}"
+    slug = f"{corpus.namespace}-{stem}"
 
     component = client.get_component(slug)
     if component is None:
@@ -1245,8 +1202,8 @@ def _corpus_upload_mode_create(
     flags, create_unit on a non-glossary bilingual CSV component returns
     HTTP 403 "Adding strings is disabled in the component configuration".
     """
-    source_csv = _units_to_source_csv_bytes(units)
-    translated_csv = _units_to_translation_csv_bytes(units)
+    source_csv = _units_to_csv_bytes(units, content="source")
+    translated_csv = _units_to_csv_bytes(units, content="target")
 
     logger.info(f"Creating component '{slug}' ({len(units)} units)")
     client.create_component(
@@ -1344,7 +1301,7 @@ def _corpus_upload_mode_incremental(
         effective_method = "translate"
 
     if any(tgt for _, _, tgt, _ in units):
-        translated_csv = _units_to_translation_csv_bytes(units)
+        translated_csv = _units_to_csv_bytes(units, content="target")
         client.upload_file(slug, target_lang, translated_csv, method=effective_method)
 
 
@@ -1447,7 +1404,7 @@ def _glossary_rows_to_csvs(
         cat = row.get("category") or "term"
         if not src:
             continue
-        context = f"{src}::{cat}"
+        context = make_glossary_context(src, cat)
         source_writer.writerow(
             {
                 "context": context,
@@ -1549,7 +1506,7 @@ def _glossary_upload_mode_incremental(
         cat = row.get("category") or "term"
         if not src:
             continue
-        context = f"{src}::{cat}"
+        context = make_glossary_context(src, cat)
         if context in existing_contexts:
             skipped += 1
             continue
@@ -1611,7 +1568,7 @@ def _mark_glossary_flags(
     for row in rows:
         src = row.get("source") or ""
         cat = row.get("category") or "term"
-        index[f"{src}::{cat}"] = row
+        index[make_glossary_context(src, cat)] = row
 
     needs_editing_count = 0
     skipped = 0
@@ -1677,7 +1634,7 @@ def _count_translated(
             for field in entry.struct_fields:
                 if field.key not in TRANSLATABLE_STRUCT_FIELDS:
                     continue
-                if f"{compound_key}::{field.key}" in translations:
+                if make_struct_field_key(compound_key, field.key) in translations:
                     hits += 1
         elif compound_key in translations:
             hits += 1

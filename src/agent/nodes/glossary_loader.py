@@ -6,8 +6,10 @@ from typing import Literal
 
 from loguru import logger
 
+from src.agent._share import GLOSSARY_CACHE_DIR
 from src.agent.config import AgentConfigSchema
 from src.agent.state import AgentState
+from src.agent.tools import make_glossary_entry
 from src.services.weblate import WeblateClient
 
 
@@ -24,7 +26,7 @@ def glossary_loader(
                     f"Skipping glossary unit with empty source/target: id={unit.get('id')}"
                 )
                 continue
-            out[src[0]] = {"target": tgt[0], "context": unit.get("context", "")}
+            out[src[0]] = make_glossary_entry(src[0], tgt[0], unit.get("context", ""))
         return out
 
     base = _index(_load_data("base", agent_config.target_lang, agent_config, client))
@@ -42,7 +44,7 @@ def glossary_loader(
 
 
 def _cache_path(mode: Literal["base", "mods"], lang: str) -> Path:
-    return Path(f"temp/{mode}_{lang}.json")
+    return GLOSSARY_CACHE_DIR / f"{mode}_{lang}.json"
 
 
 def _load_data(

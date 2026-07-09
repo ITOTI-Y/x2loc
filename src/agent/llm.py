@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
@@ -8,6 +8,15 @@ from pydantic import Field
 
 from src.agent.config import AgentConfigSchema
 from src.models._share import BaseSchema
+
+# Single source for the suggested_translation description. The static Field
+# text below uses the placeholder verbatim; build_scorer_llm re-renders it
+# with the configured threshold before handing the schema to the provider.
+_SUGGESTED_TRANSLATION_DESC: Final = (
+    "The suggested translation if the score is less than {threshold}, "
+    "must reply in target language, "
+    "if no suggested translation is needed, return null"
+)
 
 
 class DeductionSchema(BaseSchema):
@@ -32,7 +41,7 @@ class ScoreOutputSchema(BaseSchema):
     )
     suggested_translation: str | None = Field(
         None,
-        description="The suggested translation if the score is below threshold, must reply in target language, if no suggested translation is needed, return null",
+        description=_SUGGESTED_TRANSLATION_DESC.format(threshold="the threshold"),
     )
     notes: str | None = Field(
         None,
@@ -64,7 +73,7 @@ def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
     schema = _inline_refs(ScoreOutputSchema.model_json_schema())
     schema.setdefault("title", "ScoreOutputSchema")
     schema["properties"]["suggested_translation"]["description"] = (
-        f"The suggested translation if the score is less than {config.auto_approve_threshold}"
+        _SUGGESTED_TRANSLATION_DESC.format(threshold=config.auto_approve_threshold)
     )
     return ChatOpenAI(
         base_url=config.base_url,

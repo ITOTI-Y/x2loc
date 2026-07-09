@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import csv
 import sys
-import tomllib
 import traceback
 from pathlib import Path
 from typing import Any
@@ -38,8 +37,13 @@ sys.path.insert(0, str(ROOT))
 from loguru import logger  # noqa: E402
 
 from src.cli.app import _upload_single_corpus  # noqa: E402
+from src.export.loader import load_corpus  # noqa: E402
 from src.models.weblate import WeblateConfigSchema  # noqa: E402
-from src.services.weblate import WeblateAPIError, WeblateClient  # noqa: E402
+from src.services.weblate import (  # noqa: E402
+    WeblateAPIError,
+    WeblateClient,
+    load_weblate_config,
+)
 
 SCAN_TSV: Path = ROOT / "output" / "batch_scan.tsv"
 CORPUS_ROOT: Path = ROOT / "output" / "corpus"
@@ -57,18 +61,6 @@ REPORT_COLUMNS: list[str] = [
     "status",
     "error",
 ]
-
-
-def _load_config() -> WeblateConfigSchema:
-    with CONFIG_TOML.open("rb") as f:
-        data = tomllib.load(f)
-    return WeblateConfigSchema(
-        url=data["url"],
-        token=data["token"],
-        project_slug=data["project_slug"],
-        license=data.get("license", ""),
-        license_url=data.get("license_url", ""),
-    )
 
 
 def _load_scan_rows() -> list[dict[str, str]]:
@@ -122,10 +114,14 @@ def _upload_one_mod(
 
     uploaded = 0
     for json_file in json_files:
+        corpus = load_corpus(json_file)
+        if corpus is None:
+            continue
         try:
             _upload_single_corpus(
                 client,
-                json_file,
+                corpus,
+                json_file.stem,
                 target_lang="zh_Hans",
                 method="replace",
                 yes=True,
@@ -158,7 +154,7 @@ def main() -> None:
         format="{time:HH:mm:ss} | {level: <7} | {message}",
     )
 
-    cfg = _load_config()
+    cfg = load_weblate_config(CONFIG_TOML)
     rows = _load_scan_rows()
     print(f"Stage 2 batch upload: {len(rows)} non-empty mods from {SCAN_TSV.name}")
     print(f"  Weblate URL: {cfg.url}")

@@ -3,16 +3,19 @@ from __future__ import annotations
 import asyncio
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
-from src.agent.llm import ScoreOutputSchema, build_scorer_llm
+from src.agent.llm import ScoreOutputSchema
 from src.agent.prompts import format_scoring_prompt, scoring_system_blocks
 from src.agent.state import AgentState, Deduction, ScoreResult, TranslationCandidate
+from src.agent.tools import match_session_patterns
 
 
-async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
-    scorer_llm = build_scorer_llm(agent_config)
+async def scorer(
+    state: AgentState, *, agent_config: AgentConfigSchema, llm: Runnable
+) -> dict:
     system_blocks = scoring_system_blocks(agent_config.target_lang)
     instant: list[ScoreResult] = []
     to_score: list[TranslationCandidate] = []
@@ -47,16 +50,8 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         else:
             to_score.append(c)
 
-    async def _score_one(
-        c: TranslationCandidate, *, agent_config: AgentConfigSchema
-    ) -> ScoreResult:
-        match_patterns = []
-        for single_word in c["source"].split():
-            match_patterns.extend(
-                i
-                for i in state["session_patterns"]
-                if single_word.lower() in i["src_pattern"].lower()
-            )
+    async def _score_one(c: TranslationCandidate) -> ScoreResult:
+        match_patterns = match_session_patterns(c["source"], state["session_patterns"])
         prompt = format_scoring_prompt(
             c["source"],
             c["translation"],
@@ -67,7 +62,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
             match_patterns,
         )
         try:
-            raw = await scorer_llm.ainvoke(
+            raw = await llm.ainvoke(
                 [
                     SystemMessage(content=system_blocks),
                     HumanMessage(content=prompt),
@@ -101,9 +96,7 @@ async def scorer(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
         return score_result
 
     if to_score:
-        llm_scores = await asyncio.gather(
-            *[_score_one(c, agent_config=agent_config) for c in to_score]
-        )
+        llm_scores = await asyncio.gather(*[_score_one(c) for c in to_score])
         instant.extend(llm_scores)
 
     return {"scores": instant}

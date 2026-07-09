@@ -51,6 +51,16 @@ def make_compound_key(section_raw: str, key: str, ordinal: int | None = None) ->
     return f"{section_raw}::{key}#{ordinal}"
 
 
+def make_struct_field_key(compound_key: str, field_key: str) -> str:
+    """Build the per-struct-field unit context from a compound key.
+
+    Single source of truth for the `{compound_key}::{field_key}` shape used
+    by converter's to_units (producer), _rebuild_struct_entry (writeback
+    consumer), and the CLI translation counter — the three must never drift.
+    """
+    return f"{compound_key}::{field_key}"
+
+
 def iter_compound_keys_in_section(
     section: SectionSchema,
 ) -> Iterator[tuple[str, EntrySchema]]:

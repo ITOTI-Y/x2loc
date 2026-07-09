@@ -18,9 +18,7 @@ Run:
 
 from __future__ import annotations
 
-import json
 import sys
-import tomllib
 from pathlib import Path
 
 ROOT: Path = Path(__file__).resolve().parents[1]
@@ -30,11 +28,11 @@ from loguru import logger  # noqa: E402
 
 from src.cli.app import _upload_glossary  # noqa: E402
 from src.core.extractor import TermExtractor  # noqa: E402
+from src.export.loader import load_corpus  # noqa: E402
 from src.export.writer import GlossaryWriter  # noqa: E402
 from src.models.corpus import BilingualCorpus  # noqa: E402
 from src.models.glossary import Glossary  # noqa: E402
-from src.models.weblate import WeblateConfigSchema  # noqa: E402
-from src.services.weblate import WeblateClient  # noqa: E402
+from src.services.weblate import WeblateClient, load_weblate_config  # noqa: E402
 
 BASE_CORPUS_DIR: Path = ROOT / "output" / "corpus_game" / "_base"
 MOD_CORPUS_ROOT: Path = ROOT / "output" / "corpus"
@@ -51,11 +49,9 @@ MODS_GLOSSARY_NAMESPACE: str = "mods"  # → slug: glossary-mods
 def _load_corpora_from_dir(corpus_dir: Path) -> list[BilingualCorpus]:
     corpora: list[BilingualCorpus] = []
     for jf in sorted(corpus_dir.glob("*.json")):
-        try:
-            data = json.loads(jf.read_text(encoding="utf-8"))
-            corpora.append(BilingualCorpus.model_validate(data))
-        except Exception as e:
-            logger.warning(f"Failed to load {jf}: {e}")
+        corpus = load_corpus(jf)
+        if corpus is not None:
+            corpora.append(corpus)
     return corpora
 
 
@@ -109,18 +105,6 @@ def _preview(name: str, glossary: Glossary) -> None:
         print(f"    {cat:<25} {count}")
 
 
-def _load_config() -> WeblateConfigSchema:
-    with CONFIG_TOML.open("rb") as f:
-        data = tomllib.load(f)
-    return WeblateConfigSchema(
-        url=data["url"],
-        token=data["token"],
-        project_slug=data["project_slug"],
-        license=data.get("license", ""),
-        license_url=data.get("license_url", ""),
-    )
-
-
 def main() -> None:
     logger.remove()
     logger.add(
@@ -165,7 +149,7 @@ def main() -> None:
     print(f"Wrote {OUTPUT_MODS_CSV}")
 
     # Upload both
-    cfg = _load_config()
+    cfg = load_weblate_config(CONFIG_TOML)
     with WeblateClient(cfg) as client:
         print(f"\nUploading glossary-{BASE_GLOSSARY_NAMESPACE}...")
         _upload_glossary(

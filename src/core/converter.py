@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Final
 
-from src.core._share import iter_compound_keys_in_section
+from src.core._share import iter_compound_keys_in_section, make_struct_field_key
 from src.models.corpus import BilingualCorpus
 from src.models.entry import EntrySchema, StructFieldSchema
 from src.models.file import LocalizationFile
@@ -115,7 +115,7 @@ class CorpusConverter:
                 if not field.value:
                     continue
 
-                context = f"{entry.compound_key}::{field.key}"
+                context = make_struct_field_key(entry.compound_key, field.key)
                 target_field_value = tgt_field_by_key.get(field.key, "")
                 note = f"section: {entry.section_header.raw}, entry: {src.key}"
                 units.append(
@@ -221,7 +221,7 @@ class CorpusConverter:
 
         for field in entry.struct_fields:
             if field.key in TRANSLATABLE_STRUCT_FIELDS:
-                field_context = f"{compound_key}::{field.key}"
+                field_context = make_struct_field_key(compound_key, field.key)
                 translated = translations.get(field_context)
                 if translated is not None:
                     any_translated = True

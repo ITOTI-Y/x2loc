@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from os.path import commonprefix
+
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
 from src.agent.state import PatchResult
-from src.agent.tools import validate_tags
 from src.services.weblate import WeblateClient
 
 
@@ -14,6 +15,12 @@ def upload_batch(
     client: WeblateClient,
     agent_config: AgentConfigSchema,
 ) -> tuple[list[PatchResult], list[dict]]:
+    """PATCH translations to Weblate.
+
+    Tag validity is guaranteed upstream: tag-invalid candidates are scored 0
+    and routed to review, and user_review re-validates edited text before
+    approving — so no re-check happens here.
+    """
     results: list[PatchResult] = []
     history: list[dict] = []
 
@@ -25,18 +32,6 @@ def upload_batch(
             results.append({"unit_id": c["unit_id"], "status": "ok", "error": None})
             history.append({"source": source, "target": translation})
             continue
-
-        if source:
-            passed, _, _ = validate_tags(source, translation)
-            if not passed:
-                results.append(
-                    {
-                        "unit_id": c["unit_id"],
-                        "status": "tag_fail",
-                        "error": "Pre-flight tag validation failed",
-                    }
-                )
-                continue
 
         try:
             client.patch_unit(c["unit_id"], {"target": [translation], "state": 20})
@@ -52,12 +47,8 @@ def upload_batch(
 
 
 def common_prefix(a: str, b: str) -> str:
-    i = 0
-    for ca, cb in zip(a, b, strict=False):
-        if ca != cb:
-            break
-        i += 1
-    return a[:i]
+    # os.path.commonprefix is character-level despite the name, not path-aware.
+    return commonprefix([a, b])
 
 
 def common_suffix(a: str, b: str) -> str:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from loguru import logger
 
+from src._share import glossary_context_category
 from src.agent.config import AgentConfigSchema
 from src.agent.state import AgentState, TranslationUnit
 from src.services.weblate import WeblateAPIError, WeblateClient
@@ -39,7 +40,7 @@ def fetch_empty(
             if u["id"] in skip_set:
                 continue
             ctx = u["context"]
-            category = ctx.split("::")[-1] if "::" in ctx else None
+            category = glossary_context_category(ctx)
             units.append(
                 {
                     "id": u["id"],

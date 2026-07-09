@@ -4,10 +4,11 @@ import asyncio
 import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
-from src.agent.llm import TranslationOutputSchema, build_translator_llm
+from src.agent.llm import TranslationOutputSchema
 from src.agent.prompts import format_translation_prompt, translation_system_blocks
 from src.agent.state import (
     AgentState,
@@ -16,15 +17,18 @@ from src.agent.state import (
     TranslationCandidate,
     TranslationUnit,
 )
-from src.agent.tools import lookup_glossary
+from src.agent.tools import lookup_glossary, match_session_patterns
 
 
-async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> dict:
-    translator_llm = build_translator_llm(agent_config)
+async def translator(
+    state: AgentState, *, agent_config: AgentConfigSchema, llm: Runnable
+) -> dict:
     system_blocks = translation_system_blocks(agent_config.target_lang)
     candidates: list[TranslationCandidate] = []
     context_map = {c["unit_id"]: c for c in state["context_results"]}
     to_translate: list[tuple[TranslationUnit, ContextResult]] = []
+
+    compiled_patterns = _compile_patterns(state["session_patterns"])
 
     for unit in state["current_units"]:
         ctx = context_map.get(
@@ -38,7 +42,7 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
         )
         pattern_result = _try_pattern_match(
             unit["source"],
-            state["session_patterns"],
+            compiled_patterns,
             state["base_glossary"],
             state["mods_glossary"],
         )
@@ -69,13 +73,9 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
     ) -> TranslationCandidate | None:
         base_matches = lookup_glossary(unit["source"], state["base_glossary"])
         mods_matches = lookup_glossary(unit["source"], state["mods_glossary"])
-        match_patterns = []
-        for single_word in unit["source"].split():
-            match_patterns.extend(
-                i
-                for i in state["session_patterns"]
-                if single_word.lower() in i["src_pattern"].lower()
-            )
+        match_patterns = match_session_patterns(
+            unit["source"], state["session_patterns"]
+        )
         prompt = format_translation_prompt(
             unit["source"],
             unit["category"],
@@ -85,7 +85,7 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
             match_patterns,
         )
         try:
-            response = await translator_llm.ainvoke(
+            response = await llm.ainvoke(
                 [
                     SystemMessage(content=system_blocks),
                     HumanMessage(content=prompt),
@@ -128,15 +128,27 @@ async def translator(state: AgentState, *, agent_config: AgentConfigSchema) -> d
     return {"candidates": candidates}
 
 
+def _compile_patterns(
+    patterns: list[SessionPattern],
+) -> list[tuple[re.Pattern[str], SessionPattern]]:
+    """Compile each session pattern's src regex once per translator call."""
+    return [
+        (
+            re.compile(re.escape(p["src_pattern"]).replace(r"\{X\}", "(.+)")),
+            p,
+        )
+        for p in patterns
+    ]
+
+
 def _try_pattern_match(
     source: str,
-    patterns: list[SessionPattern],
+    compiled_patterns: list[tuple[re.Pattern[str], SessionPattern]],
     base_glossary: dict[str, dict],
     mods_glossary: dict[str, dict],
 ) -> str | None:
-    for pattern in patterns:
-        regex = re.escape(pattern["src_pattern"]).replace(r"\{X\}", "(.+)")
-        m = re.fullmatch(regex, source)
+    for regex, pattern in compiled_patterns:
+        m = regex.fullmatch(source)
         if not m:
             continue
         variable = m.group(1)
