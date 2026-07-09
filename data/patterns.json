@@ -1,7 +1,7 @@
 [
   {
     "src_pattern": "Dark Event: {X}",
-    "tgt_pattern": "黑暗事件{X}",
+    "tgt_pattern": "黑暗事件：{X}",
     "approved_count": 72,
     "examples": [
       {
@@ -19872,6 +19872,1384 @@
       {
         "source": "<font color='#df07b7'>The Requiem Legion</font>",
         "target": "<font color='#df07b7'>安魂军团</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Captain",
+    "tgt_pattern": "{X}队长",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Elite Purifier Captain",
+        "target": "精英净化者队长"
+      },
+      {
+        "source": "Muton Beleaguer Captain",
+        "target": "异变者围攻兵队长"
+      },
+      {
+        "source": "Muton Harrier Captain",
+        "target": "异变者鹞兵队长"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Exalted Andromelid {X}",
+    "tgt_pattern": "崇高仙女座蚁{X}侍从",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Exalted Andromelid Coutillier",
+        "target": "崇高仙女座蚁佩刀侍从"
+      },
+      {
+        "source": "Exalted Andromelid Ecuyer",
+        "target": "崇高仙女座蚁侍从"
+      },
+      {
+        "source": "Exalted Andromelid Gendarme",
+        "target": "崇高仙女座蚁宪兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Exalted {X}",
+    "tgt_pattern": "崇高{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Exalted Andromelid Coutillier",
+        "target": "崇高仙女座蚁佩刀侍从"
+      },
+      {
+        "source": "Exalted Andromelid Ecuyer",
+        "target": "崇高仙女座蚁侍从"
+      },
+      {
+        "source": "Exalted Andromelid Gendarme",
+        "target": "崇高仙女座蚁宪兵"
+      },
+      {
+        "source": "Exalted Shinanim",
+        "target": "崇高哈什马林"
+      },
+      {
+        "source": "Exalted Taipan Voltigeur",
+        "target": "崇高护太攀腾跃兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Heavy Floater {X}",
+    "tgt_pattern": "重浮空者{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Heavy Floater Factionnaire",
+        "target": "重浮空者哨兵"
+      },
+      {
+        "source": "Heavy Floater Intendant",
+        "target": "重浮空者事务官"
+      },
+      {
+        "source": "Heavy Floater Soudeour",
+        "target": "重浮空者战士"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Mutinous {X}",
+    "tgt_pattern": "叛变{X}兵",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Mutinous Assault",
+        "target": "叛变突击兵"
+      },
+      {
+        "source": "Mutinous Heavy",
+        "target": "叛变重装兵"
+      },
+      {
+        "source": "Mutinous Support",
+        "target": "叛变辅助兵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Muton {X}",
+    "tgt_pattern": "异变者{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Muton Beleaguer",
+        "target": "异变者围攻者"
+      },
+      {
+        "source": "Muton Beleaguer Captain",
+        "target": "异变者围攻兵队长"
+      },
+      {
+        "source": "Muton Harrier Captain",
+        "target": "异变者鹞兵队长"
+      }
+    ]
+  },
+  {
+    "src_pattern": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. {X}",
+    "tgt_pattern": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Defense",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级防御力"
+      },
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Focus",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级专注"
+      },
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Hacking",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级侵入"
+      }
+    ]
+  },
+  {
+    "src_pattern": "<img {X}",
+    "tgt_pattern": "<img src='img:///LABy_UILibrary.Tug_PCS{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Defense",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级防御力"
+      },
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Focus",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级专注"
+      },
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Hacking",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级侵入"
+      },
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS3r' width='24' height='24' vspace='-4'> Super Focus",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS3r' width='24' height='24' vspace='-4'> 个人战斗芯片：终极集中"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Weave",
+    "tgt_pattern": "{X}织物",
+    "approved_count": 9,
+    "examples": [
+      {
+        "source": "Automend Weave",
+        "target": "自动修复织物"
+      },
+      {
+        "source": "Blast Weave",
+        "target": "爆织"
+      },
+      {
+        "source": "Bubble Weave",
+        "target": "气泡织物"
+      },
+      {
+        "source": "Flux Weave",
+        "target": "通量织物"
+      },
+      {
+        "source": "Insulated Weave",
+        "target": "绝缘织物"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Grenade",
+    "tgt_pattern": "{X}榴弹",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Bitterfrost Grenade",
+        "target": "苦霜榴弹"
+      },
+      {
+        "source": "Melty Love Grenade",
+        "target": "融化之爱榴弹"
+      },
+      {
+        "source": "Plasmad Grenade",
+        "target": "电浆榴弹"
+      },
+      {
+        "source": "Shockatron Grenade",
+        "target": "电击榴弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Screen",
+    "tgt_pattern": "{X}屏",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Smoke Screen",
+        "target": "烟幕"
+      },
+      {
+        "source": "Fuchsia Screen",
+        "target": "洋红屏"
+      },
+      {
+        "source": "Violet Screen",
+        "target": "紫屏"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chryssalid Hive {X} Corpse",
+    "tgt_pattern": "寄生兽蜂巢{X}尸体",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Chryssalid Hive Drone Corpse",
+        "target": "寄生兽蜂巢无人机尸体"
+      },
+      {
+        "source": "Chryssalid Hive Guard Corpse",
+        "target": "寄生兽蜂巢守卫尸体"
+      },
+      {
+        "source": "Chryssalid Hive Queen Corpse",
+        "target": "寄生兽蜂后尸体"
+      },
+      {
+        "source": "Chryssalid Hive Warrior Corpse",
+        "target": "寄生兽蜂巢战士尸体"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Assault Charger {X}",
+    "tgt_pattern": "突击冲锋{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Assault Charger Alpha",
+        "target": "突击冲锋·阿尔法"
+      },
+      {
+        "source": "Assault Charger Beta",
+        "target": "突击冲锋 贝塔"
+      },
+      {
+        "source": "Assault Charger Delta",
+        "target": "德尔塔型突击冲锋器"
+      },
+      {
+        "source": "Assault Charger Gamma",
+        "target": "伽马型突击冲锋器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Aug. {X}",
+    "tgt_pattern": "义体化{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Aug. Arms",
+        "target": "义体化双臂"
+      },
+      {
+        "source": "Aug. Head",
+        "target": "义体化头部"
+      },
+      {
+        "source": "Aug. Legs",
+        "target": "义体化双脚"
+      }
+    ]
+  },
+  {
+    "src_pattern": "CX {X}",
+    "tgt_pattern": "CX {X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "CX Grand Titan Armor Legs",
+        "target": "CX 大泰坦甲双腿"
+      },
+      {
+        "source": "CX Titan Armor Legs",
+        "target": "CX 泰坦甲双腿"
+      },
+      {
+        "source": "CX Titan Armor Legs 2",
+        "target": "CX 泰坦甲双腿 2"
+      },
+      {
+        "source": "CX Titan Armor Legs 3",
+        "target": "CX 泰坦甲双腿 3"
+      },
+      {
+        "source": "CX Titan Armor Torso 1",
+        "target": "CX 泰坦甲躯干 1"
+      }
+    ]
+  },
+  {
+    "src_pattern": "CX Titan Armor {X}",
+    "tgt_pattern": "CX 泰坦甲{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "CX Titan Armor Legs",
+        "target": "CX 泰坦甲双腿"
+      },
+      {
+        "source": "CX Titan Armor Legs 2",
+        "target": "CX 泰坦甲双腿 2"
+      },
+      {
+        "source": "CX Titan Armor Legs 3",
+        "target": "CX 泰坦甲双腿 3"
+      },
+      {
+        "source": "CX Titan Armor Torso 1",
+        "target": "CX 泰坦甲躯干 1"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Darkclaw {X}",
+    "tgt_pattern": "黑爪 M{X}s",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M1s",
+        "target": "黑爪 M1s"
+      },
+      {
+        "source": "Darkclaw M3s",
+        "target": "黑爪 M3s"
+      },
+      {
+        "source": "Darkclaw M2s",
+        "target": "黑爪 M2"
+      },
+      {
+        "source": "Darkclaw M4s",
+        "target": "黑爪 M4s"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Darklance {X}",
+    "tgt_pattern": "黑矛{X}s",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darklance M2s",
+        "target": "黑矛 M2s"
+      },
+      {
+        "source": "Darklance M3s",
+        "target": "黑矛M3s"
+      },
+      {
+        "source": "Darklance M1s",
+        "target": "黑矛 M1s"
+      },
+      {
+        "source": "Darklance M4s",
+        "target": "黑矛 M4s"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shields",
+    "tgt_pattern": "{X}护盾",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Alloy Guardian Shields",
+        "target": "合金守护者护盾"
+      },
+      {
+        "source": "Alloy Shields",
+        "target": "合金盾牌"
+      },
+      {
+        "source": "Exalted Grandmaster Shields",
+        "target": "崇高宗师护盾"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Weaves",
+    "tgt_pattern": "{X}织物",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Automend Weaves",
+        "target": "自动修复织物"
+      },
+      {
+        "source": "Bubble Weaves",
+        "target": "气泡织物"
+      },
+      {
+        "source": "Flux Weaves",
+        "target": "通量织物"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Carbine",
+    "tgt_pattern": "{X}卡宾枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Ha'Dum Area Dominance Carbine",
+        "target": "哈杜姆区域统治卡宾枪"
+      },
+      {
+        "source": "Ha'Dum Siege Carbine",
+        "target": "哈杜姆攻城卡宾枪"
+      },
+      {
+        "source": "Ha'Kor Burst Carbine",
+        "target": "Ha'Kor连发卡宾枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bomb",
+    "tgt_pattern": "{X}炸弹",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Bitterfrost Bomb",
+        "target": "寒霜炸弹"
+      },
+      {
+        "source": "Launch Ripper Bomb",
+        "target": "发射撕裂者炸弹"
+      },
+      {
+        "source": "Launch Bitterfrost Bomb",
+        "target": "发射寒霜炸弹"
+      },
+      {
+        "source": "Launch Neurotoxin Bomb",
+        "target": "发射神经毒素炸弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Corrosion",
+    "tgt_pattern": "{X}腐蚀",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Greater Corrosion",
+        "target": "强效腐蚀"
+      },
+      {
+        "source": "Growing Corrosion",
+        "target": "渐增腐蚀"
+      },
+      {
+        "source": "Lesser Corrosion",
+        "target": "轻微腐蚀"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Launch {X}",
+    "tgt_pattern": "发射{X}弹",
+    "approved_count": 19,
+    "examples": [
+      {
+        "source": "Launch Ghost Grenade",
+        "target": "发射幽魂榴弹"
+      },
+      {
+        "source": "Launch Hellfire Grenade",
+        "target": "发射战锤榴弹"
+      },
+      {
+        "source": "Launch Laser Grenade",
+        "target": "发射激光榴弹"
+      },
+      {
+        "source": "Launch Plague Grenade",
+        "target": "发射瘟疫榴弹"
+      },
+      {
+        "source": "Launch Radiation Grenade",
+        "target": "发射辐射榴弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Mag {X}",
+    "tgt_pattern": "磁力{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Mag Battle Rifles",
+        "target": "磁力战斗步枪"
+      },
+      {
+        "source": "Mag Strike Rifles",
+        "target": "磁力打击步枪"
+      },
+      {
+        "source": "Mag Talons",
+        "target": "磁力利爪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Malevolence: {X}",
+    "tgt_pattern": "恶意：{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Malevolence: Burning",
+        "target": "恶意：燃烧"
+      },
+      {
+        "source": "Malevolence: Hypothermia",
+        "target": "恶意：低温症"
+      },
+      {
+        "source": "Malevolence: Poison",
+        "target": "恶意：中毒"
+      },
+      {
+        "source": "Malevolence: Radiation",
+        "target": "恶意：辐射"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Old {X}",
+    "tgt_pattern": "旧{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Old MEC Trooper",
+        "target": "旧型MEC士兵"
+      },
+      {
+        "source": "Old Shadow",
+        "target": "旧暗影"
+      },
+      {
+        "source": "Old XCOM Archives",
+        "target": "旧XCOM档案库"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Defense",
+    "tgt_pattern": "{X}高级防御力",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> Adv. Defense",
+        "target": "<img src='img:///LABy_UILibrary.Tug_PCS2b' width='24' height='24' vspace='-4'> 高级防御力"
+      },
+      {
+        "source": "PCS: Advanced Defense",
+        "target": "个人战斗芯片：高级防御力"
+      },
+      {
+        "source": "PCS: Defense",
+        "target": "个人战斗芯片：防御力"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Modules",
+    "tgt_pattern": "{X}模块",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Armor Plating Modules",
+        "target": "装甲护板模块"
+      },
+      {
+        "source": "Powered Strike Modules",
+        "target": "动力打击模块"
+      },
+      {
+        "source": "Prototype Strike Modules",
+        "target": "原型打击模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Guns",
+    "tgt_pattern": "{X}枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Exalted Purge Guns",
+        "target": "崇高净化枪"
+      },
+      {
+        "source": "Flechette Guns",
+        "target": "飞镖弹枪"
+      },
+      {
+        "source": "Prototype Plasma Trench Guns",
+        "target": "原型电浆战壕枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Removed",
+    "tgt_pattern": "已解除{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Lance Mark Removed",
+        "target": "已解除长枪标记"
+      },
+      {
+        "source": "Moth Madness Removed",
+        "target": "已解除飞蛾狂乱"
+      },
+      {
+        "source": "Prepare Effect Removed",
+        "target": "准备效果已移除"
+      },
+      {
+        "source": "Provoke Removed",
+        "target": "已解除挑衅"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Powered {X}",
+    "tgt_pattern": "动力{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Powered Shields",
+        "target": "动力护盾"
+      },
+      {
+        "source": "Powered Bayonet Strike",
+        "target": "动力刺刀打击"
+      },
+      {
+        "source": "Powered Bayonets",
+        "target": "动力刺刀"
+      },
+      {
+        "source": "Powered Grappling Hooks",
+        "target": "动力爪钩"
+      },
+      {
+        "source": "Powered Strike Modules",
+        "target": "动力打击模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Prototype {X}",
+    "tgt_pattern": "原型{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Prototype Plasma Trench Guns",
+        "target": "原型电浆战壕枪"
+      },
+      {
+        "source": "Prototype Strike Modules",
+        "target": "原型打击模块"
+      },
+      {
+        "source": "Prototype Plasma Auto-Long Rifles",
+        "target": "原型电浆自动长枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Regen {X}",
+    "tgt_pattern": "再生{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Regen Weave",
+        "target": "再生织物"
+      },
+      {
+        "source": "Regen Pheromones",
+        "target": "再生信息素"
+      },
+      {
+        "source": "Regen Weaves",
+        "target": "再生织物"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Module",
+    "tgt_pattern": "{X}模块",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Build the Hypervital Module",
+        "target": "建造超生命模组"
+      },
+      {
+        "source": "Hazmat Vest Companion Module",
+        "target": "生化防护背心配套模块"
+      },
+      {
+        "source": "SPARK Module",
+        "target": "SPARK模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "SPARK Arms: Power Arm {X}",
+    "tgt_pattern": "SPARK双臂：动力臂{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "SPARK Arms: Power Arm MK1",
+        "target": "SPARK双臂：动力臂MK1"
+      },
+      {
+        "source": "SPARK Arms: Power Arm MK2",
+        "target": "SPARK双臂：动力臂 MK2"
+      },
+      {
+        "source": "SPARK Arms: Power Arm MK3",
+        "target": "SPARK双臂：动力臂MK3"
+      },
+      {
+        "source": "SPARK Arms: Power Arm Mk4",
+        "target": "SPARK双臂：动力臂Mk4"
+      },
+      {
+        "source": "SPARK Arms: Power Arm Mk5",
+        "target": "SPARK双臂：动力臂 Mk5"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Select {X}",
+    "tgt_pattern": "选择{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Select Deployment Area",
+        "target": "选择部署区域"
+      },
+      {
+        "source": "Select New Class Data",
+        "target": "选择新兵种数据"
+      },
+      {
+        "source": "Select Soldier's Class",
+        "target": "选择士兵兵种"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shot",
+    "tgt_pattern": "{X}射",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Strafing Shot",
+        "target": "移动扫射"
+      },
+      {
+        "source": "Overwatch: Snap Shot",
+        "target": "监视：急射"
+      },
+      {
+        "source": "Standard Shot",
+        "target": "标准射击"
+      },
+      {
+        "source": "Standard Sniper Shot",
+        "target": "标准狙击射击"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Stolen {X}",
+    "tgt_pattern": "赃物{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Stolen Cannons",
+        "target": "赃物加农炮"
+      },
+      {
+        "source": "Stolen Pistols",
+        "target": "赃物手枪"
+      },
+      {
+        "source": "Stolen Rifles",
+        "target": "赃物步枪"
+      },
+      {
+        "source": "Stolen Shotguns",
+        "target": "赃物霰弹枪"
+      },
+      {
+        "source": "Stolen Sniper Rifles",
+        "target": "被盗的狙击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bolter",
+    "tgt_pattern": "{X}爆弹枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Mor'Khazan Stealth Bolter",
+        "target": "莫卡赞隐秘爆弹枪"
+      },
+      {
+        "source": "Stealth Bolter",
+        "target": "隐秘爆弹枪"
+      },
+      {
+        "source": "Tal'Khazan Superheavy Bolter",
+        "target": "塔尔卡赞超重型爆弹枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Superior {X}",
+    "tgt_pattern": "终极{X}器",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Superior Scramblers",
+        "target": "终极干扰器"
+      },
+      {
+        "source": "Superior Sprint Loaders",
+        "target": "终极冲刺装填器"
+      },
+      {
+        "source": "Superior Suppressors",
+        "target": "终极消音器"
+      },
+      {
+        "source": "Superior Taptic Repeaters",
+        "target": "终极触感中继器"
+      },
+      {
+        "source": "Superior Targeting Modules",
+        "target": "终极瞄准模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "The {X}",
+    "tgt_pattern": "灵{X}",
+    "approved_count": 15,
+    "examples": [
+      {
+        "source": "The Missing Civilians",
+        "target": "失踪的平民"
+      },
+      {
+        "source": "The Psionic Gateway",
+        "target": "灵能通道"
+      },
+      {
+        "source": "The Violation of the Hippocratic",
+        "target": "违背希波克拉底誓言"
+      },
+      {
+        "source": "The Decreptitude",
+        "target": "衰竭"
+      },
+      {
+        "source": "The Heart",
+        "target": "心灵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Throw {X}",
+    "tgt_pattern": "{X}弹",
+    "approved_count": 22,
+    "examples": [
+      {
+        "source": "Throw Ghost Grenade",
+        "target": "幽魂榴弹"
+      },
+      {
+        "source": "Throw Hellfire Grenade",
+        "target": "战锤榴弹"
+      },
+      {
+        "source": "Throw Laser Grenade",
+        "target": "激光榴弹"
+      },
+      {
+        "source": "Throw Magnetic Grenade",
+        "target": "磁力榴弹"
+      },
+      {
+        "source": "Throw Plague Grenade",
+        "target": "瘟疫榴弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Trigger {X} explosives",
+    "tgt_pattern": "引爆{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Trigger C4 explosives",
+        "target": "引爆C4炸药"
+      },
+      {
+        "source": "Trigger E4 explosives",
+        "target": "引爆E4爆炸物"
+      },
+      {
+        "source": "Trigger X4 explosives",
+        "target": "引爆X4炸药"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Turbulent Plasma {X}",
+    "tgt_pattern": "湍流电浆{X}枪",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Turbulent Plasma Auto-Long Rifles",
+        "target": "湍流电浆自动长枪"
+      },
+      {
+        "source": "Turbulent Plasma LMGs",
+        "target": "湍流电浆轻机枪"
+      },
+      {
+        "source": "Turbulent Plasma SMGs",
+        "target": "湍流电浆冲锋枪"
+      },
+      {
+        "source": "Turbulent Plasma Semi-Auto Pistols",
+        "target": "湍流电浆半自动手枪"
+      },
+      {
+        "source": "Turbulent Plasma Street Sweepers",
+        "target": "湍流电浆清道夫"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Settings",
+    "tgt_pattern": "{X}设置",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Miss Click Protection Settings",
+        "target": "误触保护设置"
+      },
+      {
+        "source": "Mod Settings",
+        "target": "模组设置"
+      },
+      {
+        "source": "Waypoint Settings",
+        "target": "路径点设置"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X}",
+    "tgt_pattern": "XCOM{X}枪",
+    "approved_count": 15,
+    "examples": [
+      {
+        "source": "XCOM Shotguns",
+        "target": "XCOM霰弹枪"
+      },
+      {
+        "source": "XCOM Sniper Rifles",
+        "target": "XCOM狙击步枪"
+      },
+      {
+        "source": "XCOM Plasma Shotguns (T2)",
+        "target": "XCOM电浆霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Shotguns (T3)",
+        "target": "XCOM电浆霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles",
+        "target": "XCOM电浆狙击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Plasma {X}",
+    "tgt_pattern": "XCOM电浆{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "XCOM Plasma Shotguns (T2)",
+        "target": "XCOM电浆霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Shotguns (T3)",
+        "target": "XCOM电浆霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles",
+        "target": "XCOM电浆狙击步枪"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles (T2)",
+        "target": "XCOM电浆狙击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles (T3)",
+        "target": "XCOM电浆狙击步枪（T3）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X} (T2)",
+    "tgt_pattern": "XCOM{X}枪 (T2)",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Plasma Shotguns (T2)",
+        "target": "XCOM电浆霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Shotguns (T2)",
+        "target": "XCOM霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Sniper Rifles (T2)",
+        "target": "XCOM狙击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles (T2)",
+        "target": "XCOM电浆狙击步枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X} (T3)",
+    "tgt_pattern": "XCOM{X}枪 (T3)",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Plasma Shotguns (T3)",
+        "target": "XCOM电浆霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Shotguns (T3)",
+        "target": "XCOM霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Sniper Rifles (T3)",
+        "target": "XCOM狙击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Sniper Rifles (T3)",
+        "target": "XCOM电浆狙击步枪（T3）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Overwatch {X}",
+    "tgt_pattern": "监视{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Overwatch (Snap Shot, Concealed)",
+        "target": "监视（急射，隐蔽中）"
+      },
+      {
+        "source": "Overwatch Lockup Fix",
+        "target": "监视卡死修复"
+      },
+      {
+        "source": "Overwatch Overtime",
+        "target": "监视加时"
+      }
+    ]
+  },
+  {
+    "src_pattern": "<font {X} Training</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}训练</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Rapid Targeting Training</font>",
+        "target": "<font color='#df07b7'>快速瞄准训练</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Rooftop Combat Training</font>",
+        "target": "<font color='#df07b7'>屋顶战斗训练</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Vital Targeting Training</font>",
+        "target": "<font color='#df07b7'>要害瞄准训练</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT {X}",
+    "tgt_pattern": "变种人{X}",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "ADVENT Attention: Intense",
+        "target": "变种人关注度：强烈"
+      },
+      {
+        "source": "ADVENT Crackdown: Achlys Coterie",
+        "target": "变种人镇压：阿克律斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Artemis Coterie",
+        "target": "变种人镇压：阿尔忒弥斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Hephaestus Coterie",
+        "target": "变种人镇压：赫菲斯托斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Rhamnusia Coterie",
+        "target": "变种人镇压：拉姆努西亚密会"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT Attention: {X}",
+    "tgt_pattern": "变种人{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Attention: Intense",
+        "target": "变种人关注度：强烈"
+      },
+      {
+        "source": "ADVENT Attention: Incandescent",
+        "target": "变种人警告：白热化"
+      },
+      {
+        "source": "ADVENT Attention: Substantial",
+        "target": "变种人警戒：显著"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT Crackdown: {X} Coterie",
+    "tgt_pattern": "变种人镇压：阿{X}斯密会",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "ADVENT Crackdown: Achlys Coterie",
+        "target": "变种人镇压：阿克律斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Artemis Coterie",
+        "target": "变种人镇压：阿尔忒弥斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Hephaestus Coterie",
+        "target": "变种人镇压：赫菲斯托斯密会"
+      },
+      {
+        "source": "ADVENT Crackdown: Rhamnusia Coterie",
+        "target": "变种人镇压：拉姆努西亚密会"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Incursion",
+    "tgt_pattern": "{X}入侵",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Bandit Incursion",
+        "target": "强盗入侵"
+      },
+      {
+        "source": "Cultist Incursion",
+        "target": "邪教徒入侵"
+      },
+      {
+        "source": "Heretic Geth Incursion",
+        "target": "异端桀斯入侵"
+      },
+      {
+        "source": "Mandalorian Incursion",
+        "target": "曼达洛入侵"
+      },
+      {
+        "source": "Marauder Incursion",
+        "target": "掠夺者入侵"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Grand Titan Armor {X}",
+    "tgt_pattern": "大泰坦{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Grand Titan Armor Arms",
+        "target": "大泰坦甲双臂"
+      },
+      {
+        "source": "Grand Titan Armor Arms 2",
+        "target": "大泰坦甲双臂 2"
+      },
+      {
+        "source": "Grand Titan Armor Arms 3",
+        "target": "大泰坦甲双臂 3"
+      },
+      {
+        "source": "Grand Titan Armor Helmet",
+        "target": "大泰坦护甲头盔"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Metion {X}",
+    "tgt_pattern": "Metion{X}",
+    "approved_count": 14,
+    "examples": [
+      {
+        "source": "Metion Crab Helm Skull",
+        "target": "Metion蟹型骷髅头盔"
+      },
+      {
+        "source": "Metion Crab Helm X",
+        "target": "Metion螃蟹头盔 X"
+      },
+      {
+        "source": "Metion Custodian Hound",
+        "target": "Metion护卫猎犬"
+      },
+      {
+        "source": "Metion Custodian Hound Skull",
+        "target": "Metion护卫猎犬颅骨"
+      },
+      {
+        "source": "Metion Custodian Hound White",
+        "target": "Metion护卫猎犬（白色）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Metion {X} Skull",
+    "tgt_pattern": "Metion{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Metion Crab Helm Skull",
+        "target": "Metion蟹型骷髅头盔"
+      },
+      {
+        "source": "Metion Custodian Hound Skull",
+        "target": "Metion护卫猎犬颅骨"
+      },
+      {
+        "source": "Metion Custodian Hound Wolf Skull",
+        "target": "Metion变种人护卫猎犬狼颅骨"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Metion Custodian Hound {X}",
+    "tgt_pattern": "Metion护卫猎犬{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Metion Custodian Hound Skull",
+        "target": "Metion护卫猎犬颅骨"
+      },
+      {
+        "source": "Metion Custodian Hound White",
+        "target": "Metion护卫猎犬（白色）"
+      },
+      {
+        "source": "Metion Custodian Hound Wolf Skull",
+        "target": "Metion变种人护卫猎犬狼颅骨"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Metion Custodian {X}",
+    "tgt_pattern": "Metion{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Metion Custodian Hound",
+        "target": "Metion护卫猎犬"
+      },
+      {
+        "source": "Metion Custodian Hound Skull",
+        "target": "Metion护卫猎犬颅骨"
+      },
+      {
+        "source": "Metion Custodian Hound White",
+        "target": "Metion护卫猎犬（白色）"
+      },
+      {
+        "source": "Metion Custodian Hound Wolf Skull",
+        "target": "Metion变种人护卫猎犬狼颅骨"
+      },
+      {
+        "source": "Metion Custodian Knight Hound",
+        "target": "Metion变种人护卫骑士猎犬"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Metion Xiphos Crab {X}",
+    "tgt_pattern": "Metion Xiphos 螃蟹{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Metion Xiphos Crab Helm Crab Paint",
+        "target": "Metion Xiphos 螃蟹头盔 螃蟹涂装"
+      },
+      {
+        "source": "Metion Xiphos Crab Helm",
+        "target": "Metion西福斯蟹形头盔"
+      },
+      {
+        "source": "Metion Xiphos Crab One Eye",
+        "target": "Metion Xiphos 螃蟹独眼"
+      },
+      {
+        "source": "Metion Xiphos Crab White",
+        "target": "Metion Xiphos 螃蟹（白色）"
       }
     ]
   }
