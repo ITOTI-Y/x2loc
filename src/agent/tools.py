@@ -1,7 +1,8 @@
 from __future__ import annotations
+from dataclasses import dataclass
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Any, Final
 
 from src.agent._share import (
@@ -11,7 +12,8 @@ from src.agent._share import (
     DEFAULT_NEARBY_RANGE,
 )
 from src.agent.state import GlossaryMatch, SessionPattern
-from src.services.weblate import WeblateClient
+from src.services.weblate import AsyncWeblateClient, WeblateRequestParamsSchema
+from src.models.agent import ComponentInfoSchema
 
 TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
     re.compile(p)
@@ -26,7 +28,6 @@ TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
 
 _HTML_TAG_RE: Final = re.compile(r"<[^>]+>")
 _WORD_RE: Final = re.compile(r"[A-Za-z]{3,}")
-
 
 def extract_tags(text: str) -> list[str]:
     tags: list[str] = []
@@ -53,16 +54,6 @@ def strip_html(text: str) -> str:
 
 def tokenize(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
-
-
-def make_glossary_entry(source: str, target: str, context: str) -> dict:
-    """Build a glossary cache entry with its source tokens precomputed.
-
-    `lookup_glossary` matches by token overlap; precomputing here avoids
-    re-tokenizing every entry on every lookup.
-    """
-    return {"target": target, "context": context, "tokens": tokenize(source)}
-
 
 def match_session_patterns(
     source: str, patterns: list[SessionPattern]
@@ -99,42 +90,42 @@ def lookup_glossary(
     ]
 
 
-def collect_context_for_term(
-    client: WeblateClient,
+async def collect_context_for_term(
+    client: AsyncWeblateClient,
     source_text: str,
     lang: str,
     nearby_range: int = DEFAULT_NEARBY_RANGE,
-) -> dict[str, Any]:
+) -> list[ComponentInfoSchema]:
     search_query = strip_html(source_text) or source_text
-    results = client.search_units(
-        f'source:"{search_query}"', page_size=CONTEXT_SEARCH_PAGE_SIZE
+    results = await client.search_units(
+        WeblateRequestParamsSchema(
+            q=f'source:"{search_query}"',
+            page_size=CONTEXT_SEARCH_PAGE_SIZE,
+        )
     )
 
-    components: dict[str, list[int]] = {}
+    components: list[ComponentInfoSchema] = []
     for u in results:
-        turl = u.get("translation", "")
+        turl = u.translation
+        unit_lang = u.language_code
         parts = turl.rstrip("/").split("/")
+        slug = parts[-2]
         if len(parts) < 2:
             continue
-        slug = parts[-2]
-        unit_lang = parts[-1]
         if slug.startswith("glossary") or unit_lang != lang:
             continue
-        if u["source"][0] != source_text:
+        if u.source != source_text:
             continue
-        components.setdefault(slug, []).append(u["position"])
+        components.append(ComponentInfoSchema(slug=slug, lang=unit_lang, positions=u.position, nearby=[]))
 
     if not components:
-        return {"mod_component": None, "translated_percent": None, "nearby": []}
+        return []
 
-    best_slug, best_pct, best_positions = "", -1.0, []
-    for slug, positions in components.items():
-        info = client.get_translation(slug, lang)
-        pct = info.get("translated_percent", 0.0)
-        if pct > best_pct:
-            best_slug, best_pct, best_positions = slug, pct, positions
+    for component in components:
+        info = await client.get_translation(component.slug, component.lang)
+        component.translated_percent = info.translated_percent
 
-    target_pos = best_positions[0]
+    target_pos = components[0].positions
     lo, hi = target_pos - nearby_range, target_pos + nearby_range
 
     nearby: list[dict] = []

@@ -8,7 +8,6 @@ from loguru import logger
 from src.agent.config import AgentConfigSchema
 from src.agent.nodes._helpers import upload_batch
 from src.agent.state import AgentState, PatchResult
-from src.agent.tools import make_glossary_entry
 from src.services.weblate import WeblateClient
 
 
@@ -33,11 +32,11 @@ def _upload_and_merge(
 
     ok_ids = {r["unit_id"] for r in results if r["status"] == "ok"}
     mods = dict(state["mods_glossary"])
-    for b in batch:
-        if b["unit_id"] in ok_ids:
-            mods[b["source"]] = make_glossary_entry(
-                b["source"], b[value_key], b["context"]
-            )
+    # for b in batch:
+    #     if b["unit_id"] in ok_ids:
+    #         mods[b["source"]] = make_glossary_entry(
+    #             b["source"], b[value_key], b["context"]
+    #         )
     return results, history, mods
 
 

@@ -32,12 +32,14 @@
             "name": "Run Agent",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.agent.runner",
+            "module": "src.cli.app",
             "args": [
+                "agent",
+                "run",
                 "--config",
                 "configs/weblate.local.toml",
                 "--batch-size",
-                "50",
+                "50"
             ],
             "console": "integratedTerminal"
         }

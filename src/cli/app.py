@@ -13,7 +13,7 @@ import typer
 from loguru import logger
 
 from src._share import EXT_LANG_MAP, LANG_EXT_MAP, make_glossary_context
-from src.agent.runner import app as agent_app
+from src.agent.cli import app as agent_app
 from src.core._share import iter_compound_keys, make_struct_field_key
 from src.core.aligner import BilingualAligner
 from src.core.converter import TRANSLATABLE_STRUCT_FIELDS, CorpusConverter

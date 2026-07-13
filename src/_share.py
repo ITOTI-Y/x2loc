@@ -1,3 +1,5 @@
+from pathlib import Path
+from tempfile import mkdtemp
 from typing import Final
 
 LANG_EXT_MAP: Final[dict[str, str]] = {
@@ -16,6 +18,8 @@ LANG_EXT_MAP: Final[dict[str, str]] = {
 
 EXT_LANG_MAP: Final[dict[str, str]] = {v: k for k, v in LANG_EXT_MAP.items()}
 
+TEMP_DIR: Path = Path(mkdtemp(prefix="x2loc_"))
+TEMP_DIR = Path("data/_dev")
 
 def make_glossary_context(source: str, category: str) -> str:
     """Build the Weblate unit context for a glossary term.

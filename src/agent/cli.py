@@ -13,31 +13,9 @@ from loguru import logger
 from src.agent.config import AgentConfigSchema, load_config
 from src.agent.graph import build_graph
 from src.agent.nodes.pattern_extractor import load_cached_patterns
+from src.models.agent import NewAgentStateSchema
 
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
-
-
-def _initial_state() -> dict:
-    return {
-        "base_glossary": {},
-        "mods_glossary": {},
-        "current_page": 1,
-        "remaining_count": -1,
-        "current_units": [],
-        "context_results": [],
-        "candidates": [],
-        "scores": [],
-        "auto_batch": [],
-        "review_batch": [],
-        "review_approved": [],
-        "patch_results": [],
-        "approved_history": [],
-        "skip_ids": [],
-        "stats": {"auto": 0, "approved": 0, "modified": 0, "skipped": 0},
-        "session_patterns": load_cached_patterns(),
-        "should_continue": True,
-        "needs_review": False,
-    }
 
 
 def _decide(item: dict, choice: str) -> dict:
@@ -108,41 +86,33 @@ def _print_summary(stats: dict[str, int], remaining: int) -> None:
         f"remaining={remaining}"
     )
 
-
 async def _run_async(config: AgentConfigSchema, auto_skip: bool) -> None:
     """Drive the graph through its async API."""
     graph = build_graph(config)
     thread: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
-    stream_input: dict | Command = _initial_state()
+    state: NewAgentStateSchema | Command = NewAgentStateSchema(patterns=load_cached_patterns())
 
     while True:
-        async for event in graph.astream(stream_input, thread, stream_mode="updates"):
-            for node_name in event:
-                if node_name == "glossary_loader":
-                    base_n = len(event[node_name].get("base_glossary", {}))
-                    mods_n = len(event[node_name].get("mods_glossary", {}))
-                    logger.info(f"Glossaries loaded: {base_n} base + {mods_n} mods")
+        final = None
+        async for event in graph.astream(
+            input=state, config=thread, stream_mode="updates"
+        ):
+            final = event
+            pass
 
-        snapshot = await graph.aget_state(thread)
-        if not snapshot.next:
-            final = snapshot.values
-            _print_summary(final.get("stats", {}), final.get("remaining_count", 0))
+        if final is None:
+            breakpoint()
             break
 
-        interrupt_value = None
-        for task in snapshot.tasks:
-            if hasattr(task, "interrupts") and task.interrupts:
-                interrupt_value = task.interrupts[0].value
-                break
-
-        if interrupt_value is None:
-            logger.warning("Graph paused without interrupt value, exiting")
+        interrupts = final.get("__interrupts__")
+        if not interrupts:
+            breakpoint()
             break
 
         decisions = await asyncio.to_thread(
-            _prompt_user_review, interrupt_value, auto_skip=auto_skip
+            _prompt_user_review, interrupts, auto_skip=auto_skip
         )
-        stream_input = Command(resume=decisions)
+        state = Command(resume=decisions)
 
 
 @app.command()

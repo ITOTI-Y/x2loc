@@ -6,29 +6,29 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.agent.config import AgentConfigSchema
 from src.agent.nodes import WorkflowNodes
-from src.agent.state import AgentState
-from src.services.weblate import WeblateClient
+from src.models.agent import NewAgentStateSchema
+from src.services.weblate import AsyncWeblateClient
 
 
-def route_after_fetch(state: AgentState) -> str:
-    return "continue" if state["should_continue"] else "end"
+def route_after_fetch(state: NewAgentStateSchema) -> str:
+    return "end" if state.is_end else "continue"
 
 
-def route_after_decision(state: AgentState) -> str:
+def route_after_decision(state: NewAgentStateSchema) -> str:
     # Whether review is also needed is decided later by route_after_auto_upload.
     return "auto" if state["auto_batch"] else "review"
 
 
-def route_after_auto_upload(state: AgentState) -> str:
+def route_after_auto_upload(state: NewAgentStateSchema) -> str:
     return "review" if state["needs_review"] else "extract"
 
 
 def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
-    client = WeblateClient(config.weblate)
+    client = AsyncWeblateClient(config.weblate)
 
     nodes = WorkflowNodes(client, config)
 
-    builder = StateGraph(AgentState)  # type: ignore
+    builder = StateGraph(NewAgentStateSchema)
 
     builder.add_node("glossary_loader", nodes.glossary_loader)
     builder.add_node("fetch_empty", nodes.fetch_empty)
@@ -65,4 +65,4 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge("review_uploader", "pattern_extractor")
     builder.add_edge("pattern_extractor", "fetch_empty")
 
-    return builder.compile(checkpointer=InMemorySaver())  # type: ignore
+    return builder.compile(checkpointer=InMemorySaver())

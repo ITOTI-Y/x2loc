@@ -1,6 +1,9 @@
 import operator
 from typing import Annotated, Literal, TypedDict
 
+from src.models.agent import StatsSchema
+from src.models.weblate import WeblateUnitSchema
+
 
 class TranslationUnit(TypedDict):
     id: int
@@ -64,8 +67,8 @@ class SessionPattern(TypedDict):
 
 
 class AgentState(TypedDict):
-    base_glossary: dict[str, dict]
-    mods_glossary: dict[str, dict]
+    base_glossary: dict[str, WeblateUnitSchema]
+    mods_glossary: dict[str, WeblateUnitSchema]
 
     current_page: int
     remaining_count: int
@@ -83,7 +86,7 @@ class AgentState(TypedDict):
     approved_history: Annotated[list[dict], operator.add]
 
     skip_ids: list[int]
-    stats: dict[str, int]
+    stats: StatsSchema
     session_patterns: list[SessionPattern]
 
     should_continue: bool

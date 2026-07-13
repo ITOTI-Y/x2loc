@@ -7,22 +7,22 @@ from loguru import logger
 
 from src.agent._share import PATTERN_CACHE_PATH, PATTERN_MIN_EXAMPLES
 from src.agent.nodes._helpers import common_prefix, common_suffix
-from src.agent.state import AgentState, SessionPattern
+from src.models.agent import PatternSchema
 
 
-def load_cached_patterns() -> list[SessionPattern]:
+def load_cached_patterns() -> dict[str, PatternSchema]:
     if not PATTERN_CACHE_PATH.exists():
-        return []
+        return {}
     try:
         data = json.loads(PATTERN_CACHE_PATH.read_text("utf-8"))
         logger.info(f"Loaded {len(data)} cached patterns from {PATTERN_CACHE_PATH}")
-        return data
+        return {p["src_pattern"]: p for p in data}
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning(f"Failed to load pattern cache: {exc}")
-        return []
+        return {}
 
 
-def _save_cache(patterns: list[SessionPattern]) -> None:
+def _save_cache(patterns: list[PatternSchema]) -> None:
     try:
         PATTERN_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         PATTERN_CACHE_PATH.write_text(
@@ -32,7 +32,7 @@ def _save_cache(patterns: list[SessionPattern]) -> None:
         logger.warning(f"Failed to save pattern cache: {exc}")
 
 
-def pattern_extractor(state: AgentState) -> dict:
+def pattern_extractor(state: NewAgentStateSchema) -> NewAgentStateSchema:
     history = state.get("approved_history", [])
     if len(history) < PATTERN_MIN_EXAMPLES:
         return {}
@@ -48,10 +48,10 @@ def pattern_extractor(state: AgentState) -> dict:
 
 def _detect_patterns(
     history: list[dict],
-    existing_patterns: list[SessionPattern],
-) -> list[SessionPattern]:
+    existing_patterns: list[PatternSchema],
+) -> list[PatternSchema]:
     existing_src = {p["src_pattern"] for p in existing_patterns}
-    found: list[SessionPattern] = []
+    found: list[PatternSchema] = []
 
     for i, a in enumerate(history):
         for b in history[i + 1 :]:

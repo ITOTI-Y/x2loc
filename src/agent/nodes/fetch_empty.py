@@ -1,70 +1,89 @@
-from __future__ import annotations
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TypedDict
 
-from loguru import logger
-
-from src._share import glossary_context_category
+from src._share import TEMP_DIR
 from src.agent.config import AgentConfigSchema
-from src.agent.state import AgentState, TranslationUnit
-from src.services.weblate import WeblateAPIError, WeblateClient
+from src.models.agent import NewAgentStateSchema
+from src.services.weblate import AsyncWeblateClient, WeblateUnitSchema
 
 
-def fetch_empty(
-    state: AgentState, *, client: WeblateClient, agent_config: AgentConfigSchema
-) -> dict:
-    page = state["current_page"]
-    skip_set = set(state["skip_ids"])
-    target = agent_config.batch_size
-    units: list[TranslationUnit] = []
-    count = 0
+class FetchEmptyOutputSchema(TypedDict):
+    to_translate: list[WeblateUnitSchema]
+    is_end: bool
 
-    while len(units) < target:
-        try:
-            count, raw_units = client.list_units_page(
-                agent_config.component_slug,
-                agent_config.target_lang,
-                q="state:empty",
-                page=page,
-                page_size=target,
-            )
-        except WeblateAPIError as e:
-            if e.status != 404:
-                raise
-            logger.warning(f"Page {page:d} out of range, pool shrank")
-            page = 1
-            break
+@dataclass
+class UnitCursor:
+    units: list[WeblateUnitSchema]
+    offset: int = 0
+    is_end: bool = False
 
-        if not raw_units:
-            break
+def _cache_path(component_slug: str, lang: str, q: str | None = None) -> Path:
+    return TEMP_DIR / f"{component_slug}_{lang}_{q}.json"
 
-        for u in raw_units:
-            if u["id"] in skip_set:
-                continue
-            ctx = u["context"]
-            category = glossary_context_category(ctx)
-            units.append(
-                {
-                    "id": u["id"],
-                    "position": u["position"],
-                    "source": u["source"][0],
-                    "context": ctx,
-                    "category": category,
-                }
-            )
-            if len(units) >= target:
-                break
+class UnitIterator:
+    def __init__(self, client: AsyncWeblateClient):
+        self._client = client
+        self._cursors: dict[
+            tuple[str, str, str | None],
+            UnitCursor,
+        ] = {}
 
-        page += 1
+    async def get_units(
+        self,
+        component_slug: str,
+        lang: str,
+        batch_size: int,
+        q: str | None = None,
+    ) -> tuple[list[WeblateUnitSchema], bool]:
+        key = (component_slug, lang, q)
+        cursor = self._cursors.get(key)
+        if cursor is None:
+            units = await self._load_data(component_slug, lang, q)
+            cursor = self._cursors[key] = UnitCursor(units)
 
-        if len(raw_units) < target:
-            break
+        start = cursor.offset
+        end = start + batch_size
+        cursor.offset = end
 
-    should_continue = count > 0 and len(units) > 0
-    logger.info(
-        f"Fetched {len(units):d} units (up to page {page - 1:d}), {count:d} total empty"
+        batch = cursor.units[start:end]
+
+        if end == len(cursor.units):
+            del self._cursors[key]
+            cursor.is_end = True
+
+        return batch, cursor.is_end
+
+    async def _load_data(self, component_slug: str, lang: str, q: str | None = None) -> list[WeblateUnitSchema]:
+        path = _cache_path(component_slug, lang, q)
+        if path.exists():
+            return [WeblateUnitSchema.model_validate(unit) for unit in json.loads(path.read_text("utf-8"))]
+        units = await self._client.list_units(
+            component_slug=component_slug,
+            lang=lang,
+            q=q,
+        )
+        await self._save_data(component_slug, lang, units, q)
+        return units
+
+    async def _save_data(self, component_slug: str, lang: str, units: list[WeblateUnitSchema], q: str | None = None) -> None:
+        path = _cache_path(component_slug, lang, q)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps([unit.model_dump() for unit in units], ensure_ascii=False))
+
+async def fetch_empty(
+    state: NewAgentStateSchema,
+    unit_iterator: UnitIterator,
+    agent_config: AgentConfigSchema,
+) -> FetchEmptyOutputSchema:
+    units, is_end = await unit_iterator.get_units(
+        component_slug=agent_config.component_slug,
+        lang=agent_config.target_lang,
+        batch_size=agent_config.batch_size,
+        q="state:empty",
     )
     return {
-        "current_units": units,
-        "remaining_count": count,
-        "current_page": page,
-        "should_continue": should_continue,
+        "to_translate": units,
+        "is_end": is_end,
     }
