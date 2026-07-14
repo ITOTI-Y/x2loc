@@ -11,74 +11,31 @@ from src.agent.config import AgentConfigSchema
 from src.agent.llm import TranslationOutputSchema
 from src.agent.prompts import format_translation_prompt, translation_system_blocks
 from src.agent.state import (
-    AgentState,
-    ContextResult,
     SessionPattern,
-    TranslationCandidate,
-    TranslationUnit,
 )
-from src.agent.tools import lookup_glossary, match_session_patterns
+from src.agent.tools import lookup_glossary_or_patterns
+from src.models.agent import (
+    ComponentInfoSchema,
+    NewAgentStateSchema,
+    TranslationUnitSchema,
+    WeblateUnitSchema,
+)
 
 
 async def translator(
-    state: AgentState, *, agent_config: AgentConfigSchema, llm: Runnable
+    state: NewAgentStateSchema, *, agent_config: AgentConfigSchema, llm: Runnable
 ) -> dict:
     system_blocks = translation_system_blocks(agent_config.target_lang)
-    candidates: list[TranslationCandidate] = []
-    context_map = {c["unit_id"]: c for c in state["context_results"]}
-    to_translate: list[tuple[TranslationUnit, ContextResult]] = []
-
-    compiled_patterns = _compile_patterns(state["session_patterns"])
-
-    for unit in state["current_units"]:
-        ctx = context_map.get(
-            unit["id"],
-            {
-                "unit_id": unit["id"],
-                "mod_component": None,
-                "translated_percent": None,
-                "nearby": [],
-            },
-        )
-        pattern_result = _try_pattern_match(
-            unit["source"],
-            compiled_patterns,
-            state["base_glossary"],
-            state["mods_glossary"],
-        )
-        if pattern_result:
-            candidates.append(
-                TranslationCandidate(
-                    unit_id=unit["id"],
-                    source=unit["source"],
-                    context=unit["context"],
-                    category=unit["category"],
-                    translation=pattern_result,
-                    pattern_matched=True,
-                    glossary_base=[],
-                    glossary_mods=[],
-                    context_result=ctx,
-                    tag_valid=True,
-                )
-            )
-            logger.info(f"[PATTERN] {unit['source']} → {pattern_result}")
-        else:
-            to_translate.append((unit, ctx))
-
-    if not to_translate:
-        return {"candidates": candidates}
 
     async def _translate_one(
-        unit: TranslationUnit, ctx: ContextResult
-    ) -> TranslationCandidate | None:
-        base_matches = lookup_glossary(unit["source"], state["base_glossary"])
-        mods_matches = lookup_glossary(unit["source"], state["mods_glossary"])
-        match_patterns = match_session_patterns(
-            unit["source"], state["session_patterns"]
-        )
+        unit: WeblateUnitSchema, ctx: list[ComponentInfoSchema]
+    ) -> TranslationUnitSchema | None:
+        base_matches = lookup_glossary_or_patterns(unit.source, state.base_glossary)
+        mods_matches = lookup_glossary_or_patterns(unit.source, state.mods_glossary)
+        match_patterns = lookup_glossary_or_patterns(unit.source, state.patterns)
         prompt = format_translation_prompt(
-            unit["source"],
-            unit["category"],
+            unit.source,
+            unit.note,
             base_matches,
             mods_matches,
             ctx,
@@ -87,7 +44,7 @@ async def translator(
         try:
             response = await llm.ainvoke(
                 [
-                    SystemMessage(content=system_blocks),
+                    SystemMessage(content=[dict(system_blocks)]),
                     HumanMessage(content=prompt),
                 ]
             )
@@ -99,21 +56,10 @@ async def translator(
             logger.error(f"Translation failed for {unit['source']}: {e}")
             return None
         result = response.result
-        logger.info(f"[TRANSLATE] {unit['source']} → {result}")
-        return TranslationCandidate(
-            unit_id=unit["id"],
-            source=unit["source"],
-            context=unit["context"],
-            category=unit["category"],
-            translation=result,
-            pattern_matched=False,
-            glossary_base=base_matches,
-            glossary_mods=mods_matches,
-            context_result=ctx,
-            tag_valid=False,
-        )
 
-    llm_results = await asyncio.gather(*[_translate_one(u, c) for u, c in to_translate])
+    llm_results = await asyncio.gather(
+        *[_translate_one(u, state.context_results[u.id]) for u in state.to_translate]
+    )
     failed_ids = [
         u["id"]
         for (u, _), r in zip(to_translate, llm_results, strict=False)

@@ -1,15 +1,20 @@
-from __future__ import annotations
-
+import asyncio
 import re
 from collections import Counter
 from typing import Final
 
+from rapidfuzz import process
+from rapidfuzz.fuzz import WRatio
+
 from src.agent._share import (
     DEFAULT_NEARBY_RANGE,
 )
-from src.agent.state import GlossaryMatch, SessionPattern
-from src.models.agent import ComponentInfoSchema
-from src.services.weblate import AsyncWeblateClient, WeblateRequestParamsSchema
+from src.models.agent import ComponentInfoSchema, PatternSchema
+from src.services.weblate import (
+    AsyncWeblateClient,
+    WeblateRequestParamsSchema,
+    WeblateUnitSchema,
+)
 
 TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
     re.compile(p)
@@ -53,52 +58,56 @@ def tokenize(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
 
 
-def match_session_patterns(
-    source: str, patterns: list[SessionPattern]
-) -> list[SessionPattern]:
-    """Collect session patterns whose src_pattern contains any word of `source`."""
-    matched: list[SessionPattern] = []
-    for single_word in source.split():
-        matched.extend(
-            p for p in patterns if single_word.lower() in p["src_pattern"].lower()
-        )
-    return matched
+def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema)](
+    source: str, cache: dict[str, T], limit: int = 10
+) -> list[T]:
+    if source in cache:
+        return [cache[source]]
 
+    matched = process.extract(
+        source,
+        cache.keys(),
+        scorer=WRatio,
+        score_cutoff=65,
+        limit=limit,
+    )
 
-def lookup_glossary(
-    source: str, cache: dict[str, dict], limit: int = 10
-) -> list[GlossaryMatch]:
-    src_tokens = tokenize(source)
-    if not src_tokens:
-        return []
-
-    scored: list[tuple[int, int, str, dict]] = []
-    for src, info in cache.items():
-        cache_tokens = info.get("tokens") or tokenize(src)
-        if not cache_tokens:
-            continue
-        overlap = src_tokens & cache_tokens
-        if overlap:
-            scored.append((len(overlap), len(cache_tokens), src, info))
-
-    scored.sort(key=lambda x: (-x[0], x[1]))
-    return [
-        {"source": src, "target": info["target"], "context": info["context"]}
-        for _, _, src, info in scored[:limit]
-    ]
+    return [cache[m[0]] for m in matched]
 
 
 async def collect_context_for_term(
     client: AsyncWeblateClient,
-    source_text: str,
-    lang: str,
+    input_unit: WeblateUnitSchema,
     nearby_range: int = DEFAULT_NEARBY_RANGE,
 ) -> list[ComponentInfoSchema]:
-    search_query = strip_html(source_text) or source_text
+    async def _enrich(component: ComponentInfoSchema) -> ComponentInfoSchema:
+        position_query = (
+            f"position:[{component.position - nearby_range}"
+            f" to {component.position + nearby_range}]"
+        )
+        info, nearby_page = await asyncio.gather(
+            client.get_translation(component.slug, component.lang),
+            client.list_units_page(
+                component_slug=component.slug,
+                lang=component.lang,
+                page=1,
+                page_size=20,
+                q=position_query,
+            ),
+        )
+        component.translated_percent = info.translated_percent
+        component.nearby = [u for u in nearby_page.units if component.key in u.context]
+        return component
+
+    search_query = strip_html(input_unit.source) or input_unit.source
     units = await client.search_units(
         WeblateRequestParamsSchema(
-            page_size=50,
-            q=f'source:"{search_query}"',
+            page_size=20,
+            q=(
+                f'source:="{search_query}"'
+                f" AND language:{input_unit.language_code}"
+                f" AND project:{client.config.project_slug}"
+            ),
         )
     )
 
@@ -110,9 +119,7 @@ async def collect_context_for_term(
         slug = parts[-2]
         if len(parts) < 2:
             continue
-        if slug.startswith("glossary") or unit_lang != lang:
-            continue
-        if u.source != source_text:
+        if slug.startswith("glossary"):
             continue
         components.append(
             ComponentInfoSchema(
@@ -128,18 +135,6 @@ async def collect_context_for_term(
     if not components:
         return []
 
-    for component in components:
-        info = await client.get_translation(component.slug, component.lang)
-        component.translated_percent = info.translated_percent
-        pos = component.position
-        component.nearby = [
-            u
-            for u in await client.list_units(
-                component.slug,
-                component.lang,
-                q=f"position:[{pos - nearby_range} to {pos + nearby_range}]",
-            )
-            if component.key in u.context
-        ]
+    components = await asyncio.gather(*[_enrich(c) for c in components])
 
     return components

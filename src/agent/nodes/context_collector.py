@@ -18,7 +18,6 @@ async def context_collector(
     state: NewAgentStateSchema,
     *,
     client: AsyncWeblateClient,
-    agent_config: AgentConfigSchema,
 ) -> ContextResultsOutputSchema:
     sem = asyncio.Semaphore(CONTEXT_COLLECTOR_CONCURRENCY)
 
@@ -28,8 +27,7 @@ async def context_collector(
         async with sem:
             components = await collect_context_for_term(
                 client,
-                unit.source,
-                agent_config.target_lang,
+                unit,
             )
         return unit.id, components
 

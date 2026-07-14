@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any, Literal
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
@@ -30,7 +30,9 @@ class WeblateRequestParamsSchema(BaseSchema):
 
 class WeblateRequestSchema(BaseSchema):
     path: str
-    params: WeblateRequestParamsSchema
+    method: Literal["GET", "POST"]
+    params: WeblateRequestParamsSchema | None = None
+    json_body: dict[str, Any] | None = None
 
 
 class WeblateUnitSchema(BaseSchema):

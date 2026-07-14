@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Final, Self
 
-from httpx2 import AsyncClient, Client, Response, TransportError
+from httpx2 import AsyncClient, Client, Limits, Response, TransportError
 from loguru import logger
 
 from src.models.weblate import (
@@ -34,8 +34,8 @@ def load_weblate_config(path: Path) -> WeblateConfigSchema:
 
 
 RATE_LIMIT_FLOOR: Final[int] = 100
-RETRY_MAX_ATTEMPTS: Final[int] = 3
-RETRY_BASE_DELAY: Final[float] = 1.0
+
+
 HTTP_TIMEOUT: Final[float] = 60.0
 HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
 LOCK_BUSY_BASE_DELAY: Final[float] = 60.0
@@ -44,7 +44,10 @@ TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 300.0
 
 # async settings
+RETRY_MAX_ATTEMPTS: Final[int] = 3
+RETRY_BASE_DELAY: Final[float] = 1.0
 PAGINATE_CONCURRENCY: Final[int] = 10
+REQUEST_CONCURRENCY: Final[int] = 16
 
 
 class WeblateAPIError(Exception):
@@ -571,9 +574,13 @@ class AsyncWeblateClient:
             },
             timeout=HTTP_TIMEOUT,
             follow_redirects=True,
+            limits=Limits(
+                max_connections=REQUEST_CONCURRENCY,
+                max_keepalive_connections=REQUEST_CONCURRENCY,
+                keepalive_expiry=30.0,
+            ),
         )
-        self._throttle_lock = threading.Lock()
-        self._throttle_until = 0.0
+        self._request_sem = asyncio.Semaphore(REQUEST_CONCURRENCY)
         self._paginate_sem = asyncio.Semaphore(PAGINATE_CONCURRENCY)
 
     async def close(self) -> None:
@@ -590,19 +597,20 @@ class AsyncWeblateClient:
         return self._response_or_raise(r).json()
 
     async def create_project(self, name: str, slug: str) -> dict[str, Any]:
-        r = await self._client.post(
-            "projects/",
-            json={"name": name, "slug": slug, "web": "https://example.com/"},
+        r = await self._request(
+            WeblateRequestSchema(
+                method="POST",
+                path="projects/",
+                json_body={"name": name, "slug": slug, "web": "https://example.com/"},
+            )
         )
         return self._response_or_raise(r).json()
 
     async def list_components(self):
         return await self._paginate(
             WeblateRequestSchema(
-                path="projects/{self.config.project_slug}/components/",
-                params=WeblateRequestParamsSchema(
-                    page_size=WeblateRequestParamsSchema.page_size
-                ),
+                method="GET",
+                path=f"projects/{self.config.project_slug}/components/",
             )
         )
 
@@ -616,15 +624,25 @@ class AsyncWeblateClient:
     ) -> WeblatePageSchema:
         path = f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
         params = WeblateRequestParamsSchema(page=page, page_size=page_size, q=q)
-        r = await self._client.get(path, params=params.model_dump(exclude_none=True))
+        r = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path=path,
+                params=params,
+            )
+        )
         r = self._response_or_raise(r)
         return WeblatePageSchema.model_validate(r.json())
 
     async def search_units(
         self, params: WeblateRequestParamsSchema
     ) -> list[WeblateUnitSchema]:
-        r = await self._client.get(
-            "units/", params=params.model_dump(exclude_none=True)
+        r = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path="units/",
+                params=params,
+            )
         )
         r = self._response_or_raise(r)
         return [
@@ -640,6 +658,7 @@ class AsyncWeblateClient:
     ) -> list[WeblateUnitSchema]:
         units = await self._paginate(
             WeblateRequestSchema(
+                method="GET",
                 path=f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/",
                 params=WeblateRequestParamsSchema(q=q),
             )
@@ -649,38 +668,64 @@ class AsyncWeblateClient:
     async def get_translation(
         self, component_slug: str, lang: str
     ) -> WeblateTranslationSchema:
-        r = await self._client.get(
-            f"translations/{self.config.project_slug}/{component_slug}/{lang}/"
+        r = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path=f"translations/{self.config.project_slug}/{component_slug}/{lang}/",
+            )
         )
         r = self._response_or_raise(r)
         return WeblateTranslationSchema.model_validate(r.json())
 
     async def _paginate(self, request: WeblateRequestSchema) -> list[WeblateUnitSchema]:
-        first_params = request.params.model_copy(update={"page": 1}, deep=True)
-        r = await self._client.get(request.path, params=first_params.model_dump())
-        r = self._response_or_raise(r)
-        page1 = WeblatePageSchema.model_validate(r.json())
+        base_params = request.params or WeblateRequestParamsSchema()
 
+        async def fetch_page(page: int) -> WeblatePageSchema:
+            async with self._paginate_sem:
+                paged = request.model_copy(
+                    update={"params": base_params.model_copy(update={"page": page})}
+                )
+                r = await self._request(paged)
+                return WeblatePageSchema.model_validate(r.json())
+
+        page1 = await fetch_page(1)
         actual_size = len(page1.units)
         total_page = math.ceil(page1.count / actual_size) if page1.count else 0
 
         if total_page <= 1:
             return page1.units
 
-        async def fetch_page(page: int) -> WeblatePageSchema:
-            async with self._paginate_sem:
-                params = request.params.model_copy(update={"page": page}).model_dump(
-                    exclude_none=True
-                )
-                r = await self._client.get(request.path, params=params)
-                r = self._response_or_raise(r)
-                return WeblatePageSchema.model_validate(r.json())
-
         fetched = await asyncio.gather(
             *[fetch_page(page) for page in range(2, total_page + 1)],
         )
-
         return [*page1.units, *[unit for page in fetched for unit in page.units]]
+
+    async def _request(self, request: WeblateRequestSchema) -> Response:
+        params = (
+            request.params.model_dump(exclude_none=True) if request.params else None
+        )
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                async with self._request_sem:
+                    r = await self._client.request(
+                        request.method,
+                        request.path,
+                        params=params,
+                        json=request.json_body,
+                    )
+                    return self._response_or_raise(r)
+            except TransportError as exc:
+                if attempt >= RETRY_MAX_ATTEMPTS:
+                    raise
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"Weblate network error on {request.method} {request.path}: {exc!r}; "
+                    f"retry {attempt}/{RETRY_MAX_ATTEMPTS} after {delay}s"
+                )
+                await asyncio.sleep(delay)
+                continue
 
     def _response_or_raise[T: Response](self, response: T) -> T:
         if response.is_success:

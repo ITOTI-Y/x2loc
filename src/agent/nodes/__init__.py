@@ -6,10 +6,17 @@ from src.agent.llm import (
     build_tag_validator_llm,
     build_translator_llm,
 )
-from src.agent.nodes.context_collector import context_collector
+from src.agent.nodes.context_collector import (
+    ContextResultsOutputSchema,
+    context_collector,
+)
 from src.agent.nodes.decision_router import decision_router
-from src.agent.nodes.fetch_empty import UnitIterator, fetch_empty
-from src.agent.nodes.glossary_loader import glossary_loader
+from src.agent.nodes.fetch_empty import (
+    FetchEmptyOutputSchema,
+    UnitIterator,
+    fetch_empty,
+)
+from src.agent.nodes.glossary_loader import GlossaryLoaderOutputSchema, glossary_loader
 from src.agent.nodes.pattern_extractor import pattern_extractor
 from src.agent.nodes.scorer import scorer
 from src.agent.nodes.tag_validator import tag_validator
@@ -41,22 +48,22 @@ class WorkflowNodes:
         self.user_review = user_review
         self.pattern_extractor = pattern_extractor
 
-    async def glossary_loader(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
+    async def glossary_loader(
+        self, state: NewAgentStateSchema
+    ) -> GlossaryLoaderOutputSchema:
         return await glossary_loader(
             state, client=self._client, agent_config=self._config
         )
 
-    async def fetch_empty(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
+    async def fetch_empty(self, state: NewAgentStateSchema) -> FetchEmptyOutputSchema:
         return await fetch_empty(
             state, unit_iterator=self._unit_iterator, agent_config=self._config
         )
 
     async def context_collector(
         self, state: NewAgentStateSchema
-    ) -> NewAgentStateSchema:
-        return await context_collector(
-            state, client=self._client, agent_config=self._config
-        )
+    ) -> ContextResultsOutputSchema:
+        return await context_collector(state, client=self._client)
 
     async def translator(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
         return await translator(

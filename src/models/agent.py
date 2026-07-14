@@ -43,6 +43,19 @@ class SystemBlockSchema(TypedDict):
     cache_control: dict[str, str]
 
 
+class TranslationUnitSchema(BaseSchema):
+    id: int
+    source: str
+    translated: str
+    context: str
+    category: str
+    pattern_matched: bool
+    glossary_base: list[WeblateUnitSchema]
+    glossary_mods: list[WeblateUnitSchema]
+    tag_valid: bool
+    original_unit: WeblateUnitSchema
+
+
 class NewAgentStateSchema(BaseSchema):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 

@@ -1,37 +1,36 @@
 from __future__ import annotations
 
-from src.agent.state import ContextResult, GlossaryMatch, SessionPattern
-from src.models.agent import SystemBlockSchema
+from src.agent.state import ContextResult
+from src.models.agent import (
+    ComponentInfoSchema,
+    PatternSchema,
+    SystemBlockSchema,
+    WeblateUnitSchema,
+)
 
 
-def translation_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
-    return [
-        SystemBlockSchema(
-            type="text",
-            text=TRANSLATION_SYSTEM.format(target_lang=target_lang),
-            cache_control={"type": "ephemeral"},
-        )
-    ]
+def translation_system_blocks(target_lang: str) -> SystemBlockSchema:
+    return SystemBlockSchema(
+        type="text",
+        text=TRANSLATION_SYSTEM.format(target_lang=target_lang),
+        cache_control={"type": "ephemeral"},
+    )
 
 
-def scoring_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
-    return [
-        SystemBlockSchema(
-            type="text",
-            text=SCORING_SYSTEM.format(target_lang=target_lang),
-            cache_control={"type": "ephemeral"},
-        )
-    ]
+def scoring_system_blocks(target_lang: str) -> SystemBlockSchema:
+    return SystemBlockSchema(
+        type="text",
+        text=SCORING_SYSTEM.format(target_lang=target_lang),
+        cache_control={"type": "ephemeral"},
+    )
 
 
-def tag_fix_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
-    return [
-        SystemBlockSchema(
-            type="text",
-            text=TAG_FIX_SYSTEM.format(target_lang=target_lang),
-            cache_control={"type": "ephemeral"},
-        )
-    ]
+def tag_fix_system_blocks(target_lang: str) -> SystemBlockSchema:
+    return SystemBlockSchema(
+        type="text",
+        text=TAG_FIX_SYSTEM.format(target_lang=target_lang),
+        cache_control={"type": "ephemeral"},
+    )
 
 
 TRANSLATION_SYSTEM = """\
@@ -386,34 +385,30 @@ CASE 10: Multiple missing in one string
 def format_translation_prompt(
     source: str,
     category: str | None,
-    base_matches: list[GlossaryMatch],
-    mods_matches: list[GlossaryMatch],
-    context_result: ContextResult,
-    patterns: list[SessionPattern],
+    base_matches: list[WeblateUnitSchema],
+    mods_matches: list[WeblateUnitSchema],
+    context_results: list[ComponentInfoSchema],
+    patterns: list[PatternSchema],
 ) -> str:
     parts = [f"Source: {source}", f"Category: {category or 'unknown'}", ""]
 
     if base_matches:
-        parts.append("Base Glossary Reference:")
+        parts.append("Similar Translated Terms (official-glossary):")
         for m in base_matches[:10]:
-            parts.append(f"  {m['source']} → {m['target']}")
+            parts.append(f"  {m.source} → {m.target}")
         parts.append("")
 
     if mods_matches:
-        parts.append("Mods Glossary Reference:")
+        parts.append("Similar Translated Terms (unofficial-glossary):")
         for m in mods_matches[:10]:
-            parts.append(f"  {m['source']} → {m['target']}")
+            parts.append(f"  {m.source} → {m.target}")
         parts.append("")
 
-    nearby = context_result.get("nearby", [])
-    mod_comp = context_result.get("mod_component")
-    if nearby and mod_comp:
-        translated_percent = context_result.get("translated_percent")
-        pct_display = "?" if translated_percent is None else translated_percent
-        parts.append(f"Nearby Strings from {mod_comp} ({pct_display}% translated):")
-        for n in nearby:
-            tgt = n["tgt"] or "(untranslated)"
-            parts.append(f"  {n['src']} → {tgt}")
+    if context_results:
+        parts.append("Context of the content to be translated:")
+        for c in context_results:
+            for nearby_unit in c.nearby:
+                parts.append(f"  {nearby_unit.source}")
         parts.append("")
 
     if patterns:

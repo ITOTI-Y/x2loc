@@ -10,7 +10,7 @@ from src.agent.config import AgentConfigSchema
 from src.agent.llm import ScoreOutputSchema
 from src.agent.prompts import format_scoring_prompt, scoring_system_blocks
 from src.agent.state import AgentState, Deduction, ScoreResult, TranslationCandidate
-from src.agent.tools import match_session_patterns
+from src.agent.tools import lookup_glossary_or_patterns
 
 
 async def scorer(
@@ -51,7 +51,7 @@ async def scorer(
             to_score.append(c)
 
     async def _score_one(c: TranslationCandidate) -> ScoreResult:
-        match_patterns = match_session_patterns(c["source"], state["session_patterns"])
+        match_patterns = lookup_glossary_or_patterns(c["source"], state.patterns)
         prompt = format_scoring_prompt(
             c["source"],
             c["translation"],

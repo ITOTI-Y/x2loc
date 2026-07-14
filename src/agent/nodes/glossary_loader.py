@@ -6,12 +6,9 @@ from loguru import logger
 
 from src._share import TEMP_DIR
 from src.agent.config import AgentConfigSchema
+from src.models.agent import NewAgentStateSchema
 from src.models.weblate import WeblateUnitSchema
 from src.services.weblate import AsyncWeblateClient
-
-
-class GlossaryLoaderInputSchema(TypedDict):
-    pass
 
 
 class GlossaryLoaderOutputSchema(TypedDict):
@@ -20,7 +17,7 @@ class GlossaryLoaderOutputSchema(TypedDict):
 
 
 async def glossary_loader(
-    state: GlossaryLoaderInputSchema,
+    state: NewAgentStateSchema,
     *,
     client: AsyncWeblateClient,
     agent_config: AgentConfigSchema,
