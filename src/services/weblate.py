@@ -46,6 +46,7 @@ TASK_POLL_TIMEOUT: Final[float] = 300.0
 # async settings
 PAGINATE_CONCURRENCY: Final[int] = 10
 
+
 class WeblateAPIError(Exception):
     """Raised when the Weblate API returns an unrecoverable error."""
 
@@ -556,6 +557,7 @@ class WeblateClient:
             time.sleep(TASK_POLL_INTERVAL)
         raise WeblateAPIError(504, f"Component task timeout: {task_url}")
 
+
 class AsyncWeblateClient:
     def __init__(self, config: WeblateConfigSchema) -> None:
         self.config = config
@@ -588,50 +590,73 @@ class AsyncWeblateClient:
         return self._response_or_raise(r).json()
 
     async def create_project(self, name: str, slug: str) -> dict[str, Any]:
-        r = await self._client.post("projects/", json={"name": name, "slug": slug, "web": "https://example.com/"})
+        r = await self._client.post(
+            "projects/",
+            json={"name": name, "slug": slug, "web": "https://example.com/"},
+        )
         return self._response_or_raise(r).json()
 
     async def list_components(self):
         return await self._paginate(
             WeblateRequestSchema(
                 path="projects/{self.config.project_slug}/components/",
-                params=WeblateRequestParamsSchema(page_size=WeblateRequestParamsSchema.page_size),
+                params=WeblateRequestParamsSchema(
+                    page_size=WeblateRequestParamsSchema.page_size
+                ),
             )
         )
 
-    async def list_units_page(self, component_slug: str, lang: str, page: int, page_size: int, q: str | None = None) -> WeblatePageSchema:
-        path = (
-            f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
-        )
+    async def list_units_page(
+        self,
+        component_slug: str,
+        lang: str,
+        page: int,
+        page_size: int,
+        q: str | None = None,
+    ) -> WeblatePageSchema:
+        path = f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/"
         params = WeblateRequestParamsSchema(page=page, page_size=page_size, q=q)
         r = await self._client.get(path, params=params.model_dump(exclude_none=True))
         r = self._response_or_raise(r)
         return WeblatePageSchema.model_validate(r.json())
 
-    async def search_units(self, params: WeblateRequestParamsSchema) -> list[WeblateUnitSchema]:
-        r = await self._client.get("units/", params=params.model_dump(exclude_none=True))
+    async def search_units(
+        self, params: WeblateRequestParamsSchema
+    ) -> list[WeblateUnitSchema]:
+        r = await self._client.get(
+            "units/", params=params.model_dump(exclude_none=True)
+        )
         r = self._response_or_raise(r)
-        return [WeblateUnitSchema.model_validate(unit) for unit in r.json().get("results", [])]
+        return [
+            WeblateUnitSchema.model_validate(unit)
+            for unit in r.json().get("results", [])
+        ]
 
     async def list_units(
-            self,
-            component_slug: str,
-            lang: str,
-            q: str | None = None,
-        ) -> list[WeblateUnitSchema]:
-        units = await self._paginate(WeblateRequestSchema(
-            path=f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/",
-            params=WeblateRequestParamsSchema(q=q),
-        ))
+        self,
+        component_slug: str,
+        lang: str,
+        q: str | None = None,
+    ) -> list[WeblateUnitSchema]:
+        units = await self._paginate(
+            WeblateRequestSchema(
+                path=f"translations/{self.config.project_slug}/{component_slug}/{lang}/units/",
+                params=WeblateRequestParamsSchema(q=q),
+            )
+        )
         return units
 
-    async def get_translation(self, component_slug: str, lang: str) -> WeblateTranslationSchema:
-        r = await self._client.get(f"translations/{self.config.project_slug}/{component_slug}/{lang}/")
+    async def get_translation(
+        self, component_slug: str, lang: str
+    ) -> WeblateTranslationSchema:
+        r = await self._client.get(
+            f"translations/{self.config.project_slug}/{component_slug}/{lang}/"
+        )
         r = self._response_or_raise(r)
         return WeblateTranslationSchema.model_validate(r.json())
 
     async def _paginate(self, request: WeblateRequestSchema) -> list[WeblateUnitSchema]:
-        first_params = request.params.model_copy(update={"page": 1},deep=True)
+        first_params = request.params.model_copy(update={"page": 1}, deep=True)
         r = await self._client.get(request.path, params=first_params.model_dump())
         r = self._response_or_raise(r)
         page1 = WeblatePageSchema.model_validate(r.json())
@@ -644,7 +669,9 @@ class AsyncWeblateClient:
 
         async def fetch_page(page: int) -> WeblatePageSchema:
             async with self._paginate_sem:
-                params = request.params.model_copy(update={"page": page}).model_dump(exclude_none=True)
+                params = request.params.model_copy(update={"page": page}).model_dump(
+                    exclude_none=True
+                )
                 r = await self._client.get(request.path, params=params)
                 r = self._response_or_raise(r)
                 return WeblatePageSchema.model_validate(r.json())

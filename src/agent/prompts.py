@@ -1,31 +1,37 @@
 from __future__ import annotations
 
 from src.agent.state import ContextResult, GlossaryMatch, SessionPattern
+from src.models.agent import SystemBlockSchema
 
 
-def _cached_system_blocks(template: str, target_lang: str) -> list[str | dict]:
-    """Build SystemMessage content blocks with an explicit OpenRouter/Gemini/Anthropic
-    cache breakpoint.
-    """
+def translation_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
     return [
-        {
-            "type": "text",
-            "text": template.format(target_lang=target_lang),
-            "cache_control": {"type": "ephemeral"},
-        }
+        SystemBlockSchema(
+            type="text",
+            text=TRANSLATION_SYSTEM.format(target_lang=target_lang),
+            cache_control={"type": "ephemeral"},
+        )
     ]
 
 
-def translation_system_blocks(target_lang: str) -> list[str | dict]:
-    return _cached_system_blocks(TRANSLATION_SYSTEM, target_lang)
+def scoring_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
+    return [
+        SystemBlockSchema(
+            type="text",
+            text=SCORING_SYSTEM.format(target_lang=target_lang),
+            cache_control={"type": "ephemeral"},
+        )
+    ]
 
 
-def scoring_system_blocks(target_lang: str) -> list[str | dict]:
-    return _cached_system_blocks(SCORING_SYSTEM, target_lang)
-
-
-def tag_fix_system_blocks(target_lang: str) -> list[str | dict]:
-    return _cached_system_blocks(TAG_FIX_SYSTEM, target_lang)
+def tag_fix_system_blocks(target_lang: str) -> list[SystemBlockSchema]:
+    return [
+        SystemBlockSchema(
+            type="text",
+            text=TAG_FIX_SYSTEM.format(target_lang=target_lang),
+            cache_control={"type": "ephemeral"},
+        )
+    ]
 
 
 TRANSLATION_SYSTEM = """\

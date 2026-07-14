@@ -86,11 +86,14 @@ def _print_summary(stats: dict[str, int], remaining: int) -> None:
         f"remaining={remaining}"
     )
 
+
 async def _run_async(config: AgentConfigSchema, auto_skip: bool) -> None:
     """Drive the graph through its async API."""
     graph = build_graph(config)
     thread: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
-    state: NewAgentStateSchema | Command = NewAgentStateSchema(patterns=load_cached_patterns())
+    state: NewAgentStateSchema | Command = NewAgentStateSchema(
+        patterns=load_cached_patterns()
+    )
 
     while True:
         final = None

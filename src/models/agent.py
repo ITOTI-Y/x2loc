@@ -25,13 +25,22 @@ class StatsSchema(TypedDict):
     modified: int
     skipped: int
 
+
 @dataclass
 class ComponentInfoSchema:
+    unit: WeblateUnitSchema
+    key: str
     slug: str
     lang: str
-    positions: int
-    nearby: list[int] = Field(default_factory=list)
+    position: int
+    nearby: list[WeblateUnitSchema] = Field(default_factory=list)
     translated_percent: float = 0.0
+
+
+class SystemBlockSchema(TypedDict):
+    type: str
+    text: str
+    cache_control: dict[str, str]
 
 
 class NewAgentStateSchema(BaseSchema):
@@ -52,3 +61,5 @@ class NewAgentStateSchema(BaseSchema):
 
     to_translate: list[WeblateUnitSchema] = Field(default_factory=list)
     is_end: bool = Field(default=False)
+
+    context_results: dict[int, list[ComponentInfoSchema]] = Field(default_factory=dict)

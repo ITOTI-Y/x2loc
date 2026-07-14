@@ -13,12 +13,17 @@ from src.services.weblate import AsyncWeblateClient
 class GlossaryLoaderInputSchema(TypedDict):
     pass
 
+
 class GlossaryLoaderOutputSchema(TypedDict):
     base_glossary: dict[str, WeblateUnitSchema]
     mods_glossary: dict[str, WeblateUnitSchema]
 
+
 async def glossary_loader(
-    state: GlossaryLoaderInputSchema, *, client: AsyncWeblateClient, agent_config: AgentConfigSchema
+    state: GlossaryLoaderInputSchema,
+    *,
+    client: AsyncWeblateClient,
+    agent_config: AgentConfigSchema,
 ) -> GlossaryLoaderOutputSchema:
 
     base = await _load_data("base", agent_config.target_lang, agent_config, client)
@@ -57,7 +62,9 @@ async def _load_data(
     return {unit.source: unit for unit in data}
 
 
-def _save_data(mode: Literal["base", "mods"], lang: str, data: list[WeblateUnitSchema]) -> None:
+def _save_data(
+    mode: Literal["base", "mods"], lang: str, data: list[WeblateUnitSchema]
+) -> None:
     path = _cache_path(mode, lang)
     path.parent.mkdir(parents=True, exist_ok=True)
     result = [unit.model_dump() for unit in data]

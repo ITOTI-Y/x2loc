@@ -47,7 +47,9 @@ class WorkflowNodes:
         )
 
     async def fetch_empty(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
-        return await fetch_empty(state, unit_iterator=self._unit_iterator, agent_config=self._config)
+        return await fetch_empty(
+            state, unit_iterator=self._unit_iterator, agent_config=self._config
+        )
 
     async def context_collector(
         self, state: NewAgentStateSchema

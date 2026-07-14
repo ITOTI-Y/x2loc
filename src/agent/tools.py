@@ -1,19 +1,15 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
 import re
-from collections import Counter, defaultdict
-from typing import Any, Final
+from collections import Counter
+from typing import Final
 
 from src.agent._share import (
-    CONTEXT_MIN_SOURCE_LEN,
-    CONTEXT_NEARBY_PAGE_SIZE,
-    CONTEXT_SEARCH_PAGE_SIZE,
     DEFAULT_NEARBY_RANGE,
 )
 from src.agent.state import GlossaryMatch, SessionPattern
-from src.services.weblate import AsyncWeblateClient, WeblateRequestParamsSchema
 from src.models.agent import ComponentInfoSchema
+from src.services.weblate import AsyncWeblateClient, WeblateRequestParamsSchema
 
 TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
     re.compile(p)
@@ -28,6 +24,7 @@ TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
 
 _HTML_TAG_RE: Final = re.compile(r"<[^>]+>")
 _WORD_RE: Final = re.compile(r"[A-Za-z]{3,}")
+
 
 def extract_tags(text: str) -> list[str]:
     tags: list[str] = []
@@ -54,6 +51,7 @@ def strip_html(text: str) -> str:
 
 def tokenize(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
+
 
 def match_session_patterns(
     source: str, patterns: list[SessionPattern]
@@ -97,15 +95,15 @@ async def collect_context_for_term(
     nearby_range: int = DEFAULT_NEARBY_RANGE,
 ) -> list[ComponentInfoSchema]:
     search_query = strip_html(source_text) or source_text
-    results = await client.search_units(
+    units = await client.search_units(
         WeblateRequestParamsSchema(
+            page_size=50,
             q=f'source:"{search_query}"',
-            page_size=CONTEXT_SEARCH_PAGE_SIZE,
         )
     )
 
     components: list[ComponentInfoSchema] = []
-    for u in results:
+    for u in units:
         turl = u.translation
         unit_lang = u.language_code
         parts = turl.rstrip("/").split("/")
@@ -116,7 +114,16 @@ async def collect_context_for_term(
             continue
         if u.source != source_text:
             continue
-        components.append(ComponentInfoSchema(slug=slug, lang=unit_lang, positions=u.position, nearby=[]))
+        components.append(
+            ComponentInfoSchema(
+                unit=u,
+                key=u.context.split("::")[0],
+                slug=slug,
+                lang=unit_lang,
+                position=u.position,
+                nearby=[],
+            )
+        )
 
     if not components:
         return []
@@ -124,47 +131,15 @@ async def collect_context_for_term(
     for component in components:
         info = await client.get_translation(component.slug, component.lang)
         component.translated_percent = info.translated_percent
-
-    target_pos = components[0].positions
-    lo, hi = target_pos - nearby_range, target_pos + nearby_range
-
-    nearby: list[dict] = []
-    seen_sources: set[str] = set()
-    # Positions are 1-based and page-ordered (the break test below relies on
-    # that), so start directly at the page containing the window's low end
-    # instead of scanning from page 1.
-    page = max(1, (lo - 1) // CONTEXT_NEARBY_PAGE_SIZE + 1)
-    while True:
-        _count, units = client.list_units_page(
-            best_slug, lang, page=page, page_size=CONTEXT_NEARBY_PAGE_SIZE
-        )
-        for u in units:
-            pos = u["position"]
-            if not (lo <= pos <= hi) or pos == target_pos:
-                continue
-            src = u["source"][0]
-            if src in seen_sources or len(strip_html(src)) <= CONTEXT_MIN_SOURCE_LEN:
-                continue
-            seen_sources.add(src)
-            nearby.append(
-                {
-                    "pos": pos,
-                    "ctx": u["context"],
-                    "src": src,
-                    "tgt": u["target"][0] if u["target"][0] else None,
-                }
+        pos = component.position
+        component.nearby = [
+            u
+            for u in await client.list_units(
+                component.slug,
+                component.lang,
+                q=f"position:[{pos - nearby_range} to {pos + nearby_range}]",
             )
-        if (
-            not units
-            or len(units) < CONTEXT_NEARBY_PAGE_SIZE
-            or units[-1]["position"] > hi
-        ):
-            break
-        page += 1
+            if component.key in u.context
+        ]
 
-    nearby.sort(key=lambda x: x["pos"])
-    return {
-        "mod_component": best_slug,
-        "translated_percent": round(best_pct, 1),
-        "nearby": nearby,
-    }
+    return components
