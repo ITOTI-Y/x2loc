@@ -43,6 +43,26 @@ UPLOAD_CSV_COLUMNS: Final[list[str]] = [
     "developer_comments",
 ]
 
+logger.remove()
+logger.add(
+    sink=sys.stdout,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> <level>{level: <8}</level> <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    level="DEBUG",
+    backtrace=True,
+    enqueue=True,
+    colorize=True,
+)
+logger.add(
+    sink="logs/x2loc.log",
+    format="{time:YYYY-MM-DD HH:mm:ss.SSS} {level: <8} {name}:{function}:{line} - {message}",
+    level="DEBUG",
+    backtrace=True,
+    enqueue=True,
+    rotation="10 MB",
+    retention="1 days",
+    encoding="utf-8",
+)
+
 # Base-game corpus JSON is written under this subdirectory so it never
 # collides with a mod namespace. The leading underscore makes it visually
 # distinct in directory listings (base game is special, not a mod).

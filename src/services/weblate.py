@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Final, Self
 
-from httpx2 import AsyncClient, Client, Limits, Response, TransportError
+from httpx2 import AsyncClient, Client, Limits, Request, Response, TransportError
 from loguru import logger
 
 from src.models.weblate import (
@@ -15,7 +15,6 @@ from src.models.weblate import (
     WeblatePageSchema,
     WeblateRequestParamsSchema,
     WeblateRequestSchema,
-    WeblateTranslationSchema,
     WeblateUnitSchema,
 )
 
@@ -48,6 +47,9 @@ RETRY_MAX_ATTEMPTS: Final[int] = 3
 RETRY_BASE_DELAY: Final[float] = 1.0
 PAGINATE_CONCURRENCY: Final[int] = 10
 REQUEST_CONCURRENCY: Final[int] = 16
+LIST_UNITS_PAGE_SIZE: Final[int] = 500
+TRANSLATION_CACHE_TTL: Final[float] = 300.0
+KEEPALIVE_EXPIRY: Final[float] = 300.0
 
 
 class WeblateAPIError(Exception):
@@ -561,6 +563,21 @@ class WeblateClient:
         raise WeblateAPIError(504, f"Component task timeout: {task_url}")
 
 
+async def _on_request(request: Request) -> None:
+    request.extensions["t0"] = time.monotonic()
+
+
+async def _on_response(response: Response) -> None:
+    t0 = response.request.extensions.get("t0")
+    if t0 is not None:
+        url = response.request.url
+        q = f"?{url.query.decode()}" if url.query else ""
+        logger.debug(
+            f"weblate {response.request.method} {url.path}{q[:120]} "
+            f"-> {response.status_code} in {time.monotonic() - t0:.2f}s"
+        )
+
+
 class AsyncWeblateClient:
     def __init__(self, config: WeblateConfigSchema) -> None:
         self.config = config
@@ -574,11 +591,16 @@ class AsyncWeblateClient:
             },
             timeout=HTTP_TIMEOUT,
             follow_redirects=True,
+            http2=True,
             limits=Limits(
                 max_connections=REQUEST_CONCURRENCY,
                 max_keepalive_connections=REQUEST_CONCURRENCY,
-                keepalive_expiry=30.0,
+                keepalive_expiry=KEEPALIVE_EXPIRY,
             ),
+            event_hooks={
+                "request": [_on_request],
+                "response": [_on_response],
+            },
         )
         self._request_sem = asyncio.Semaphore(REQUEST_CONCURRENCY)
         self._paginate_sem = asyncio.Semaphore(PAGINATE_CONCURRENCY)
@@ -593,8 +615,12 @@ class AsyncWeblateClient:
         await self.close()
 
     async def get_project(self) -> dict[str, Any]:
-        r = await self._client.get(f"projects/{self.config.project_slug}/")
-        return self._response_or_raise(r).json()
+        r = await self._request(
+            WeblateRequestSchema(
+                method="GET", path=f"projects/{self.config.project_slug}/"
+            )
+        )
+        return r.json()
 
     async def create_project(self, name: str, slug: str) -> dict[str, Any]:
         r = await self._request(
@@ -604,7 +630,7 @@ class AsyncWeblateClient:
                 json_body={"name": name, "slug": slug, "web": "https://example.com/"},
             )
         )
-        return self._response_or_raise(r).json()
+        return r.json()
 
     async def list_components(self):
         return await self._paginate(
@@ -631,7 +657,6 @@ class AsyncWeblateClient:
                 params=params,
             )
         )
-        r = self._response_or_raise(r)
         return WeblatePageSchema.model_validate(r.json())
 
     async def search_units(
@@ -644,7 +669,6 @@ class AsyncWeblateClient:
                 params=params,
             )
         )
-        r = self._response_or_raise(r)
         return [
             WeblateUnitSchema.model_validate(unit)
             for unit in r.json().get("results", [])
@@ -664,18 +688,6 @@ class AsyncWeblateClient:
             )
         )
         return units
-
-    async def get_translation(
-        self, component_slug: str, lang: str
-    ) -> WeblateTranslationSchema:
-        r = await self._request(
-            WeblateRequestSchema(
-                method="GET",
-                path=f"translations/{self.config.project_slug}/{component_slug}/{lang}/",
-            )
-        )
-        r = self._response_or_raise(r)
-        return WeblateTranslationSchema.model_validate(r.json())
 
     async def _paginate(self, request: WeblateRequestSchema) -> list[WeblateUnitSchema]:
         base_params = request.params or WeblateRequestParamsSchema()
@@ -715,6 +727,22 @@ class AsyncWeblateClient:
                         params=params,
                         json=request.json_body,
                     )
+                    if r.status_code == 429 and attempt < RETRY_MAX_ATTEMPTS:
+                        retry_after = float(r.headers.get("Retry-After", "1"))
+                        logger.warning(
+                            f"Weblate 429 on {request.method} {request.path}; "
+                            f"sleeping {retry_after}s"
+                        )
+                        await asyncio.sleep(retry_after)
+                        continue
+                    if 500 <= r.status_code < 600 and attempt < RETRY_MAX_ATTEMPTS:
+                        delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                        logger.warning(
+                            f"Weblate {r.status_code} on {request.method} {request.path}; "
+                            f"retry {attempt}/{RETRY_MAX_ATTEMPTS} after {delay}s"
+                        )
+                        await asyncio.sleep(delay)
+                        continue
                     return self._response_or_raise(r)
             except TransportError as exc:
                 if attempt >= RETRY_MAX_ATTEMPTS:

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -23,8 +24,10 @@ async def glossary_loader(
     agent_config: AgentConfigSchema,
 ) -> GlossaryLoaderOutputSchema:
 
-    base = await _load_data("base", agent_config.target_lang, agent_config, client)
-    mods = await _load_data("mods", agent_config.target_lang, agent_config, client)
+    base, mods = await asyncio.gather(
+        _load_data("base", agent_config.target_lang, agent_config, client),
+        _load_data("mods", agent_config.target_lang, agent_config, client),
+    )
 
     logger.info(f"Loaded glossaries: {len(base)} base + {len(mods)} mods")
     return {

@@ -4,9 +4,8 @@ import asyncio
 from typing import TypedDict
 
 from src.agent._share import CONTEXT_COLLECTOR_CONCURRENCY
-from src.agent.config import AgentConfigSchema
 from src.agent.tools import collect_context_for_term
-from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
+from src.models.agent import ComponentInfoSchema
 from src.services.weblate import AsyncWeblateClient, WeblateUnitSchema
 
 
@@ -15,10 +14,13 @@ class ContextResultsOutputSchema(TypedDict):
 
 
 async def context_collector(
-    state: NewAgentStateSchema,
+    units: list[WeblateUnitSchema],
     *,
     client: AsyncWeblateClient,
-) -> ContextResultsOutputSchema:
+) -> dict[int, list[ComponentInfoSchema]]:
+    if not units:
+        return {}
+
     sem = asyncio.Semaphore(CONTEXT_COLLECTOR_CONCURRENCY)
 
     async def _collect_one(
@@ -31,5 +33,5 @@ async def context_collector(
             )
         return unit.id, components
 
-    pairs = await asyncio.gather(*[_collect_one(unit) for unit in state.to_translate])
-    return {"context_results": dict(pairs)}
+    pairs = await asyncio.gather(*[_collect_one(unit) for unit in units])
+    return dict(pairs)

@@ -8,6 +8,8 @@ from rapidfuzz.fuzz import WRatio
 
 from src.agent._share import (
     DEFAULT_NEARBY_RANGE,
+    MAX_CONTEXT_COMPONENTS,
+    MAX_MATCHES_PER_COMPONENT,
 )
 from src.models.agent import ComponentInfoSchema, PatternSchema
 from src.services.weblate import (
@@ -85,17 +87,13 @@ async def collect_context_for_term(
             f"position:[{component.position - nearby_range}"
             f" to {component.position + nearby_range}]"
         )
-        info, nearby_page = await asyncio.gather(
-            client.get_translation(component.slug, component.lang),
-            client.list_units_page(
-                component_slug=component.slug,
-                lang=component.lang,
-                page=1,
-                page_size=20,
-                q=position_query,
-            ),
+        nearby_page = await client.list_units_page(
+            component_slug=component.slug,
+            lang=component.lang,
+            page=1,
+            page_size=20,
+            q=position_query,
         )
-        component.translated_percent = info.translated_percent
         component.nearby = [u for u in nearby_page.units if component.key in u.context]
         return component
 
@@ -135,6 +133,16 @@ async def collect_context_for_term(
     if not components:
         return []
 
-    components = await asyncio.gather(*[_enrich(c) for c in components])
+    seen_slugs: Counter[str] = Counter()
+    picked: list[ComponentInfoSchema] = []
+    for c in components:
+        if seen_slugs[c.slug] >= MAX_MATCHES_PER_COMPONENT:
+            continue
+        seen_slugs[c.slug] += 1
+        picked.append(c)
+        if len(picked) >= MAX_CONTEXT_COMPONENTS:
+            break
 
-    return components
+    enriched = await asyncio.gather(*[_enrich(c) for c in picked])
+
+    return enriched

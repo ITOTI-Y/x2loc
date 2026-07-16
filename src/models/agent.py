@@ -34,13 +34,18 @@ class ComponentInfoSchema:
     lang: str
     position: int
     nearby: list[WeblateUnitSchema] = Field(default_factory=list)
-    translated_percent: float = 0.0
 
 
 class SystemBlockSchema(TypedDict):
     type: str
     text: str
     cache_control: dict[str, str]
+
+
+class TranslationOutputSchema(BaseSchema):
+    result: str = Field(
+        description='Only output the translated result, must reply in target language, if no suggested translation is needed, return ""'
+    )
 
 
 class TranslationUnitSchema(BaseSchema):
@@ -76,3 +81,5 @@ class NewAgentStateSchema(BaseSchema):
     is_end: bool = Field(default=False)
 
     context_results: dict[int, list[ComponentInfoSchema]] = Field(default_factory=dict)
+
+    candidates: list[TranslationUnitSchema] = Field(default_factory=list)

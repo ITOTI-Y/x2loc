@@ -18,7 +18,6 @@ class FetchEmptyOutputSchema(TypedDict):
 class UnitCursor:
     units: list[WeblateUnitSchema]
     offset: int = 0
-    is_end: bool = False
 
 
 def _cache_path(component_slug: str, lang: str, q: str | None = None) -> Path:
@@ -47,16 +46,26 @@ class UnitIterator:
             cursor = self._cursors[key] = UnitCursor(units)
 
         start = cursor.offset
-        end = start + batch_size
-        cursor.offset = end
+        cursor.offset = start + batch_size
 
-        batch = cursor.units[start:end]
+        batch = cursor.units[start : start + batch_size]
 
-        if end == len(cursor.units):
+        if not batch:
             del self._cursors[key]
-            cursor.is_end = True
+            return [], True
+        return batch, False
 
-        return batch, cursor.is_end
+    def peek_units(
+        self,
+        component_slug: str,
+        lang: str,
+        batch_size: int,
+        q: str | None = None,
+    ) -> list[WeblateUnitSchema]:
+        cursor = self._cursors.get((component_slug, lang, q))
+        if cursor is None:
+            return []
+        return cursor.units[cursor.offset : cursor.offset + batch_size]
 
     async def _load_data(
         self, component_slug: str, lang: str, q: str | None = None

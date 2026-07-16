@@ -10,7 +10,7 @@ wheels/
 .venv
 
 _dev/
-
+logs/
 .claude/
 tests/fixtures/
 output/
