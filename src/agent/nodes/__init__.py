@@ -12,7 +12,6 @@ from src.agent.nodes.context_collector import (
     ContextResultsOutputSchema,
     context_collector,
 )
-from src.agent.nodes.decision_router import decision_router
 from src.agent.nodes.fetch_empty import (
     FetchEmptyOutputSchema,
     UnitIterator,
@@ -20,8 +19,8 @@ from src.agent.nodes.fetch_empty import (
 )
 from src.agent.nodes.glossary_loader import GlossaryLoaderOutputSchema, glossary_loader
 from src.agent.nodes.pattern_extractor import pattern_extractor
-from src.agent.nodes.scorer import scorer
-from src.agent.nodes.tag_validator import tag_validator
+from src.agent.nodes.scorer import ScorerOutputSchema, scorer
+from src.agent.nodes.tag_validator import TagValidatorOutputSchema, tag_validator
 from src.agent.nodes.translator import TranslateOutputSchema, translator
 from src.agent.nodes.uploader import auto_uploader, review_uploader
 from src.agent.nodes.user_review import user_review
@@ -82,16 +81,15 @@ class WorkflowNodes:
             state, agent_config=self._config, agent=self._translator_agent
         )
 
-    async def tag_validator(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
+    async def tag_validator(
+        self, state: NewAgentStateSchema
+    ) -> TagValidatorOutputSchema:
         return await tag_validator(
             state, agent_config=self._config, llm=self._tag_validator_llm
         )
 
-    async def scorer(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
+    async def scorer(self, state: NewAgentStateSchema) -> ScorerOutputSchema:
         return await scorer(state, agent_config=self._config, llm=self._scorer_llm)
-
-    def decision_router(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
-        return decision_router(state, agent_config=self._config)
 
     def auto_uploader(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
         return auto_uploader(state, client=self._client, agent_config=self._config)

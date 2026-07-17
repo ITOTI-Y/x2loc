@@ -1,71 +1,72 @@
 from __future__ import annotations
 
-import asyncio
+from typing import TypedDict
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from loguru import logger
 
-from src.agent._share import MAX_TAG_RETRIES
 from src.agent.config import AgentConfigSchema
-from src.agent.prompts import TAG_FIX_TEMPLATE, tag_fix_system_blocks
-from src.agent.state import AgentState, TranslationCandidate
+from src.agent.prompts import TAG_FIX_TEMPLATE
 from src.agent.tools import validate_tags
+from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
+
+
+class TagValidatorOutputSchema(TypedDict):
+    candidates: list[TranslationUnitSchema]
 
 
 async def tag_validator(
-    state: AgentState, *, agent_config: AgentConfigSchema, llm: Runnable
-) -> dict:
-    system_blocks = tag_fix_system_blocks(agent_config.target_lang)
+    state: NewAgentStateSchema, *, agent_config: AgentConfigSchema, llm: Runnable
+) -> TagValidatorOutputSchema:
+    def _build_validate_input(
+        c: TranslationUnitSchema, missing: dict[str, int], extra: dict[str, int]
+    ) -> dict:
+        fix_prompt = TAG_FIX_TEMPLATE.format(
+            source=c.source,
+            translation=c.translated,
+            missing=missing,
+            extra=extra,
+        )
+        return {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": fix_prompt,
+                }
+            ]
+        }
 
-    async def _validate_one(c: TranslationCandidate) -> TranslationCandidate:
-        if c["pattern_matched"]:
-            return c
-
-        if not c["translation"].strip():
-            logger.warning(f"[TAG FAIL] {c['source']}: empty translation")
-            return {**c, "tag_valid": False}
-
-        passed, missing, extra = validate_tags(c["source"], c["translation"])
+    results: list[TranslationUnitSchema] = []
+    to_validate: list[tuple[TranslationUnitSchema, dict, dict]] = []
+    for c in state.candidates:
+        if not c.translated.strip():
+            results.append(c.model_copy(update={"tag_valid": False}))
+            continue
+        passed, missing, extra = validate_tags(c.source, c.translated)
         if passed:
-            return {**c, "tag_valid": True}
+            results.append(c.model_copy(update={"tag_valid": True}))
+            continue
+        to_validate.append((c, missing, extra))
 
-        translation = c["translation"]
-        for _ in range(MAX_TAG_RETRIES):
-            fix_prompt = TAG_FIX_TEMPLATE.format(
-                source=c["source"],
-                translation=translation,
-                missing=missing,
-                extra=extra,
-            )
-            try:
-                response = await llm.ainvoke(
-                    [
-                        SystemMessage(content=system_blocks),
-                        HumanMessage(content=fix_prompt),
-                    ]
-                )
-                content = response.content
-                if not isinstance(content, str):
-                    raise TypeError(
-                        f"Expected str content from LLM, got {type(content).__name__}"
-                    )
-                raw = content.strip()
-                translation = raw.split("\n")[0].strip().strip('"')
-                passed, missing, extra = validate_tags(c["source"], translation)
-            except Exception as e:
-                logger.warning(f"[TAG FIX ERROR] {c['source']}: {e}")
-                passed = False
-                break
-            if passed:
-                break
-
-        if passed:
-            logger.info(f"[TAG FIX] {c['source']}: tags corrected")
-        else:
-            logger.warning(f"[TAG FAIL] {c['source']}: {missing=} {extra=}")
-
-        return {**c, "translation": translation, "tag_valid": passed}
-
-    results = await asyncio.gather(*[_validate_one(c) for c in state["candidates"]])
-    return {"candidates": list(results)}
+    inputs = [
+        _build_validate_input(c, missing, extra) for c, missing, extra in to_validate
+    ]
+    responses = await llm.abatch(
+        inputs=inputs,
+        config={"max_concurrency": 10},
+    )
+    for response in responses:
+        if response is not None:
+            structured = response.get("structured_response")
+            if isinstance(structured, TranslationUnitSchema):
+                passed, _, _ = validate_tags(structured.source, structured.translated)
+                if passed:
+                    results.append(structured.model_copy(update={"tag_valid": True}))
+                else:
+                    results.append(structured.model_copy(update={"tag_valid": False}))
+    if len(results) != len(state.candidates):
+        logger.warning(
+            f"Tag validator failed to fix {len(state.candidates) - len(results)} units"
+        )
+    logger.success(f"Validated {len(results)} units")
+    return {"candidates": results}

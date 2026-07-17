@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from typing import TypedDict
 
+from loguru import logger
+
 from src.agent._share import CONTEXT_COLLECTOR_CONCURRENCY
 from src.agent.tools import collect_context_for_term
 from src.models.agent import ComponentInfoSchema
@@ -34,4 +36,5 @@ async def context_collector(
         return unit.id, components
 
     pairs = await asyncio.gather(*[_collect_one(unit) for unit in units])
+    logger.success(f"Collected context for {len(pairs)} units")
     return dict(pairs)

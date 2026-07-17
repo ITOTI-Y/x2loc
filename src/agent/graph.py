@@ -14,15 +14,6 @@ def route_after_fetch(state: NewAgentStateSchema) -> str:
     return "end" if state.is_end else "continue"
 
 
-def route_after_decision(state: NewAgentStateSchema) -> str:
-    # Whether review is also needed is decided later by route_after_auto_upload.
-    return "auto" if state["auto_batch"] else "review"
-
-
-def route_after_auto_upload(state: NewAgentStateSchema) -> str:
-    return "review" if state["needs_review"] else "extract"
-
-
 def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     client = AsyncWeblateClient(config.weblate)
 
@@ -36,9 +27,8 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_node("translator", nodes.translator)
     builder.add_node("tag_validator", nodes.tag_validator)
     builder.add_node("scorer", nodes.scorer)
-    builder.add_node("decision_router", nodes.decision_router)
-    builder.add_node("auto_uploader", nodes.auto_uploader)
     builder.add_node("user_review", nodes.user_review)
+    builder.add_node("auto_uploader", nodes.auto_uploader)
     builder.add_node("review_uploader", nodes.review_uploader)
     builder.add_node("pattern_extractor", nodes.pattern_extractor)
 
@@ -50,18 +40,8 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge("context_collector", "translator")
     builder.add_edge("translator", "tag_validator")
     builder.add_edge("tag_validator", "scorer")
-    builder.add_edge("scorer", "decision_router")
-    builder.add_conditional_edges(
-        "decision_router",
-        route_after_decision,
-        {"auto": "auto_uploader", "review": "user_review"},
-    )
-    builder.add_conditional_edges(
-        "auto_uploader",
-        route_after_auto_upload,
-        {"review": "user_review", "extract": "pattern_extractor"},
-    )
-    builder.add_edge("user_review", "review_uploader")
+    builder.add_edge("scorer", "user_review")
+    builder.add_edge("auto_uploader", "pattern_extractor")
     builder.add_edge("review_uploader", "pattern_extractor")
     builder.add_edge("pattern_extractor", "fetch_empty")
 

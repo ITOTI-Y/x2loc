@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from src.agent.state import ContextResult
 from src.models.agent import (
     ComponentInfoSchema,
     PatternSchema,
@@ -415,7 +414,7 @@ def format_translation_prompt(
         parts.append("Established Session Patterns:")
         for p in patterns:
             parts.append(
-                f"  {p['src_pattern']} → {p['tgt_pattern']} ({p['approved_count']} approved)"
+                f"  {p.src_pattern} → {p.tgt_pattern} ({p.approved_count} approved)"
             )
         parts.append("")
 
@@ -425,46 +424,44 @@ def format_translation_prompt(
 
 def format_scoring_prompt(
     source: str,
-    translation: str,
-    category: str | None,
-    base_matches: list[GlossaryMatch],
-    mods_matches: list[GlossaryMatch],
-    context_result: ContextResult,
-    patterns: list[SessionPattern],
+    tanslated: str,
+    category: str,
+    base_matches: list[WeblateUnitSchema],
+    mods_matches: list[WeblateUnitSchema],
+    context_results: list[ComponentInfoSchema],
+    patterns: list[PatternSchema],
 ) -> str:
     parts = [
         f"Source: {source}",
-        f"Translation: {translation}",
-        f"Category: {category or 'unknown'}",
+        f"Translation: {tanslated}",
+        f"Category: {category}",
         "",
     ]
 
     if base_matches:
-        parts.append("Base Glossary Matches:")
+        parts.append("Similar Translated Terms (official-glossary):")
         for m in base_matches[:10]:
-            parts.append(f"  {m['source']} → {m['target']}")
-        parts.append("")
-
-    nearby = context_result.get("nearby", [])
-    mod_comp = context_result.get("mod_component")
-    if nearby and mod_comp:
-        parts.append(f"Nearby Strings ({mod_comp}):")
-        for n in nearby:
-            tgt = n["tgt"] or "(untranslated)"
-            parts.append(f"  {n['src']} → {tgt}")
+            parts.append(f"  {m.source} → {m.target}")
         parts.append("")
 
     if mods_matches:
-        parts.append("Similar Translated Terms (glossary-mods):")
+        parts.append("Similar Translated Terms (unofficial-glossary):")
         for m in mods_matches[:10]:
-            parts.append(f"  {m['source']} → {m['target']}")
+            parts.append(f"  {m.source} → {m.target}")
+        parts.append("")
+
+    if context_results:
+        parts.append("Context of the content to be translated:")
+        for c in context_results:
+            for nearby_unit in c.nearby:
+                parts.append(f"  {nearby_unit.source}")
         parts.append("")
 
     if patterns:
         parts.append("Established Session Patterns:")
         for p in patterns:
             parts.append(
-                f"  {p['src_pattern']} → {p['tgt_pattern']} ({p['approved_count']} approved)"
+                f"  {p.src_pattern} → {p.tgt_pattern} ({p.approved_count} approved)"
             )
         parts.append("")
 

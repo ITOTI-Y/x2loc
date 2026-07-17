@@ -5,15 +5,18 @@ from typing import Any, Final
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import SystemMessage
-from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import Field
 
 from src.agent.config import AgentConfigSchema
-from src.agent.prompts import translation_system_blocks
+from src.agent.prompts import (
+    scoring_system_blocks,
+    tag_fix_system_blocks,
+    translation_system_blocks,
+)
 from src.models._share import BaseSchema
-from src.models.agent import TranslationOutputSchema
+from src.models.agent import ScoreResultSchema, TranslationOutputSchema
 
 # Single source for the suggested_translation description. The static Field
 # text below uses the placeholder verbatim; build_scorer_llm re-renders it
@@ -69,29 +72,40 @@ def build_translator_llm(config: AgentConfigSchema) -> CompiledStateGraph:
     )
 
 
-def build_tag_validator_llm(config: AgentConfigSchema) -> Runnable:
-    return ChatOpenAI(
+def build_tag_validator_llm(config: AgentConfigSchema) -> CompiledStateGraph:
+    system_blocks = tag_fix_system_blocks(config.target_lang)
+    system_message = SystemMessage(content=[dict(system_blocks)])
+    llm = ChatOpenAI(
+        model=config.validate_model_name,
         base_url=config.base_url,
         api_key=config.api_key,
-        model=config.validate_model_name,
         temperature=0.0,
         max_completion_tokens=4096,
     )
-
-
-def build_scorer_llm(config: AgentConfigSchema) -> Runnable:
-    schema = _inline_refs(ScoreOutputSchema.model_json_schema())
-    schema.setdefault("title", "ScoreOutputSchema")
-    schema["properties"]["suggested_translation"]["description"] = (
-        _SUGGESTED_TRANSLATION_DESC.format(threshold=config.auto_approve_threshold)
+    return create_agent(
+        model=llm,
+        tools=[],
+        system_prompt=system_message,
+        response_format=ToolStrategy(TranslationOutputSchema),
     )
-    return ChatOpenAI(
+
+
+def build_scorer_llm(config: AgentConfigSchema) -> CompiledStateGraph:
+    llm = ChatOpenAI(
+        model=config.scoring_model_name,
         base_url=config.base_url,
         api_key=config.api_key,
-        model=config.scoring_model_name,
         temperature=config.scoring_temperature,
         max_completion_tokens=4096,
-    ).with_structured_output(schema)
+    )
+    system_blocks = scoring_system_blocks(config.target_lang)
+    system_message = SystemMessage(content=[dict(system_blocks)])
+    return create_agent(
+        model=llm,
+        tools=[],
+        system_prompt=system_message,
+        response_format=ToolStrategy(ScoreResultSchema),
+    )
 
 
 def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:

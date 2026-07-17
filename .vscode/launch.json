@@ -39,7 +39,7 @@
                 "--config",
                 "configs/weblate.local.toml",
                 "--batch-size",
-                "50"
+                "10"
             ],
             "console": "integratedTerminal"
         }

@@ -55,7 +55,7 @@ async def translator(
         _build_translate_input(u, state.context_results[u.id])
         for u in state.to_translate
     ]
-    responses = await agent.abatch(inputs)
+    responses = await agent.abatch(inputs, config={"max_concurrency": 10})
 
     candidates = []
     for u, r in zip(state.to_translate, responses, strict=True):
@@ -68,7 +68,8 @@ async def translator(
                         id=u.id,
                         source=u.source,
                         translated=result_text,
-                        context=u.context,
+                        key=u.context,
+                        context=state.context_results[u.id],
                         category=u.note or "unknown",
                         pattern_matched=len(
                             lookup_glossary_or_patterns(u.source, state.patterns)
@@ -82,6 +83,7 @@ async def translator(
                         ),
                         tag_valid=False,
                         original_unit=u,
+                        patterns=lookup_glossary_or_patterns(u.source, state.patterns),
                     )
                 )
             else:
@@ -92,7 +94,8 @@ async def translator(
                     id=u.id,
                     source=u.source,
                     translated="",
-                    context=u.context,
+                    key=u.context,
+                    context=state.context_results[u.id],
                     category=u.note or "unknown",
                     pattern_matched=len(
                         lookup_glossary_or_patterns(u.source, state.patterns)
@@ -106,6 +109,8 @@ async def translator(
                     ),
                     tag_valid=False,
                     original_unit=u,
+                    patterns=lookup_glossary_or_patterns(u.source, state.patterns),
                 )
             )
+    logger.success(f"Translated {len(candidates)} units")
     return {"candidates": candidates}

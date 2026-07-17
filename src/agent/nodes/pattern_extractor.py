@@ -7,7 +7,7 @@ from loguru import logger
 
 from src.agent._share import PATTERN_CACHE_PATH, PATTERN_MIN_EXAMPLES
 from src.agent.nodes._helpers import common_prefix, common_suffix
-from src.models.agent import PatternSchema
+from src.models.agent import NewAgentStateSchema, PatternSchema
 
 
 def load_cached_patterns() -> dict[str, PatternSchema]:

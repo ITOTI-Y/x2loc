@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
+from loguru import logger
+
 from src._share import TEMP_DIR
 from src.agent.config import AgentConfigSchema
 from src.models.agent import NewAgentStateSchema
@@ -109,6 +111,7 @@ async def fetch_empty(
         batch_size=agent_config.batch_size,
         q="state:empty",
     )
+    logger.success(f"Fetched {len(units)} empty units")
     return {
         "to_translate": units,
         "is_end": is_end,

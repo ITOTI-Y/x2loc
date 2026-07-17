@@ -29,7 +29,7 @@ async def glossary_loader(
         _load_data("mods", agent_config.target_lang, agent_config, client),
     )
 
-    logger.info(f"Loaded glossaries: {len(base)} base + {len(mods)} mods")
+    logger.success(f"Loaded glossaries: {len(base)} base + {len(mods)} mods")
     return {
         "base_glossary": base,
         "mods_glossary": mods,

@@ -1,30 +1,14 @@
-from __future__ import annotations
-
 from langgraph.types import interrupt
 from loguru import logger
 
-from src.agent.state import AgentState
 from src.agent.tools import validate_tags
+from src.models.agent import NewAgentStateSchema, ReviewDecisionSchema
 
 
-def user_review(state: AgentState) -> dict:
-    score_map = {s["unit_id"]: s for s in state["scores"]}
-    review_items = [
-        {
-            "unit_id": c["unit_id"],
-            "source": c["source"],
-            "translation": c["translation"],
-            "category": c["category"],
-            "score": score_map.get(c["unit_id"], {}).get("score", 0),
-            "deductions": score_map.get(c["unit_id"], {}).get("deductions", []),
-            "suggested_translation": score_map.get(c["unit_id"], {}).get(
-                "suggested_translation"
-            ),
-        }
-        for c in state["review_batch"]
-    ]
+def user_review(state: NewAgentStateSchema) -> dict:
+    scores = state.scores
 
-    decisions = interrupt(review_items)
+    decisions: list[ReviewDecisionSchema] = interrupt(scores)
 
     approved: list[dict] = []
     skip_ids = list(state["skip_ids"])
