@@ -67,6 +67,27 @@ async def scorer(
             if response is not None:
                 structured = response.get("structured_response")
                 if isinstance(structured, ScoreResultSchema):
-                    scores.append(unit.model_copy(update={"score_result": structured}))
+                    scores.append(
+                        unit.model_copy(
+                            update={
+                                "score_result": structured,
+                                "suggested_translation": structured.suggested_translation,
+                            }
+                        )
+                    )
+                else:
+                    scores.append(
+                        unit.model_copy(
+                            update={
+                                "score_result": ScoreResultSchema(
+                                    score=0,
+                                    deductions=[],
+                                    suggested_translation=None,
+                                    notes="no-score-result",
+                                ),
+                                "suggested_translation": None,
+                            }
+                        )
+                    )
     logger.success(f"Scored {len(scores)} units")
     return {"scores": scores}

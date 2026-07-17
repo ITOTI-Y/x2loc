@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from pathlib import Path
 from typing import Annotated
@@ -13,8 +11,8 @@ from loguru import logger
 from src.agent.config import AgentConfigSchema, load_config
 from src.agent.graph import build_graph
 from src.agent.nodes.pattern_extractor import load_cached_patterns
-from src.agent.tools import prompt_user_review
 from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
+from src.ui.user import prompt_user_review
 
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
 

@@ -129,3 +129,5 @@ class NewAgentStateSchema(BaseSchema):
     candidates: list[TranslationUnitSchema] = Field(default_factory=list)
 
     scores: list[TranslationUnitSchema] = Field(default_factory=list)
+
+    decisions: list[ReviewDecisionSchema] = Field(default_factory=list)

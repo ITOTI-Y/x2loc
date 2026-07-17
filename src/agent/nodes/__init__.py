@@ -22,7 +22,6 @@ from src.agent.nodes.pattern_extractor import pattern_extractor
 from src.agent.nodes.scorer import ScorerOutputSchema, scorer
 from src.agent.nodes.tag_validator import TagValidatorOutputSchema, tag_validator
 from src.agent.nodes.translator import TranslateOutputSchema, translator
-from src.agent.nodes.uploader import auto_uploader, review_uploader
 from src.agent.nodes.user_review import user_review
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
 from src.services.weblate import AsyncWeblateClient
@@ -90,12 +89,6 @@ class WorkflowNodes:
 
     async def scorer(self, state: NewAgentStateSchema) -> ScorerOutputSchema:
         return await scorer(state, agent_config=self._config, llm=self._scorer_llm)
-
-    def auto_uploader(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
-        return auto_uploader(state, client=self._client, agent_config=self._config)
-
-    def review_uploader(self, state: NewAgentStateSchema) -> NewAgentStateSchema:
-        return review_uploader(state, client=self._client, agent_config=self._config)
 
     async def _harvest_prefetch(self) -> dict[int, list[ComponentInfoSchema]]:
         if self._prefetch_task is None:

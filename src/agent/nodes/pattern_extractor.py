@@ -33,17 +33,16 @@ def _save_cache(patterns: list[PatternSchema]) -> None:
 
 
 def pattern_extractor(state: NewAgentStateSchema) -> NewAgentStateSchema:
-    history = state.get("approved_history", [])
-    if len(history) < PATTERN_MIN_EXAMPLES:
-        return {}
+    decisions = state.decisions
+    if len(decisions) < PATTERN_MIN_EXAMPLES:
+        return state
 
-    new_patterns = _detect_patterns(history, state.get("session_patterns", []))
+    new_patterns = _detect_patterns(decisions, state.patterns)
     if not new_patterns:
-        return {}
+        return state
 
-    merged = list(state.get("session_patterns", [])) + new_patterns
-    _save_cache(merged)
-    return {"session_patterns": merged}
+    state.patterns.update(new_patterns)
+    return state
 
 
 def _detect_patterns(

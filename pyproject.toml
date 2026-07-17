@@ -15,7 +15,9 @@ dependencies = [
     "langgraph>=1.1.8",
     "loguru>=0.7.3",
     "pydantic>=2.12.5",
+    "questionary>=2.1.1",
     "rapidfuzz>=3.14.5",
+    "rich>=15.0.0",
     "typer>=0.24.1",
     "unidecode>=1.4.0",
 ]

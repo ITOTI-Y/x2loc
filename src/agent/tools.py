@@ -14,8 +14,6 @@ from src.agent._share import (
 from src.models.agent import (
     ComponentInfoSchema,
     PatternSchema,
-    ReviewDecisionSchema,
-    TranslationUnitSchema,
 )
 from src.services.weblate import (
     AsyncWeblateClient,
@@ -151,9 +149,3 @@ async def collect_context_for_term(
     enriched = await asyncio.gather(*[_enrich(c) for c in picked])
 
     return enriched
-
-
-def prompt_user_review(
-    scores: list[TranslationUnitSchema], auto_accept: bool = False
-) -> list[ReviewDecisionSchema]:
-    pass

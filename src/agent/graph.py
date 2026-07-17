@@ -28,8 +28,6 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_node("tag_validator", nodes.tag_validator)
     builder.add_node("scorer", nodes.scorer)
     builder.add_node("user_review", nodes.user_review)
-    builder.add_node("auto_uploader", nodes.auto_uploader)
-    builder.add_node("review_uploader", nodes.review_uploader)
     builder.add_node("pattern_extractor", nodes.pattern_extractor)
 
     builder.add_edge(START, "glossary_loader")
@@ -41,8 +39,7 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge("translator", "tag_validator")
     builder.add_edge("tag_validator", "scorer")
     builder.add_edge("scorer", "user_review")
-    builder.add_edge("auto_uploader", "pattern_extractor")
-    builder.add_edge("review_uploader", "pattern_extractor")
+    builder.add_edge("user_review", "pattern_extractor")
     builder.add_edge("pattern_extractor", "fetch_empty")
 
     return builder.compile(checkpointer=InMemorySaver())
