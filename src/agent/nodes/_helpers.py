@@ -4,7 +4,6 @@ from os.path import commonprefix
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
 from src.agent.state import PatchResult
 from src.services.weblate import WeblateClient
 
@@ -13,7 +12,6 @@ def upload_batch(
     candidates: list[dict],
     *,
     client: WeblateClient,
-    agent_config: AgentConfigSchema,
 ) -> tuple[list[PatchResult], list[dict]]:
     """PATCH translations to Weblate.
 
@@ -27,11 +25,6 @@ def upload_batch(
     for c in candidates:
         source = c.get("source", "")
         translation = c.get("target", c.get("translation", ""))
-
-        if agent_config.dry_run:
-            results.append({"unit_id": c["unit_id"], "status": "ok", "error": None})
-            history.append({"source": source, "target": translation})
-            continue
 
         try:
             client.patch_unit(c["unit_id"], {"target": [translation], "state": 20})

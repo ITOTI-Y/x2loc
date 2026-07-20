@@ -79,7 +79,7 @@ def build_tag_validator_llm(config: AgentConfigSchema) -> CompiledStateGraph:
         model=config.validate_model_name,
         base_url=config.base_url,
         api_key=config.api_key,
-        temperature=0.0,
+        temperature=config.validate_temperature,
         max_completion_tokens=4096,
     )
     return create_agent(

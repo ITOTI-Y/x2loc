@@ -15,14 +15,14 @@ class AgentConfigSchema(BaseSchema):
     scoring_model_name: str = ""
     base_url: str = "https://openrouter.ai/api/v1"
     api_key: SecretStr = Field(...)
-    translation_temperature: float = 1.0
+    translation_temperature: float = 0.0
+    validate_temperature: float = 0.0
     scoring_temperature: float = 0.0
     batch_size: int = DEFAULT_BATCH_SIZE
     auto_approve_threshold: int = 95
     component_slug: str = "glossary-mods"
     base_glossary_slug: str = "glossary-base-xcom2-wotc"
     target_lang: str = "zh_Hans"
-    dry_run: bool = False
 
 
 def load_config(

@@ -64,7 +64,6 @@ def run(
         Path, typer.Option("--config", "-c", help="Path to the config file.")
     ],
     batch_size: Annotated[int, typer.Option("--batch-size", "-b", help="Batch size.")],
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Dry run.")] = False,
     auto_accept: Annotated[
         bool, typer.Option("--auto-accept", help="Auto accept.")
     ] = False,
@@ -73,7 +72,7 @@ def run(
     if batch_size <= 0:
         raise typer.BadParameter("--batch-size must be a positive integer")
     config = load_config(str(config_path))
-    config = config.model_copy(update={"batch_size": batch_size, "dry_run": dry_run})
+    config = config.model_copy(update={"batch_size": batch_size})
     asyncio.run(_run_async(config, auto_accept=auto_accept))
 
 
