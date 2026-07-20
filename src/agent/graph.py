@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -8,6 +9,15 @@ from src.agent.config import AgentConfigSchema
 from src.agent.nodes import WorkflowNodes
 from src.models.agent import NewAgentStateSchema
 from src.services.weblate import AsyncWeblateClient
+
+serde = JsonPlusSerializer(
+    allowed_msgpack_modules=[
+        ("src.models.weblate", "WeblateUnitSchema"),
+        ("src.models.agent", "PatternSchema"),
+        ("src.models.agent", "ComponentInfoSchema"),
+        ("src.models.agent", "TranslationUnitSchema"),
+    ]
+)
 
 
 def route_after_fetch(state: NewAgentStateSchema) -> str:
@@ -42,4 +52,4 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge("user_review", "pattern_extractor")
     builder.add_edge("pattern_extractor", "fetch_empty")
 
-    return builder.compile(checkpointer=InMemorySaver())
+    return builder.compile(checkpointer=InMemorySaver(serde=serde))

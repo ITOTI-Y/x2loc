@@ -63,7 +63,7 @@ def tokenize(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
 
 
-def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema)](
+def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema, dict)](
     source: str, cache: dict[str, T], limit: int = 10
 ) -> list[T]:
     if source in cache:

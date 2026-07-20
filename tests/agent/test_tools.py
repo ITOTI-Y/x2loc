@@ -1,6 +1,6 @@
 from src.agent.tools import (
     extract_tags,
-    lookup_glossary,
+    lookup_glossary_or_patterns,
     strip_html,
     tokenize,
     validate_tags,
@@ -88,15 +88,17 @@ class TestLookupGlossary:
         }
 
     def test_overlap_ranking(self):
-        results = lookup_glossary("Conventional Weapons Research", self.cache)
+        results = lookup_glossary_or_patterns(
+            "Conventional Weapons Research", self.cache
+        )
         assert results[0]["source"] == "Conventional Weapons"
 
     def test_no_match(self):
-        assert lookup_glossary("XY", self.cache) == []
+        assert lookup_glossary_or_patterns("XY", self.cache) == []
 
     def test_limit(self):
-        assert len(lookup_glossary("Weapons", self.cache, limit=2)) <= 2
+        assert len(lookup_glossary_or_patterns("Weapons", self.cache, limit=2)) <= 2
 
     def test_single_word_match(self):
-        results = lookup_glossary("Acid Grenade", self.cache)
+        results = lookup_glossary_or_patterns("Acid Grenade", self.cache)
         assert any(r["source"] == "Acid" for r in results)

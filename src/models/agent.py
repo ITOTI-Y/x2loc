@@ -131,3 +131,5 @@ class NewAgentStateSchema(BaseSchema):
     scores: list[TranslationUnitSchema] = Field(default_factory=list)
 
     decisions: list[ReviewDecisionSchema] = Field(default_factory=list)
+
+    approved_pairs: dict[str, str] = Field(default_factory=dict)

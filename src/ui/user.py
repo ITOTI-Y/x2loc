@@ -263,7 +263,6 @@ def prompt_user_review(
 
     _CONSOLE.print(_render_overview(manual_scores))
 
-    decisions: list[ReviewDecisionSchema] = []
     batch_action: Literal["approve", "skip"] | None = None
 
     for index, unit in enumerate(manual_scores, 1):
