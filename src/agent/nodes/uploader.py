@@ -3,7 +3,6 @@ from typing import Final, TypedDict
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
 from src.models.agent import NewAgentStateSchema, StatsSchema
 from src.services.weblate import AsyncWeblateClient
 
@@ -15,9 +14,8 @@ class UploaderOutputSchema(TypedDict):
 
 
 class BackgroundUploader:
-    def __init__(self, client: AsyncWeblateClient, config: AgentConfigSchema) -> None:
+    def __init__(self, client: AsyncWeblateClient) -> None:
         self._client = client
-        self._config = config
         self._tasks: set[asyncio.Task[None]] = set()
 
     def submit(self, items: list[tuple[int, str]]) -> None:
@@ -46,6 +44,7 @@ class BackgroundUploader:
             logger.error(f"PATCH failed for unit {unit_id}: {e!r}")
             return False
         return True
+
 
 async def uploader(
     state: NewAgentStateSchema, *, background_uploader: BackgroundUploader

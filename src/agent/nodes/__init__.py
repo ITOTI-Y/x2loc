@@ -49,7 +49,7 @@ class WorkflowNodes:
         self._prefetch_task: (
             asyncio.Task[dict[int, list[ComponentInfoSchema]]] | None
         ) = None
-        self._background_uploader = BackgroundUploader(client, config)
+        self._background_uploader = BackgroundUploader(client)
         self.user_review = user_review
         self.pattern_extractor = pattern_extractor
 
@@ -123,3 +123,7 @@ class WorkflowNodes:
         self._prefetch_task = asyncio.create_task(
             context_collector(next_units, client=self._client)
         )
+
+    async def aclose(self) -> None:
+        await self.drain_uploads()
+        await self._client.close()

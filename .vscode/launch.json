@@ -48,9 +48,6 @@
             "type": "debugpy",
             "request": "launch",
             "module": "tests.agent.debug_uploader",
-            "args": [
-                "test_uploader"
-            ],
             "console": "integratedTerminal"
         },
     ]

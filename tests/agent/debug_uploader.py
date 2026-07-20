@@ -12,10 +12,11 @@ async def debug_uploader() -> None:
     client = AsyncWeblateClient(config.weblate)
     with Path("./data/_dev/uploader.pkl").open("rb") as f:
         state = load(f)
-    background_uploader = BackgroundUploader(client, config)
+    background_uploader = BackgroundUploader(client)
     await uploader(state, background_uploader=background_uploader)
     await background_uploader.drain()
     await client.close()
+
 
 if __name__ == "__main__":
     asyncio.run(debug_uploader())

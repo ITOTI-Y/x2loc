@@ -1,6 +1,7 @@
 import json
 from collections import defaultdict
 from functools import reduce
+from os.path import commonprefix
 from typing import TypedDict
 
 from loguru import logger
@@ -12,7 +13,6 @@ from src.agent._share import (
     PATTERN_MAX_SOURCE_WORDS,
     PATTERN_MIN_EXAMPLES,
 )
-from src.agent.nodes._helpers import common_prefix, common_suffix
 from src.models.agent import (
     NewAgentStateSchema,
     PatternExampleSchema,
@@ -135,8 +135,8 @@ def _detect_patterns(pairs: dict[str, str]) -> dict[str, PatternSchema]:
         targets = [e["target"] for e in examples]
         if len(set(targets)) < 2:
             continue
-        tgt_pre = reduce(common_prefix, targets)
-        tgt_suf = reduce(common_suffix, [t[len(tgt_pre) :] for t in targets])
+        tgt_pre = reduce(_common_prefix, targets)
+        tgt_suf = reduce(_common_suffix, [t[len(tgt_pre) :] for t in targets])
         if not tgt_pre and not tgt_suf:
             continue
         prefix_words, suffix_words = key
@@ -148,3 +148,18 @@ def _detect_patterns(pairs: dict[str, str]) -> dict[str, PatternSchema]:
             examples=examples[:PATTERN_MAX_EXAMPLES],
         )
     return found
+
+
+def _common_prefix(a: str, b: str) -> str:
+    return commonprefix([a, b])
+
+
+def _common_suffix(a: str, b: str) -> str:
+    if not a or not b:
+        return ""
+    i = 0
+    for ca, cb in zip(reversed(a), reversed(b), strict=False):
+        if ca != cb:
+            break
+        i += 1
+    return a[len(a) - i :] if i > 0 else ""

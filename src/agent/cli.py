@@ -6,7 +6,6 @@ from uuid import uuid4
 import typer
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
-from loguru import logger
 
 from src.agent.config import AgentConfigSchema, load_config
 from src.agent.graph import build_graph
@@ -15,14 +14,6 @@ from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
 from src.ui.user import prompt_user_review
 
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
-
-
-def _print_summary(stats: dict[str, int], remaining: int) -> None:
-    logger.info(
-        f"Batch complete: auto={stats.get('auto', 0)} approved={stats.get('approved', 0)} "
-        f"modified={stats.get('modified', 0)} skipped={stats.get('skipped', 0)} "
-        f"remaining={remaining}"
-    )
 
 
 async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
@@ -40,12 +31,11 @@ async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
                 input=state, config=thread, stream_mode="updates"
             ):
                 final = event
-                pass
 
             if final is None:
                 break
 
-            interrupt = final.get(("__interrupt__"), {})
+            interrupt = final.get("__interrupt__", {})
             if not interrupt:
                 break
 
@@ -56,7 +46,7 @@ async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
             )
             state = Command(resume=decisions)
     finally:
-        await nodes.drain_uploads()
+        await nodes.aclose()
 
 
 @app.command()
