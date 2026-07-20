@@ -1,81 +1,80 @@
-from __future__ import annotations
-
-from collections.abc import Mapping, Sequence
-from typing import Any
+import asyncio
+from typing import Final, TypedDict
 
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
-from src.agent.nodes._helpers import upload_batch
-from src.agent.state import AgentState, PatchResult
-from src.services.weblate import WeblateClient
+from src.models.agent import NewAgentStateSchema, StatsSchema
+from src.services.weblate import AsyncWeblateClient
+
+WEBLATE_STATE_TRANSLATED: Final = 20
 
 
-def _upload_and_merge(
-    batch: Sequence[Mapping[str, Any]],
-    value_key: str,
-    state: AgentState,
-    client: WeblateClient,
-    agent_config: AgentConfigSchema,
-) -> tuple[list[PatchResult], list[dict], dict]:
-    """PATCH a batch of translations and fold the successes into mods_glossary."""
-    items = [
-        {
-            "unit_id": b["unit_id"],
-            "source": b["source"],
-            "target": b[value_key],
-            "context": b["context"],
-        }
-        for b in batch
-    ]
-    results, history = upload_batch(items, client=client, agent_config=agent_config)
-
-    ok_ids = {r["unit_id"] for r in results if r["status"] == "ok"}
-    mods = dict(state["mods_glossary"])
-    # for b in batch:
-    #     if b["unit_id"] in ok_ids:
-    #         mods[b["source"]] = make_glossary_entry(
-    #             b["source"], b[value_key], b["context"]
-    #         )
-    return results, history, mods
+class UploaderOutputSchema(TypedDict):
+    stats: StatsSchema
 
 
-def auto_uploader(
-    state: AgentState, *, client: WeblateClient, agent_config: AgentConfigSchema
-) -> dict:
-    results, history, mods = _upload_and_merge(
-        state["auto_batch"], "translation", state, client, agent_config
-    )
+class BackgroundUploader:
+    def __init__(self, client: AsyncWeblateClient, config: AgentConfigSchema) -> None:
+        self._client = client
+        self._config = config
+        self._tasks: set[asyncio.Task[None]] = set()
 
-    stats = dict(state["stats"])
-    stats["auto"] += sum(1 for r in results if r["status"] == "ok")
+    def submit(self, items: list[tuple[int, str]]) -> None:
+        if not items:
+            return
+        task = asyncio.create_task(self._upload(items))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
-    score_map = {s["unit_id"]: s["score"] for s in state["scores"]}
-    for c in state["auto_batch"]:
-        logger.info(
-            f"[AUTO] {c['source']} → {c['translation']} ({score_map.get(c['unit_id'], '?')})"
+    async def drain(self) -> None:
+        if self._tasks:
+            await asyncio.gather(*tuple(self._tasks))
+
+    async def _upload(self, items: list[tuple[int, str]]) -> None:
+        results = await asyncio.gather(
+            *[self._patch(unit_id, target) for unit_id, target in items]
         )
+        logger.success(f"[UPLOAD] {sum(results)}/{len(items)} units patched")
+
+    async def _patch(self, unit_id: int, target: str) -> bool:
+        try:
+            await self._client.patch_unit(
+                unit_id, {"target": [target], "state": WEBLATE_STATE_TRANSLATED}
+            )
+        except Exception as e:
+            logger.error(f"PATCH failed for unit {unit_id}: {e!r}")
+            return False
+        return True
+
+async def uploader(
+    state: NewAgentStateSchema, *, background_uploader: BackgroundUploader
+) -> UploaderOutputSchema:
+    units = {u.id: u for u in state.scores}
+    items: list[tuple[int, str]] = []
+    n_approved = n_modified = n_skipped = 0
+
+    for decision in state.decisions:
+        unit = units.get(decision.unit_id)
+        if unit is None:
+            continue
+        target = decision.translation or unit.translated
+        if decision.action == "skip" or not target:
+            n_skipped += 1
+            continue
+        if decision.action == "approve":
+            n_approved += 1
+        else:
+            n_modified += 1
+        items.append((decision.unit_id, target))
+
+    background_uploader.submit(items)
 
     return {
-        "patch_results": results,
-        "approved_history": history,
-        "stats": stats,
-        "mods_glossary": mods,
-    }
-
-
-def review_uploader(
-    state: AgentState, *, client: WeblateClient, agent_config: AgentConfigSchema
-) -> dict:
-    results, history, mods = _upload_and_merge(
-        state["review_approved"], "target", state, client, agent_config
-    )
-
-    for a in state["review_approved"]:
-        logger.info(f"[REVIEW UPLOAD] {a['source']} → {a['target']}")
-
-    return {
-        "patch_results": results,
-        "approved_history": history,
-        "mods_glossary": mods,
+        "stats": StatsSchema(
+            auto=state.stats["auto"],
+            approved=state.stats["approved"] + n_approved,
+            modified=state.stats["modified"] + n_modified,
+            skipped=state.stats["skipped"] + n_skipped,
+        )
     }

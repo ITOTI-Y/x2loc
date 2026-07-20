@@ -27,35 +27,36 @@ def _print_summary(stats: dict[str, int], remaining: int) -> None:
 
 async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
     """Drive the graph through its async API."""
-    graph = build_graph(config)
+    graph, nodes = build_graph(config)
     thread: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
     state: NewAgentStateSchema | Command = NewAgentStateSchema(
         patterns=load_cached_patterns()
     )
 
-    while True:
-        final = None
-        async for event in graph.astream(
-            input=state, config=thread, stream_mode="updates"
-        ):
-            final = event
-            pass
+    try:
+        while True:
+            final = None
+            async for event in graph.astream(
+                input=state, config=thread, stream_mode="updates"
+            ):
+                final = event
+                pass
 
-        if final is None:
-            breakpoint()
-            break
+            if final is None:
+                break
 
-        interrupt = final.get(("__interrupt__"), {})
-        if not interrupt:
-            breakpoint()
-            break
+            interrupt = final.get(("__interrupt__"), {})
+            if not interrupt:
+                break
 
-        scores: list[TranslationUnitSchema] = interrupt[0].value
+            scores: list[TranslationUnitSchema] = interrupt[0].value
 
-        decisions = await asyncio.to_thread(
-            prompt_user_review, scores, auto_accept=auto_accept
-        )
-        state = Command(resume=decisions)
+            decisions = await asyncio.to_thread(
+                prompt_user_review, scores, auto_accept=auto_accept
+            )
+            state = Command(resume=decisions)
+    finally:
+        await nodes.drain_uploads()
 
 
 @app.command()

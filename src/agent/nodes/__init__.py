@@ -22,6 +22,7 @@ from src.agent.nodes.pattern_extractor import pattern_extractor
 from src.agent.nodes.scorer import ScorerOutputSchema, scorer
 from src.agent.nodes.tag_validator import TagValidatorOutputSchema, tag_validator
 from src.agent.nodes.translator import TranslateOutputSchema, translator
+from src.agent.nodes.uploader import BackgroundUploader, UploaderOutputSchema, uploader
 from src.agent.nodes.user_review import user_review
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
 from src.services.weblate import AsyncWeblateClient
@@ -48,6 +49,7 @@ class WorkflowNodes:
         self._prefetch_task: (
             asyncio.Task[dict[int, list[ComponentInfoSchema]]] | None
         ) = None
+        self._background_uploader = BackgroundUploader(client, config)
         self.user_review = user_review
         self.pattern_extractor = pattern_extractor
 
@@ -89,6 +91,13 @@ class WorkflowNodes:
 
     async def scorer(self, state: NewAgentStateSchema) -> ScorerOutputSchema:
         return await scorer(state, agent_config=self._config, llm=self._scorer_llm)
+
+    async def uploader(self, state: NewAgentStateSchema) -> UploaderOutputSchema:
+        return await uploader(state, background_uploader=self._background_uploader)
+
+    async def drain_uploads(self) -> None:
+        await self._background_uploader.drain()
+        logger.success("[UPLOAD] Background uploader drained")
 
     async def _harvest_prefetch(self) -> dict[int, list[ComponentInfoSchema]]:
         if self._prefetch_task is None:

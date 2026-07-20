@@ -30,7 +30,7 @@ class WeblateRequestParamsSchema(BaseSchema):
 
 class WeblateRequestSchema(BaseSchema):
     path: str
-    method: Literal["GET", "POST"]
+    method: Literal["GET", "POST", "PATCH"]
     params: WeblateRequestParamsSchema | None = None
     json_body: dict[str, Any] | None = None
 

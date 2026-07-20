@@ -24,7 +24,7 @@ def route_after_fetch(state: NewAgentStateSchema) -> str:
     return "end" if state.is_end else "continue"
 
 
-def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
+def build_graph(config: AgentConfigSchema) -> tuple[CompiledStateGraph, WorkflowNodes]:
     client = AsyncWeblateClient(config.weblate)
 
     nodes = WorkflowNodes(client, config)
@@ -38,6 +38,7 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_node("tag_validator", nodes.tag_validator)
     builder.add_node("scorer", nodes.scorer)
     builder.add_node("user_review", nodes.user_review)
+    builder.add_node("uploader", nodes.uploader)
     builder.add_node("pattern_extractor", nodes.pattern_extractor)
 
     builder.add_edge(START, "glossary_loader")
@@ -49,7 +50,8 @@ def build_graph(config: AgentConfigSchema) -> CompiledStateGraph:
     builder.add_edge("translator", "tag_validator")
     builder.add_edge("tag_validator", "scorer")
     builder.add_edge("scorer", "user_review")
+    builder.add_edge("user_review", "uploader")
     builder.add_edge("user_review", "pattern_extractor")
-    builder.add_edge("pattern_extractor", "fetch_empty")
+    builder.add_edge(["uploader", "pattern_extractor"], "fetch_empty")
 
-    return builder.compile(checkpointer=InMemorySaver(serde=serde))
+    return builder.compile(checkpointer=InMemorySaver(serde=serde)), nodes

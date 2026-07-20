@@ -622,16 +622,6 @@ class AsyncWeblateClient:
         )
         return r.json()
 
-    async def create_project(self, name: str, slug: str) -> dict[str, Any]:
-        r = await self._request(
-            WeblateRequestSchema(
-                method="POST",
-                path="projects/",
-                json_body={"name": name, "slug": slug, "web": "https://example.com/"},
-            )
-        )
-        return r.json()
-
     async def list_components(self):
         return await self._paginate(
             WeblateRequestSchema(
@@ -688,6 +678,16 @@ class AsyncWeblateClient:
             )
         )
         return units
+
+    async def patch_unit(self, unit_id: int, data: dict[str, Any]) -> dict[str, Any]:
+        r = await self._request(
+            WeblateRequestSchema(
+                method="PATCH",
+                path=f"units/{unit_id}/",
+                json_body=data,
+            )
+        )
+        return r.json()
 
     async def _paginate(self, request: WeblateRequestSchema) -> list[WeblateUnitSchema]:
         base_params = request.params or WeblateRequestParamsSchema()
