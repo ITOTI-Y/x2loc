@@ -19787,74 +19787,82 @@
   },
   {
     "src_pattern": "XCOM {X} (T2)",
-    "tgt_pattern": "XCOM{X}枪 (T2)",
-    "approved_count": 4,
+    "tgt_pattern": "XCOM{X} (T2)",
+    "approved_count": 9,
     "examples": [
       {
-        "source": "XCOM Plasma Shotguns (T2)",
-        "target": "XCOM电浆霰弹枪 (T2)"
+        "source": "XCOM LMGs (T2)",
+        "target": "XCOM轻机枪 (T2)"
       },
       {
-        "source": "XCOM Plasma Sniper Rifles (T2)",
-        "target": "XCOM电浆狙击步枪 (T2)"
+        "source": "XCOM Magnetic Cannons (T2)",
+        "target": "XCOM磁力加农炮 (T2)"
       },
       {
-        "source": "XCOM Shotguns (T2)",
-        "target": "XCOM霰弹枪 (T2)"
+        "source": "XCOM Magnetic Pistols (T2)",
+        "target": "XCOM磁力手枪 (T2)"
       },
       {
-        "source": "XCOM Sniper Rifles (T2)",
-        "target": "XCOM狙击步枪 (T2)"
+        "source": "XCOM Magnetic Shotguns (T2)",
+        "target": "XCOM磁力霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T2)",
+        "target": "XCOM磁力狙击步枪 (T2)"
       }
     ]
   },
   {
     "src_pattern": "XCOM Plasma {X}",
     "tgt_pattern": "XCOM电浆{X}",
-    "approved_count": 5,
+    "approved_count": 8,
     "examples": [
       {
-        "source": "XCOM Plasma Shotguns (T2)",
-        "target": "XCOM电浆霰弹枪 (T2)"
+        "source": "XCOM Plasma Assault Rifle (T2)",
+        "target": "XCOM电浆突击步枪 (T2)"
       },
       {
-        "source": "XCOM Plasma Shotguns (T3)",
-        "target": "XCOM电浆霰弹枪 (T3)"
+        "source": "XCOM Plasma Cannons",
+        "target": "XCOM电浆加农炮"
       },
       {
-        "source": "XCOM Plasma Sniper Rifles",
-        "target": "XCOM电浆狙击步枪"
+        "source": "XCOM Plasma Cannons (T2)",
+        "target": "XCOM电浆加农炮 (T2)"
       },
       {
-        "source": "XCOM Plasma Sniper Rifles (T2)",
-        "target": "XCOM电浆狙击步枪 (T2)"
+        "source": "XCOM Plasma Cannons (T3)",
+        "target": "XCOM电浆加农炮 (T3)"
       },
       {
-        "source": "XCOM Plasma Sniper Rifles (T3)",
-        "target": "XCOM电浆狙击步枪（T3）"
+        "source": "XCOM Plasma Pistols",
+        "target": "XCOM电浆手枪"
       }
     ]
   },
   {
     "src_pattern": "XCOM {X} (T3)",
     "tgt_pattern": "XCOM{X}",
-    "approved_count": 4,
+    "approved_count": 8,
     "examples": [
       {
-        "source": "XCOM Plasma Shotguns (T3)",
-        "target": "XCOM电浆霰弹枪 (T3)"
+        "source": "XCOM LMGs (T3)",
+        "target": "XCOM轻机枪 (T3)"
       },
       {
-        "source": "XCOM Plasma Sniper Rifles (T3)",
-        "target": "XCOM电浆狙击步枪（T3）"
+        "source": "XCOM Magnetic Cannons (T3)",
+        "target": "XCOM磁力加农炮 (T3)"
       },
       {
-        "source": "XCOM Shotguns (T3)",
-        "target": "XCOM霰弹枪 (T3)"
+        "source": "XCOM Magnetic Pistols (T3)",
+        "target": "XCOM磁力手枪 (T3)"
       },
       {
-        "source": "XCOM Sniper Rifles (T3)",
-        "target": "XCOM狙击步枪 (T3)"
+        "source": "XCOM Magnetic Shotguns (T3)",
+        "target": "XCOM磁力霰弹枪（T3）"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T3)",
+        "target": "XCOM磁力狙击步枪 (T3)"
       }
     ]
   },
@@ -26244,6 +26252,799 @@
       {
         "source": "Free Respec Expiration",
         "target": "免费技能重置到期时间"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bullpups",
+    "tgt_pattern": "{X}无托式",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Kal-33 Bullpups",
+        "target": "Kal-33无托式"
+      },
+      {
+        "source": "Kal-50 Bullpups",
+        "target": "Kal-50无托式"
+      },
+      {
+        "source": "Kal-LX Bullpups",
+        "target": "Kal-LX无托式"
+      },
+      {
+        "source": "M-90 Ravager Bullpups",
+        "target": "M-90 蹂躏者无托式"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Master-Crafted {X}",
+    "tgt_pattern": "大师级{X}",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "Master-Crafted Heavy Railguns",
+        "target": "大师级重型磁轨炮"
+      },
+      {
+        "source": "Master-Crafted Laser Auto-Lances",
+        "target": "大师级激光自动长矛"
+      },
+      {
+        "source": "Master-Crafted Laser Autopistols",
+        "target": "大师级激光自动手枪"
+      },
+      {
+        "source": "Master-Crafted Laser SMGs",
+        "target": "大师级激光冲锋枪"
+      },
+      {
+        "source": "Master-Crafted Laser-Edged Ripjacks",
+        "target": "大师级激光开颅刃"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Master-Crafted Laser {X}",
+    "tgt_pattern": "大师级激光{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Master-Crafted Laser Auto-Lances",
+        "target": "大师级激光自动长矛"
+      },
+      {
+        "source": "Master-Crafted Laser Autopistols",
+        "target": "大师级激光自动手枪"
+      },
+      {
+        "source": "Master-Crafted Laser SMGs",
+        "target": "大师级激光冲锋枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Master-crafted {X}",
+    "tgt_pattern": "大师级{X}枪",
+    "approved_count": 9,
+    "examples": [
+      {
+        "source": "Master-crafted Advent Enforcer Rifles",
+        "target": "大师级变种人执行者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Inducer Carbines",
+        "target": "大师级变种人诱导卡宾枪"
+      },
+      {
+        "source": "Master-crafted Advent Persuader Pistols",
+        "target": "大师级变种人劝导者手枪"
+      },
+      {
+        "source": "Master-crafted Advent SMGs",
+        "target": "大师级变种人冲锋枪"
+      },
+      {
+        "source": "Master-crafted Advent Scout Rifles",
+        "target": "大师级变种人侦察步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Master-crafted Advent {X}",
+    "tgt_pattern": "大师级变种人{X}枪",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "Master-crafted Advent Enforcer Rifles",
+        "target": "大师级变种人执行者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Inducer Carbines",
+        "target": "大师级变种人诱导卡宾枪"
+      },
+      {
+        "source": "Master-crafted Advent Persuader Pistols",
+        "target": "大师级变种人劝导者手枪"
+      },
+      {
+        "source": "Master-crafted Advent SMGs",
+        "target": "大师级变种人冲锋枪"
+      },
+      {
+        "source": "Master-crafted Advent Scout Rifles",
+        "target": "大师级变种人侦察步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Psionic {X}",
+    "tgt_pattern": "灵能{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Psionic Corpses",
+        "target": "灵能尸体"
+      },
+      {
+        "source": "Psionic Lance",
+        "target": "灵能之矛"
+      },
+      {
+        "source": "Psionic Zombie Horde",
+        "target": "灵能僵尸群"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Grenades",
+    "tgt_pattern": "{X}榴弹",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Melty Love Grenades",
+        "target": "融化之爱榴弹"
+      },
+      {
+        "source": "Plasmad Grenades",
+        "target": "电浆榴弹"
+      },
+      {
+        "source": "Shockatron Grenades",
+        "target": "电击榴弹"
+      },
+      {
+        "source": "Shredder Grenades",
+        "target": "粉碎榴弹"
+      },
+      {
+        "source": "Vortex Grenades",
+        "target": "漩涡榴弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Modules",
+    "tgt_pattern": "{X}模块",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Sat Strike Modules",
+        "target": "卫星打击模块"
+      },
+      {
+        "source": "Shield Generator Modules",
+        "target": "护盾发生器模块"
+      },
+      {
+        "source": "Shieldwall Modules",
+        "target": "盾墙模块"
+      },
+      {
+        "source": "Superior Crossguard Taptic Modules",
+        "target": "终极十字护手触觉模块"
+      },
+      {
+        "source": "Wraith Modules",
+        "target": "幽灵模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Shield {X}",
+    "tgt_pattern": "护盾{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Shield Deployment",
+        "target": "护盾部署"
+      },
+      {
+        "source": "Shield Generator Modules",
+        "target": "护盾发生器模块"
+      },
+      {
+        "source": "Shield Hardeners",
+        "target": "护盾硬化器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Show {X} Text",
+    "tgt_pattern": "显示{X}文本",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Show Biome Text",
+        "target": "显示生态文本"
+      },
+      {
+        "source": "Show Landings Time Text",
+        "target": "显示降落时间文本"
+      },
+      {
+        "source": "Show Plot Text",
+        "target": "显示地块文本"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Show {X} indicators",
+    "tgt_pattern": "显示{X}指示器",
+    "approved_count": 9,
+    "examples": [
+      {
+        "source": "Show Delayed Damage indicators",
+        "target": "显示延迟伤害指示器"
+      },
+      {
+        "source": "Show Hunter's Mark indicators",
+        "target": "显示猎手标记指示器"
+      },
+      {
+        "source": "Show Overwatch Trigger indicators",
+        "target": "显示监视触发指示器"
+      },
+      {
+        "source": "Show Pod Activation Trigger indicators",
+        "target": "显示敌群激活触发指示器"
+      },
+      {
+        "source": "Show Smoke indicators",
+        "target": "显示烟雾指示器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Weaves",
+    "tgt_pattern": "{X}织物",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Scab Weaves",
+        "target": "结痂织物"
+      },
+      {
+        "source": "Shimmer Weaves",
+        "target": "微光织物"
+      },
+      {
+        "source": "Spectral Weaves",
+        "target": "幽灵织物"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Superior {X} Refinements",
+    "tgt_pattern": "终极{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Superior Armor Piercing Refinements",
+        "target": "终极穿甲精炼"
+      },
+      {
+        "source": "Superior Armor Shredding Refinements",
+        "target": "终极破甲精炼"
+      },
+      {
+        "source": "Superior Base Damage Refinements",
+        "target": "终极基础伤害精炼"
+      },
+      {
+        "source": "Superior Crit Booster Refinements",
+        "target": "终极暴击助推优化"
+      },
+      {
+        "source": "Superior Crit Damage Refinements",
+        "target": "终极暴击伤害精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Superior {X}",
+    "tgt_pattern": "终极{X}",
+    "approved_count": 19,
+    "examples": [
+      {
+        "source": "Superior Armor Piercing Refinements",
+        "target": "终极穿甲精炼"
+      },
+      {
+        "source": "Superior Armor Shredding Refinements",
+        "target": "终极破甲精炼"
+      },
+      {
+        "source": "Superior Base Damage Refinements",
+        "target": "终极基础伤害精炼"
+      },
+      {
+        "source": "Superior Crit Booster Refinements",
+        "target": "终极暴击助推优化"
+      },
+      {
+        "source": "Superior Crit Damage Refinements",
+        "target": "终极暴击伤害精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Superior Crit {X}",
+    "tgt_pattern": "终极暴击{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Superior Crit Booster Refinements",
+        "target": "终极暴击助推优化"
+      },
+      {
+        "source": "Superior Crit Damage Refinements",
+        "target": "终极暴击伤害精炼"
+      },
+      {
+        "source": "Superior Crit Trackers",
+        "target": "终极暴击追踪器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Terrain {X}",
+    "tgt_pattern": "地{X}",
+    "approved_count": 11,
+    "examples": [
+      {
+        "source": "Terrain Details Colour",
+        "target": "地形详细信息颜色"
+      },
+      {
+        "source": "Terrain Geoscape X pos offset",
+        "target": "地表全景地形X位置偏移量"
+      },
+      {
+        "source": "Terrain Geoscape Y pos offset",
+        "target": "地表全景地形Y位置偏移量"
+      },
+      {
+        "source": "Terrain Icon Size",
+        "target": "地形图标尺寸"
+      },
+      {
+        "source": "Terrain Panel Size X",
+        "target": "地形面板 X 轴尺寸"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Terrain {X} pos offset",
+    "tgt_pattern": "地{X}位置偏移量",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Terrain Geoscape X pos offset",
+        "target": "地表全景地形X位置偏移量"
+      },
+      {
+        "source": "Terrain Geoscape Y pos offset",
+        "target": "地表全景地形Y位置偏移量"
+      },
+      {
+        "source": "Terrain X pos offset",
+        "target": "地形 X 位置偏移量"
+      },
+      {
+        "source": "Terrain Y pos offset",
+        "target": "地形Y位置偏移量"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Rifle",
+    "tgt_pattern": "{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Kala'Mal Suppressor Rifle",
+        "target": "卡拉马尔消音步枪"
+      },
+      {
+        "source": "Taz'Kor Assault Rifle",
+        "target": "塔兹科突击步枪"
+      },
+      {
+        "source": "Tesla Rifle",
+        "target": "特斯拉步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Colour",
+    "tgt_pattern": "{X}颜色",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Terrain Details Colour",
+        "target": "地形详细信息颜色"
+      },
+      {
+        "source": "Terrain Title Colour",
+        "target": "地形标题颜色"
+      },
+      {
+        "source": "Time Details Colour",
+        "target": "时间详情颜色"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Tier 2 {X}",
+    "tgt_pattern": "2级{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Tier 2 Base",
+        "target": "2级基地"
+      },
+      {
+        "source": "Tier 2 Shield",
+        "target": "2级盾牌"
+      },
+      {
+        "source": "Tier 2 Melee",
+        "target": "2级近战"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Tier 3 {X}",
+    "tgt_pattern": "3级{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Tier 3 Base",
+        "target": "3级基础"
+      },
+      {
+        "source": "Tier 3 Gem",
+        "target": "3级宝石"
+      },
+      {
+        "source": "Tier 3 Melee",
+        "target": "3级近战"
+      },
+      {
+        "source": "Tier 3 Shield",
+        "target": "3级护盾"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Underbarrel {X}",
+    "tgt_pattern": "下挂{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Underbarrel Elerium Acid Throwers",
+        "target": "下挂超铀酸液喷射器"
+      },
+      {
+        "source": "Underbarrel Elerium Throwers",
+        "target": "下挂超铀喷射器"
+      },
+      {
+        "source": "Underbarrel Flamethrower High-Capacity Tanks",
+        "target": "下挂火焰喷射器大容量油箱"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Lockbox",
+    "tgt_pattern": "解锁{X}保险箱",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Epic Lockbox",
+        "target": "解锁史诗保险箱"
+      },
+      {
+        "source": "Unlock Legendary Lockbox",
+        "target": "解锁传奇保险箱"
+      },
+      {
+        "source": "Unlock Rare Lockbox",
+        "target": "解锁稀有保险箱"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X}",
+    "tgt_pattern": "解锁{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Unlock Epic Lockbox",
+        "target": "解锁史诗保险箱"
+      },
+      {
+        "source": "Unlock Epic Lockbox (Instant)",
+        "target": "解锁史诗保险箱（立刻）"
+      },
+      {
+        "source": "Unlock Legendary Lockbox",
+        "target": "解锁传奇保险箱"
+      },
+      {
+        "source": "Unlock Legendary Lockbox (Instant)",
+        "target": "解锁传奇保险箱 (立刻)"
+      },
+      {
+        "source": "Unlock Rare Lockbox",
+        "target": "解锁稀有保险箱"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Lockbox (Instant)",
+    "tgt_pattern": "解锁{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Epic Lockbox (Instant)",
+        "target": "解锁史诗保险箱（立刻）"
+      },
+      {
+        "source": "Unlock Legendary Lockbox (Instant)",
+        "target": "解锁传奇保险箱 (立刻)"
+      },
+      {
+        "source": "Unlock Rare Lockbox (Instant)",
+        "target": "解锁稀有保险箱（立刻）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X}",
+    "tgt_pattern": "XCOM{X}",
+    "approved_count": 28,
+    "examples": [
+      {
+        "source": "XCOM DESIGNATION",
+        "target": "XCOM 代号"
+      },
+      {
+        "source": "XCOM LMGs",
+        "target": "XCOM轻机枪"
+      },
+      {
+        "source": "XCOM LMGs (T2)",
+        "target": "XCOM轻机枪 (T2)"
+      },
+      {
+        "source": "XCOM LMGs (T3)",
+        "target": "XCOM轻机枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Cannons",
+        "target": "XCOM磁力加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Magnetic {X}",
+    "tgt_pattern": "XCOM磁力{X}",
+    "approved_count": 12,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Cannons",
+        "target": "XCOM磁力加农炮"
+      },
+      {
+        "source": "XCOM Magnetic Cannons (T2)",
+        "target": "XCOM磁力加农炮 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Cannons (T3)",
+        "target": "XCOM磁力加农炮 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Pistols",
+        "target": "XCOM磁力手枪"
+      },
+      {
+        "source": "XCOM Magnetic Pistols (T2)",
+        "target": "XCOM磁力手枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Magnetic {X} (T2)",
+    "tgt_pattern": "XCOM磁力{X} (T2)",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Cannons (T2)",
+        "target": "XCOM磁力加农炮 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Pistols (T2)",
+        "target": "XCOM磁力手枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Shotguns (T2)",
+        "target": "XCOM磁力霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T2)",
+        "target": "XCOM磁力狙击步枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Magnetic {X} (T3)",
+    "tgt_pattern": "XCOM磁力{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Cannons (T3)",
+        "target": "XCOM磁力加农炮 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Pistols (T3)",
+        "target": "XCOM磁力手枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Shotguns (T3)",
+        "target": "XCOM磁力霰弹枪（T3）"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T3)",
+        "target": "XCOM磁力狙击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Magnetic Sniper {X}",
+    "tgt_pattern": "XCOM磁力狙击步枪{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Sniper Rifles",
+        "target": "XCOM磁力狙击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T2)",
+        "target": "XCOM磁力狙击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifles (T3)",
+        "target": "XCOM磁力狙击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pistols (T2)",
+    "tgt_pattern": "XCOM{X}手枪 (T2)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Pistols (T2)",
+        "target": "XCOM磁力手枪 (T2)"
+      },
+      {
+        "source": "XCOM Pistols (T2)",
+        "target": "XCOM手枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Pistols (T2)",
+        "target": "XCOM电浆手枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pistols (T3)",
+    "tgt_pattern": "XCOM{X}手枪 (T3)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Pistols (T3)",
+        "target": "XCOM磁力手枪 (T3)"
+      },
+      {
+        "source": "XCOM Pistols (T3)",
+        "target": "XCOM手枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Pistols (T3)",
+        "target": "XCOM电浆手枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Plasma {X} (T2)",
+    "tgt_pattern": "XCOM电浆{X} (T2)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Plasma Assault Rifle (T2)",
+        "target": "XCOM电浆突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Cannons (T2)",
+        "target": "XCOM电浆加农炮 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Pistols (T2)",
+        "target": "XCOM电浆手枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} (Unused)",
+    "tgt_pattern": "{X}（未使用）",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Grenadier (Unused)",
+        "target": "榴弹兵（未使用）"
+      },
+      {
+        "source": "Ranger (Unused)",
+        "target": "游侠（未使用）"
+      },
+      {
+        "source": "Specialist (Unused)",
+        "target": "专家（未使用）"
+      },
+      {
+        "source": "Sharpshooter (Unused)",
+        "target": "神枪手（未使用）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "SPARK: {X}",
+    "tgt_pattern": "SPARK{X}",
+    "approved_count": 8,
+    "examples": [
+      {
+        "source": "SPARK: Agent",
+        "target": "SPARK：特工"
+      },
+      {
+        "source": "SPARK: Artillery",
+        "target": "SPARK：火炮特化型"
+      },
+      {
+        "source": "SPARK: Captain",
+        "target": "SPARK：上尉"
+      },
+      {
+        "source": "SPARK: Defender",
+        "target": "SPARK：守卫"
+      },
+      {
+        "source": "SPARK: Fighter",
+        "target": "SPARK：战士"
       }
     ]
   }

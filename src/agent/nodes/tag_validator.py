@@ -57,7 +57,6 @@ async def tag_validator(
     ]
     responses = await llm.abatch(
         inputs=inputs,
-        config={"max_concurrency": 10},
     )
     fixed_count = 0
     for response, (c, _, _) in zip(responses, to_validate, strict=True):

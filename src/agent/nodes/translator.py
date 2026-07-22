@@ -55,7 +55,7 @@ async def translator(
         _build_translate_input(u, state.context_results[u.id])
         for u in state.to_translate
     ]
-    responses = await agent.abatch(inputs, config={"max_concurrency": 10})
+    responses = await agent.abatch(inputs)
 
     candidates = []
     for u, r in zip(state.to_translate, responses, strict=True):
