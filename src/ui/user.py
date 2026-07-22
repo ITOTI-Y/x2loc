@@ -8,6 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from src.agent.config import load_config
 from src.agent.tools import validate_tags
 from src.models.agent import (
     ReviewDecisionSchema,
@@ -15,7 +16,9 @@ from src.models.agent import (
     TranslationUnitSchema,
 )
 
-_SCORE_GOOD: Final = 95
+config = load_config()
+
+_SCORE_GOOD: Final = config.auto_approve_threshold
 _SCORE_WARN: Final = 80
 _CONSOLE: Final = Console()
 
