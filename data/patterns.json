@@ -17017,24 +17017,28 @@
   },
   {
     "src_pattern": "Chryssalid {X} Corpses",
-    "tgt_pattern": "变种人{X}尸体",
-    "approved_count": 4,
+    "tgt_pattern": "寄生兽{X}尸体",
+    "approved_count": 6,
     "examples": [
       {
-        "source": "Chryssalid Brood Mother Corpses",
-        "target": "变种人寄生兽母体尸体"
+        "source": "Chryssalid Hive Drone Corpses",
+        "target": "寄生兽蜂巢无人机尸体"
       },
       {
-        "source": "Chryssalid Chameleon Corpses",
-        "target": "变种人变色龙寄生兽尸体"
+        "source": "Chryssalid Hive Guard Corpses",
+        "target": "寄生兽蜂巢守卫尸体"
       },
       {
-        "source": "Chryssalid Infector Corpses",
-        "target": "变种人寄生兽感染者尸体"
+        "source": "Chryssalid Hive Queen Corpses",
+        "target": "寄生兽蜂后尸体"
       },
       {
-        "source": "Chryssalid Ripper Corpses",
-        "target": "变种人寄生兽撕裂者尸体"
+        "source": "Chryssalid Hive Warrior Corpses",
+        "target": "寄生兽蜂巢战士尸体"
+      },
+      {
+        "source": "Chryssalid Juvenile Queen Corpses",
+        "target": "寄生兽女王幼体尸体"
       }
     ]
   },
@@ -26148,6 +26152,79 @@
       {
         "source": "West Africa",
         "target": "西非"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Advanced {X}",
+    "tgt_pattern": "高级{X}",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "Advanced Crossguard Taptic Modules",
+        "target": "高级十字护手触感模块"
+      },
+      {
+        "source": "Advanced Heavy Barrels",
+        "target": "高级重型枪管"
+      },
+      {
+        "source": "Advanced Loaded Springs",
+        "target": "高级装填弹簧"
+      },
+      {
+        "source": "Advanced Munitions Mounts",
+        "target": "高级弹药挂架"
+      },
+      {
+        "source": "Advanced Reflex Stocks",
+        "target": "高级条件反射枪托"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen {X}",
+    "tgt_pattern": "天选者{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Chosen Apex SMG",
+        "target": "天选者顶级冲锋枪"
+      },
+      {
+        "source": "Chosen Documents",
+        "target": "天选者文件"
+      },
+      {
+        "source": "Chosen Giga SMG",
+        "target": "天选者吉加冲锋枪"
+      },
+      {
+        "source": "Chosen Haven Attack",
+        "target": "天选者袭击避难所"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chryssalid Hive {X} Corpses",
+    "tgt_pattern": "寄生兽蜂{X}尸体",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Chryssalid Hive Drone Corpses",
+        "target": "寄生兽蜂巢无人机尸体"
+      },
+      {
+        "source": "Chryssalid Hive Guard Corpses",
+        "target": "寄生兽蜂巢守卫尸体"
+      },
+      {
+        "source": "Chryssalid Hive Queen Corpses",
+        "target": "寄生兽蜂后尸体"
+      },
+      {
+        "source": "Chryssalid Hive Warrior Corpses",
+        "target": "寄生兽蜂巢战士尸体"
       }
     ]
   }

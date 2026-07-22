@@ -29,25 +29,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Run Agent",
+            "name": "Test Agent",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.cli.app",
-            "args": [
-                "agent",
-                "run",
-                "--config",
-                "configs/weblate.local.toml",
-                "--batch-size",
-                "10"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Test Uploader",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "tests.agent.debug_uploader",
+            "module": "tests.agent.test_agent",
             "console": "integratedTerminal"
         },
     ]

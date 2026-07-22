@@ -261,7 +261,7 @@ def prompt_user_review(
         )
         return decisions
 
-    _CONSOLE.print(_render_overview(manual_scores))
+    _CONSOLE.print(_render_overview(scores))
 
     batch_action: Literal["approve", "skip"] | None = None
 

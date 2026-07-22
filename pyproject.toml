@@ -25,6 +25,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "grandalf>=0.8",
+    "joblib>=1.5.3",
     "pytest>=9.0.2",
     "respx>=0.23.1",
     "ruff>=0.15.9",

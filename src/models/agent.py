@@ -63,12 +63,12 @@ class ScoreResultSchema(BaseSchema):
         default_factory=list,
         description="The deductions for the score, if no deduction is needed, return an empty list",
     )
-    suggested_translation: str | None = Field(
-        None,
+    suggested_translation: str = Field(
+        "",
         description="The suggested translation if the score is less than the threshold, must reply in target language, if no suggested translation is needed, return null",
     )
-    notes: str | None = Field(
-        None, description="The notes for the score if not needed, return null"
+    notes: str = Field(
+        "", description="The notes for the score if not needed, return null"
     )
 
 
@@ -85,7 +85,7 @@ class TranslationUnitSchema(BaseSchema):
     tag_valid: bool
     original_unit: WeblateUnitSchema
     patterns: list[PatternSchema]
-    suggested_translation: str | None = None
+    suggested_translation: str = ""
     score_result: ScoreResultSchema | None = None
 
 

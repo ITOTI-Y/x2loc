@@ -52,7 +52,7 @@ async def scorer(
                         "score_result": ScoreResultSchema(
                             score=0,
                             deductions=[],
-                            suggested_translation=None,
+                            suggested_translation="",
                             notes="tag-not-valid",
                         )
                     }
@@ -82,10 +82,10 @@ async def scorer(
                                 "score_result": ScoreResultSchema(
                                     score=0,
                                     deductions=[],
-                                    suggested_translation=None,
+                                    suggested_translation="",
                                     notes="no-score-result",
                                 ),
-                                "suggested_translation": None,
+                                "suggested_translation": "",
                             }
                         )
                     )

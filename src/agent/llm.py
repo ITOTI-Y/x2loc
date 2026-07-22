@@ -44,12 +44,12 @@ class ScoreOutputSchema(BaseSchema):
         description="The deductions resulting from the scoring, must reply in target language, if no deduction is needed, return an empty list",
         default_factory=list,
     )
-    suggested_translation: str | None = Field(
-        None,
+    suggested_translation: str = Field(
+        "",
         description=_SUGGESTED_TRANSLATION_DESC.format(threshold="the threshold"),
     )
-    notes: str | None = Field(
-        None,
+    notes: str = Field(
+        "",
         description="The notes for the scoring, must reply in target language, if no notes are needed, return null",
     )
 
