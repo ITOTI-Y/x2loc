@@ -12748,46 +12748,54 @@
   {
     "src_pattern": "{X} Corpse</font>",
     "tgt_pattern": "<font color='#{X}尸体</font>",
-    "approved_count": 23,
+    "approved_count": 41,
     "examples": [
       {
-        "source": "<font color='#13B0E1'>Viper King Corpse</font>",
-        "target": "<font color='#13B0E1'>毒蛇之王尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Barrier Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化屏障兵尸体</font>"
       },
       {
-        "source": "<font color='#53B45E'>Berserker Queen Corpse</font>",
-        "target": "<font color='#53B45E'>狂战士女皇尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio General Corpse</font>",
+        "target": "<font color='#69CA24'>解构变种人生化将军尸体</font>"
       },
       {
-        "source": "<font color='#53B45E'>The Lost Corpse</font>",
-        "target": "<font color='#53B45E'>失魂者尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Rocket Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提取变种人生化火箭兵尸体</font>"
       },
       {
-        "source": "<font color='#69CA24'>ADVENT Bio Barrier Trooper Corpse</font>",
-        "target": "<font color='#69CA24'>变种人生化屏障兵尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化兵尸体</font>"
       },
       {
-        "source": "<font color='#69CA24'>ADVENT Bio General Corpse</font>",
-        "target": "<font color='#69CA24'>变种人生化将军尸体</font>"
+        "source": "<font color='#69CA24'>Render Bio Faceless Corpse</font>",
+        "target": "<font color='#69CA24'>提取生化无面怪尸体</font>"
       }
     ]
   },
   {
     "src_pattern": "{X} Trooper Corpse</font>",
     "tgt_pattern": "<font color='#{X}兵尸体</font>",
-    "approved_count": 3,
+    "approved_count": 9,
     "examples": [
       {
-        "source": "<font color='#69CA24'>ADVENT Bio Barrier Trooper Corpse</font>",
-        "target": "<font color='#69CA24'>变种人生化屏障兵尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Barrier Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化屏障兵尸体</font>"
       },
       {
-        "source": "<font color='#69CA24'>ADVENT Bio Trooper Corpse</font>",
-        "target": "<font color='#69CA24'>变种人生化兵尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Rocket Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提取变种人生化火箭兵尸体</font>"
       },
       {
-        "source": "<font color='#C14D0F'>ADVENT Trooper Corpse</font>",
-        "target": "<font color='#C14D0F'>变种人士兵尸体</font>"
+        "source": "<font color='#69CA24'>Render ADVENT Bio Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化兵尸体</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>Render ADVENT Bio Assault Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化突击兵尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Bio Barrier Trooper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼生化屏障士兵尸体</font>"
       }
     ]
   },
@@ -20277,55 +20285,55 @@
   },
   {
     "src_pattern": "Render {X} Corpse",
-    "tgt_pattern": "炼化{X}尸体",
-    "approved_count": 16,
+    "tgt_pattern": "{X}尸体",
+    "approved_count": 21,
     "examples": [
       {
-        "source": "Render ADVENT Officer Corpse",
-        "target": "炼化变种人军官尸体"
+        "source": "Render ADVENT Advanced Assault Trooper Corpse",
+        "target": "提炼变种人高级突击兵尸体"
       },
       {
-        "source": "Render ADVENT Priest Corpse",
-        "target": "炼化变种人祭司尸体"
+        "source": "Render ADVENT Assault Trooper Corpse",
+        "target": "炼化变种人突击兵尸体"
       },
       {
-        "source": "Render ADVENT Purifier Corpse",
-        "target": "炼化变种人净化者尸体"
+        "source": "Render ADVENT Cryo Priest Corpse",
+        "target": "炼化变种人冷冻祭司尸体"
       },
       {
-        "source": "Render ADVENT Shieldbearer Corpse",
-        "target": "炼化变种人持盾者尸体"
+        "source": "Render ADVENT Cryo Rocketeer Corpse",
+        "target": "炼化变种人冷冻火箭兵尸体"
       },
       {
-        "source": "Render ADVENT Stun Lancer Corpse",
-        "target": "炼化变种人强袭枪兵尸体"
+        "source": "Render ADVENT Duelist Corpse",
+        "target": "炼化变种人决斗者尸体"
       }
     ]
   },
   {
     "src_pattern": "Render ADVENT {X} Corpse",
-    "tgt_pattern": "炼化变种人{X}尸体",
-    "approved_count": 6,
+    "tgt_pattern": "{X}尸体",
+    "approved_count": 13,
     "examples": [
       {
-        "source": "Render ADVENT Officer Corpse",
-        "target": "炼化变种人军官尸体"
+        "source": "Render ADVENT Advanced Assault Trooper Corpse",
+        "target": "提炼变种人高级突击兵尸体"
       },
       {
-        "source": "Render ADVENT Priest Corpse",
-        "target": "炼化变种人祭司尸体"
+        "source": "Render ADVENT Assault Trooper Corpse",
+        "target": "炼化变种人突击兵尸体"
       },
       {
-        "source": "Render ADVENT Purifier Corpse",
-        "target": "炼化变种人净化者尸体"
+        "source": "Render ADVENT Cryo Priest Corpse",
+        "target": "炼化变种人冷冻祭司尸体"
       },
       {
-        "source": "Render ADVENT Shieldbearer Corpse",
-        "target": "炼化变种人持盾者尸体"
+        "source": "Render ADVENT Cryo Rocketeer Corpse",
+        "target": "炼化变种人冷冻火箭兵尸体"
       },
       {
-        "source": "Render ADVENT Stun Lancer Corpse",
-        "target": "炼化变种人强袭枪兵尸体"
+        "source": "Render ADVENT Duelist Corpse",
+        "target": "炼化变种人决斗者尸体"
       }
     ]
   },
@@ -20351,19 +20359,23 @@
   {
     "src_pattern": "ADVENT {X} Rifle",
     "tgt_pattern": "变种人{X}步枪",
-    "approved_count": 3,
+    "approved_count": 4,
     "examples": [
       {
-        "source": "ADVENT Custodian Rifle",
-        "target": "变种人护卫步枪"
+        "source": "ADVENT Battle Rifle",
+        "target": "变种人战斗步枪"
       },
       {
-        "source": "ADVENT Mag Rifle",
-        "target": "变种人磁力步枪"
+        "source": "ADVENT Plasma Rifle",
+        "target": "变种人电浆步枪"
       },
       {
-        "source": "ADVENT Mag Sniper Rifle",
-        "target": "变种人磁能狙击步枪"
+        "source": "ADVENT Plasma Sniper Rifle",
+        "target": "变种人电浆狙击步枪"
+      },
+      {
+        "source": "ADVENT Sonic Rifle",
+        "target": "变种人音波步枪"
       }
     ]
   },
@@ -26661,19 +26673,27 @@
   {
     "src_pattern": "{X} Rifle",
     "tgt_pattern": "{X}步枪",
-    "approved_count": 3,
+    "approved_count": 10,
     "examples": [
       {
-        "source": "Kala'Mal Suppressor Rifle",
-        "target": "卡拉马尔消音步枪"
+        "source": "ADVENT Battle Rifle",
+        "target": "变种人战斗步枪"
       },
       {
-        "source": "Taz'Kor Assault Rifle",
-        "target": "塔兹科突击步枪"
+        "source": "ADVENT Plasma Rifle",
+        "target": "变种人电浆步枪"
       },
       {
-        "source": "Tesla Rifle",
-        "target": "特斯拉步枪"
+        "source": "ADVENT Plasma Sniper Rifle",
+        "target": "变种人电浆狙击步枪"
+      },
+      {
+        "source": "ADVENT Sonic Rifle",
+        "target": "变种人音波步枪"
+      },
+      {
+        "source": "Advent Breaker Rifle",
+        "target": "变种人粉碎者步枪"
       }
     ]
   },
@@ -26778,28 +26798,28 @@
   },
   {
     "src_pattern": "Unlock {X}",
-    "tgt_pattern": "解锁{X}",
-    "approved_count": 6,
+    "tgt_pattern": "解锁{X}）",
+    "approved_count": 12,
     "examples": [
       {
-        "source": "Unlock Epic Lockbox",
-        "target": "解锁史诗保险箱"
+        "source": "Unlock Advent Weapon Crate (exotic)",
+        "target": "解锁变种人武器箱（异域）"
       },
       {
-        "source": "Unlock Epic Lockbox (Instant)",
-        "target": "解锁史诗保险箱（立刻）"
+        "source": "Unlock Advent Weapon Crate (exotic, free)",
+        "target": "解锁变种人武器箱（异域，免费）"
       },
       {
-        "source": "Unlock Legendary Lockbox",
-        "target": "解锁传奇保险箱"
+        "source": "Unlock Advent Weapon Crate (standard)",
+        "target": "解锁变种人武器箱（标准）"
       },
       {
-        "source": "Unlock Legendary Lockbox (Instant)",
-        "target": "解锁传奇保险箱 (立刻)"
+        "source": "Unlock Advent Weapon Crate (standard, free)",
+        "target": "解锁变种人武器箱（标准，免费）"
       },
       {
-        "source": "Unlock Rare Lockbox",
-        "target": "解锁稀有保险箱"
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic)",
+        "target": "解锁强化变种人武器箱（异域）"
       }
     ]
   },
@@ -27045,6 +27065,1001 @@
       {
         "source": "SPARK: Fighter",
         "target": "SPARK：战士"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Autopsy</font>",
+    "tgt_pattern": "<font color='#{X}</font>",
+    "approved_count": 35,
+    "examples": [
+      {
+        "source": "<font color='#13B0E1'>Viper King Autopsy</font>",
+        "target": "<font color='#13B0E1'>毒蛇之王解剖</font>"
+      },
+      {
+        "source": "<font color='#53B45E'>Berserker Queen Autopsy</font>",
+        "target": "<font color='#53B45E'>解剖狂战士女皇</font>"
+      },
+      {
+        "source": "<font color='#53B45E'>The Lost Autopsy</font>",
+        "target": "<font color='#53B45E'>解剖失魂者</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio Barrier Trooper Autopsy</font>",
+        "target": "<font color='#69CA24'>解剖变种人生化屏障兵</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio Officer Autopsy</font>",
+        "target": "<font color='#69CA24'>解剖变种人生化军官</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Trooper Autopsy</font>",
+    "tgt_pattern": "<font color='#{X}兵</font>",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio Barrier Trooper Autopsy</font>",
+        "target": "<font color='#69CA24'>解剖变种人生化屏障兵</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio Trooper Autopsy</font>",
+        "target": "<font color='#69CA24'>解剖变种人生化兵</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>ADVENT Bio Barrier Trooper Autopsy</font>",
+        "target": "<font color='#90EE90'>解剖变种人生化屏障兵</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>ADVENT Bio Trooper Autopsy</font>",
+        "target": "<font color='#90EE90'>解剖变种人生化士兵</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT Trooper Autopsy</font>",
+        "target": "<font color='#C14D0F'>解剖变种人士兵</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Breakdown</font>",
+    "tgt_pattern": "<font color='#{X}破解</font>",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio MEC Breakdown</font>",
+        "target": "<font color='#69CA24'>变种人生化MEC破解</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>Bio MEC Breakdown</font>",
+        "target": "<font color='#90EE90'>生化MEC破解</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT MEC Breakdown</font>",
+        "target": "<font color='#C14D0F'>变种人MEC破解</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT Turret Breakdown</font>",
+        "target": "<font color='#C14D0F'>变种人炮塔破解</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>Sectopod Breakdown</font>",
+        "target": "<font color='#C14D0F'>破坏者破解</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} MEC Breakdown</font>",
+    "tgt_pattern": "<font color='#{X}MEC破解</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio MEC Breakdown</font>",
+        "target": "<font color='#69CA24'>变种人生化MEC破解</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>Bio MEC Breakdown</font>",
+        "target": "<font color='#90EE90'>生化MEC破解</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT MEC Breakdown</font>",
+        "target": "<font color='#C14D0F'>变种人MEC破解</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Officer Autopsy</font>",
+    "tgt_pattern": "<font color='#{X}军官</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>ADVENT Bio Officer Autopsy</font>",
+        "target": "<font color='#69CA24'>解剖变种人生化军官</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>Bio Officer Autopsy</font>",
+        "target": "<font color='#90EE90'>解剖生化军官</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT Officer Autopsy</font>",
+        "target": "<font color='#C14D0F'>解剖变种人军官</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Priest Autopsy</font>",
+    "tgt_pattern": "<font color='#{X}祭司</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#90EE90'>Cryo Priest Autopsy</font>",
+        "target": "<font color='#90EE90'>解剖冷冻祭司</font>"
+      },
+      {
+        "source": "<font color='#90EE90'>Purge Priest Autopsy</font>",
+        "target": "<font color='#90EE90'>解剖变种人净化祭司</font>"
+      },
+      {
+        "source": "<font color='#C14D0F'>ADVENT Priest Autopsy</font>",
+        "target": "<font color='#C14D0F'>解剖变种人祭司</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Viper Corpse</font>",
+    "tgt_pattern": "<font color='#{X}毒蛇怪尸体</font>",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>Render Bio Viper Corpse</font>",
+        "target": "<font color='#69CA24'>提取生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>Render Elite Bio Viper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼精英生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Bio Viper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Flame Viper Corpse</font>",
+        "target": "<font color='#E1C20D'>分解烈焰毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Elite Bio Viper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼精英生化毒蛇怪尸体</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bio Viper Corpse</font>",
+    "tgt_pattern": "<font color='#{X}生化毒蛇怪尸体</font>",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>Render Bio Viper Corpse</font>",
+        "target": "<font color='#69CA24'>提取生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>Render Elite Bio Viper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼精英生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Bio Viper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼生化毒蛇怪尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Elite Bio Viper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼精英生化毒蛇怪尸体</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Assault Trooper Corpse</font>",
+    "tgt_pattern": "<font color='#{X}突击兵尸体</font>",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<font color='#69CA24'>Render ADVENT Bio Assault Trooper Corpse</font>",
+        "target": "<font color='#69CA24'>提炼变种人生化突击兵尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Elite Assault Trooper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼精英变种人突击兵尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Advanced Assault Trooper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼高级变种人突击兵尸体</font>"
+      },
+      {
+        "source": "<font color='#E1C20D'>Render Assault Trooper Corpse</font>",
+        "target": "<font color='#E1C20D'>提炼变种人突击兵尸体</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Armor",
+    "tgt_pattern": "{X}护甲",
+    "approved_count": 10,
+    "examples": [
+      {
+        "source": "ADVENT Exalted Custodian Powered Armor",
+        "target": "变种人崇高护卫动力护甲"
+      },
+      {
+        "source": "Assault Powered Armor",
+        "target": "突击动力护甲"
+      },
+      {
+        "source": "Reinforced Conventional Armor",
+        "target": "强化传统护甲"
+      },
+      {
+        "source": "Reinforced Medium Armor",
+        "target": "强化中型护甲"
+      },
+      {
+        "source": "Reinforced Plated Armor",
+        "target": "强化镀层护甲"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen's Superheavy Weapon Manufacturing: {X}",
+    "tgt_pattern": "天选者超重型武器制造：{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Chosen's Superheavy Weapon Manufacturing: Autocannon",
+        "target": "天选者超重型武器制造：自动加农炮"
+      },
+      {
+        "source": "Chosen's Superheavy Weapon Manufacturing: Heavycannon",
+        "target": "天选者超重型武器制造：重型加农炮"
+      },
+      {
+        "source": "Chosen's Superheavy Weapon Manufacturing: Kinetic Strike Module",
+        "target": "天选者超重型武器制造：动能打击模组"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chryssalid Hive {X} Autopsy",
+    "tgt_pattern": "寄生兽蜂{X}解剖",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Chryssalid Hive Drone Autopsy",
+        "target": "寄生兽蜂巢无人机解剖"
+      },
+      {
+        "source": "Chryssalid Hive Guard Autopsy",
+        "target": "寄生兽蜂巢守卫解剖"
+      },
+      {
+        "source": "Chryssalid Hive Queen Autopsy",
+        "target": "寄生兽蜂后解剖"
+      },
+      {
+        "source": "Chryssalid Hive Warrior Autopsy",
+        "target": "寄生兽蜂巢战士解剖"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Disassemble {X}",
+    "tgt_pattern": "拆解{X}",
+    "approved_count": 7,
+    "examples": [
+      {
+        "source": "Disassemble ADVENT Assault MEC Wreck",
+        "target": "拆解变种人突击MEC残骸"
+      },
+      {
+        "source": "Disassemble ADVENT Pathfinder Disabled Scanner",
+        "target": "拆解变种人开拓者已停用扫描器"
+      },
+      {
+        "source": "Disassemble ADVENT Pathfinder Salvaged Stun Mine",
+        "target": "拆解变种人开拓者回收的眩晕地雷"
+      },
+      {
+        "source": "Disassemble Alien Black Flame Grenade Remains",
+        "target": "拆解外星黑焰榴弹残骸"
+      },
+      {
+        "source": "Disassemble Exalted ADVENT Locked Scanner",
+        "target": "拆解变种人崇高加锁扫描仪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Disassemble ADVENT {X}",
+    "tgt_pattern": "拆解变种人{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Disassemble ADVENT Assault MEC Wreck",
+        "target": "拆解变种人突击MEC残骸"
+      },
+      {
+        "source": "Disassemble ADVENT Pathfinder Disabled Scanner",
+        "target": "拆解变种人开拓者已停用扫描器"
+      },
+      {
+        "source": "Disassemble ADVENT Pathfinder Salvaged Stun Mine",
+        "target": "拆解变种人开拓者回收的眩晕地雷"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Expand Repair Bay {X}",
+    "tgt_pattern": "扩建维修舱 I{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Expand Repair Bay I",
+        "target": "扩建维修舱 I"
+      },
+      {
+        "source": "Expand Repair Bay II",
+        "target": "扩建维修舱 II"
+      },
+      {
+        "source": "Expand Repair Bay III",
+        "target": "扩建维修舱 III"
+      },
+      {
+        "source": "Expand Repair Bay IV",
+        "target": "扩建维修舱 IV"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Forge {X} Chemthrower Upgrade",
+    "tgt_pattern": "{X}化学喷射器升级",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Forge Superior Chemthrower Upgrade",
+        "target": "锻造终极化学喷射器升级"
+      },
+      {
+        "source": "Forge Advanced Chemthrower Upgrade",
+        "target": "制造高级化学喷射器升级"
+      },
+      {
+        "source": "Forge Basic Chemthrower Upgrade",
+        "target": "制造基础化学喷射器升级"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Tech",
+    "tgt_pattern": "蜂{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Hive Armor Tech",
+        "target": "蜂巢护甲科技"
+      },
+      {
+        "source": "Hive Cannon Tech",
+        "target": "蜂巢加农炮技术"
+      },
+      {
+        "source": "Hive Gauntlet Tech",
+        "target": "蜂巢臂套科技"
+      },
+      {
+        "source": "Hive Wing Tech",
+        "target": "蜂翼科技"
+      },
+      {
+        "source": "PCS Hive Drone Tech",
+        "target": "蜂巢无人机个人战斗芯片技术"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Hive {X} Tech",
+    "tgt_pattern": "蜂{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Hive Armor Tech",
+        "target": "蜂巢护甲科技"
+      },
+      {
+        "source": "Hive Cannon Tech",
+        "target": "蜂巢加农炮技术"
+      },
+      {
+        "source": "Hive Gauntlet Tech",
+        "target": "蜂巢臂套科技"
+      },
+      {
+        "source": "Hive Wing Tech",
+        "target": "蜂翼科技"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Joint Manufacturing: Chosen's {X} Weapons",
+    "tgt_pattern": "联合制造：天选者{X}武器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Joint Manufacturing: Chosen's Reaper Weapons",
+        "target": "联合制造：天选者死神武器"
+      },
+      {
+        "source": "Joint Manufacturing: Chosen's Skirmisher Weapons",
+        "target": "联合制造：天选者散兵武器"
+      },
+      {
+        "source": "Joint Manufacturing: Chosen's Templar Weapons",
+        "target": "联合制造：天选者圣殿骑士武器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Research",
+    "tgt_pattern": "{X}研究",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#FF9900'>[20]</font> Engineering Research",
+        "target": "<font color='#FF9900'>[20]</font> 工程研究"
+      },
+      {
+        "source": "Alien Black Flame Grenade Research",
+        "target": "外星黑焰榴弹研究"
+      },
+      {
+        "source": "SPARK Flamethrower Research",
+        "target": "SPARK火焰喷射器研究"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Powered Armor",
+    "tgt_pattern": "{X}动力护甲",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Exalted Custodian Powered Armor",
+        "target": "变种人崇高护卫动力护甲"
+      },
+      {
+        "source": "Assault Powered Armor",
+        "target": "突击动力护甲"
+      },
+      {
+        "source": "Reinforced Powered Armor",
+        "target": "加强型动力护甲"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Reinforced {X} Armor",
+    "tgt_pattern": "{X}护甲",
+    "approved_count": 8,
+    "examples": [
+      {
+        "source": "Reinforced Conventional Armor",
+        "target": "强化传统护甲"
+      },
+      {
+        "source": "Reinforced Medium Armor",
+        "target": "强化中型护甲"
+      },
+      {
+        "source": "Reinforced Plated Armor",
+        "target": "强化镀层护甲"
+      },
+      {
+        "source": "Reinforced Powered Armor",
+        "target": "加强型动力护甲"
+      },
+      {
+        "source": "Reinforced Reaper Armor",
+        "target": "强化死神护甲"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Render ADVENT {X} Trooper Corpse",
+    "tgt_pattern": "{X}突击兵尸体",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Render ADVENT Advanced Assault Trooper Corpse",
+        "target": "提炼变种人高级突击兵尸体"
+      },
+      {
+        "source": "Render ADVENT Assault Trooper Corpse",
+        "target": "炼化变种人突击兵尸体"
+      },
+      {
+        "source": "Render ADVENT Elite Assault Trooper Corpse",
+        "target": "提炼变种人精英突击兵尸体"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Render Custodian {X}",
+    "tgt_pattern": "{X}尸体",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Render Custodian Corpse",
+        "target": "炼化变种人护卫尸体"
+      },
+      {
+        "source": "Render Custodian MK2 Corpse",
+        "target": "炼化变种人护卫 MK2 尸体"
+      },
+      {
+        "source": "Render Custodian Master Corpse",
+        "target": "分解变种人护卫大师尸体"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock Advent Weapon Crate {X}",
+    "tgt_pattern": "解锁变种人武器箱（{X}）",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (exotic)",
+        "target": "解锁变种人武器箱（异域）"
+      },
+      {
+        "source": "Unlock Advent Weapon Crate (exotic, free)",
+        "target": "解锁变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Advent Weapon Crate (standard)",
+        "target": "解锁变种人武器箱（标准）"
+      },
+      {
+        "source": "Unlock Advent Weapon Crate (standard, free)",
+        "target": "解锁变种人武器箱（标准，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Weapon Crate (exotic)",
+    "tgt_pattern": "解锁{X}变种人武器箱（异域）",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (exotic)",
+        "target": "解锁变种人武器箱（异域）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic)",
+        "target": "解锁强化变种人武器箱（异域）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (exotic)",
+        "target": "解锁大师级变种人武器箱（异域）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} free)",
+    "tgt_pattern": "解锁{X}，免费）",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (exotic, free)",
+        "target": "解锁变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Advent Weapon Crate (standard, free)",
+        "target": "解锁变种人武器箱（标准，免费）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic, free)",
+        "target": "解锁强化变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (standard, free)",
+        "target": "解锁强化变种人武器箱（标准，免费）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (exotic, free)",
+        "target": "解锁大师级变种人武器箱（异域，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Weapon Crate (exotic, free)",
+    "tgt_pattern": "解锁{X}变种人武器箱（异域，免费）",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (exotic, free)",
+        "target": "解锁变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic, free)",
+        "target": "解锁强化变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (exotic, free)",
+        "target": "解锁大师级变种人武器箱（异域，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Weapon Crate (standard)",
+    "tgt_pattern": "解锁{X}变种人武器箱（标准）",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (standard)",
+        "target": "解锁变种人武器箱（标准）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (standard)",
+        "target": "解锁强化变种人武器箱（标准）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (standard)",
+        "target": "解锁大师级变种人武器箱（标准）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock {X} Weapon Crate (standard, free)",
+    "tgt_pattern": "解锁{X}变种人武器箱（标准，免费）",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Unlock Advent Weapon Crate (standard, free)",
+        "target": "解锁变种人武器箱（标准，免费）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (standard, free)",
+        "target": "解锁强化变种人武器箱（标准，免费）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (standard, free)",
+        "target": "解锁大师级变种人武器箱（标准，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock Enhanced Advent Weapon Crate {X}",
+    "tgt_pattern": "解锁强化变种人武器箱（{X}）",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic)",
+        "target": "解锁强化变种人武器箱（异域）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (exotic, free)",
+        "target": "解锁强化变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (standard)",
+        "target": "解锁强化变种人武器箱（标准）"
+      },
+      {
+        "source": "Unlock Enhanced Advent Weapon Crate (standard, free)",
+        "target": "解锁强化变种人武器箱（标准，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Unlock Master-Crafted Advent Weapon Crate {X}",
+    "tgt_pattern": "解锁大师级变种人武器箱（{X}）",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (exotic)",
+        "target": "解锁大师级变种人武器箱（异域）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (exotic, free)",
+        "target": "解锁大师级变种人武器箱（异域，免费）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (standard)",
+        "target": "解锁大师级变种人武器箱（标准）"
+      },
+      {
+        "source": "Unlock Master-Crafted Advent Weapon Crate (standard, free)",
+        "target": "解锁大师级变种人武器箱（标准，免费）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Launcher</font>",
+    "tgt_pattern": "<font color='#{X}发射器</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Kosma Launcher</font>",
+        "target": "<font color='#df07b7'>科斯玛发射器</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>Bio Blaster Launcher</font>",
+        "target": "<font color='#69CA24'>生物爆裂炮发射器</font>"
+      },
+      {
+        "source": "<font color='#69CA24'>Bio Rocket Launcher</font>",
+        "target": "<font color='#69CA24'>生物火箭发射器</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Cannon</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}加农炮</font>",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Bala'Dum Burst Cannon</font>",
+        "target": "<font color='#df07b7'>芭拉度姆连发加农炮</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Bala'Kal Area Dominance Cannon</font>",
+        "target": "<font color='#df07b7'>芭拉卡尔区域统治加农炮</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Bala'Kor Coring Cannon</font>",
+        "target": "<font color='#df07b7'>巴拉科尔核心加农炮</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Mor'Ded Cyclic Cannon</font>",
+        "target": "<font color='#df07b7'>莫戴德循环加农炮</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Syu'Quez Dominance Cannon</font>",
+        "target": "<font color='#df07b7'>Syu'Quez统治加农炮</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bolter</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}爆弹枪</font>",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Kor'Khazan Heavy Bolter</font>",
+        "target": "<font color='#df07b7'>科尔哈赞重型爆弹枪</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Mor'Khazan Stealth Bolter</font>",
+        "target": "<font color='#df07b7'>莫卡赞隐秘爆弹枪</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Tal'Khazan Superheavy Bolter</font>",
+        "target": "<font color='#df07b7'>塔尔卡赞超重型爆弹枪</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT {X} Shotgun",
+    "tgt_pattern": "变种人{X}霰弹枪",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "ADVENT Assault Captain Shotgun",
+        "target": "变种人突击队长霰弹枪"
+      },
+      {
+        "source": "ADVENT Assault Shotgun",
+        "target": "变种人突击霰弹枪"
+      },
+      {
+        "source": "ADVENT MEC Shotgun",
+        "target": "变种人MEC霰弹枪"
+      },
+      {
+        "source": "ADVENT Plasma Shotgun",
+        "target": "变种人电浆霰弹枪"
+      },
+      {
+        "source": "ADVENT Prototype MEC Shotgun",
+        "target": "变种人原型MEC霰弹枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT {X} Pistol",
+    "tgt_pattern": "变种人{X}手枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Beam Pistol",
+        "target": "变种人光束手枪"
+      },
+      {
+        "source": "ADVENT Gauss Pistol",
+        "target": "变种人高斯手枪"
+      },
+      {
+        "source": "ADVENT Magnetic Pistol",
+        "target": "变种人磁能手枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Launcher",
+    "tgt_pattern": "{X}发射器",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "ADVENT Assault Grenade Launcher",
+        "target": "变种人突击榴弹发射器"
+      },
+      {
+        "source": "ADVENT Mark 2 Custodian Flechette Launcher",
+        "target": "变种人护卫 Mark 2 飞镖弹发射器"
+      },
+      {
+        "source": "ADVENT Rocket Launcher",
+        "target": "变种人火箭发射器"
+      },
+      {
+        "source": "Adapted Shoulder Launcher",
+        "target": "改装型肩挂发射器"
+      },
+      {
+        "source": "Advent Acid Launcher",
+        "target": "变种人酸液发射器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT {X} Launcher",
+    "tgt_pattern": "变种人{X}发射器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Assault Grenade Launcher",
+        "target": "变种人突击榴弹发射器"
+      },
+      {
+        "source": "ADVENT Mark 2 Custodian Flechette Launcher",
+        "target": "变种人护卫 Mark 2 飞镖弹发射器"
+      },
+      {
+        "source": "ADVENT Rocket Launcher",
+        "target": "变种人火箭发射器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pistol",
+    "tgt_pattern": "变种人{X}手枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "ADVENT Beam Pistol",
+        "target": "变种人光束手枪"
+      },
+      {
+        "source": "ADVENT Gauss Pistol",
+        "target": "变种人高斯手枪"
+      },
+      {
+        "source": "ADVENT Magnetic Pistol",
+        "target": "变种人磁能手枪"
+      },
+      {
+        "source": "Advent Persuader Pistol",
+        "target": "变种人劝导者手枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Gatling Cannon",
+    "tgt_pattern": "{X}加特林加农炮",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Military Assault MEC Gatling Cannon",
+        "target": "变种人军事突击MEC加特林加农炮"
+      },
+      {
+        "source": "ADVENT Prototype Assault MEC Gatling Cannon",
+        "target": "变种人原型突击MEC加特林加农炮"
+      },
+      {
+        "source": "BSG-09 Gatling Cannon",
+        "target": "BSG-09 加特林加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "ADVENT {X} Cannon",
+    "tgt_pattern": "变种人{X}加农炮",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Military Assault MEC Gatling Cannon",
+        "target": "变种人军事突击MEC加特林加农炮"
+      },
+      {
+        "source": "ADVENT Prototype Assault MEC Gatling Cannon",
+        "target": "变种人原型突击MEC加特林加农炮"
+      },
+      {
+        "source": "ADVENT Sonic Cannon",
+        "target": "变种人音速加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} SMG",
+    "tgt_pattern": "{X}冲锋枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "ADVENT Suppressed SMG",
+        "target": "变种人消音冲锋枪"
+      },
+      {
+        "source": "Advent SMG",
+        "target": "变种人冲锋枪"
+      },
+      {
+        "source": "Bandit SMG",
+        "target": "强盗冲锋枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Advent {X} Rifle",
+    "tgt_pattern": "变种人{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advent Breaker Rifle",
+        "target": "变种人粉碎者步枪"
+      },
+      {
+        "source": "Advent Enforcer Rifle",
+        "target": "变种人执行者步枪"
+      },
+      {
+        "source": "Advent Scout Rifle",
+        "target": "变种人侦察步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Arashi {X}",
+    "tgt_pattern": "岚{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Arashi (Fixed SFX)",
+        "target": "岚（音效已修复）"
+      },
+      {
+        "source": "Arashi M1",
+        "target": "岚 M1"
+      },
+      {
+        "source": "Arashi M2",
+        "target": "岚 M2"
+      },
+      {
+        "source": "Arashi M3",
+        "target": "岚 M3"
+      },
+      {
+        "source": "Arashi M4",
+        "target": "岚 M4"
       }
     ]
   }
