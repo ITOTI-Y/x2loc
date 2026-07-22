@@ -45,7 +45,7 @@ class SystemBlockSchema(TypedDict):
 
 class TranslationOutputSchema(BaseSchema):
     result: str = Field(
-        description='Only output the translated result, must reply in target language, if no suggested translation is needed, return ""'
+        description="The translated result in the target language only; if the source contains no human-readable text, return the source unchanged"
     )
 
 
@@ -65,10 +65,11 @@ class ScoreResultSchema(BaseSchema):
     )
     suggested_translation: str = Field(
         "",
-        description="The suggested translation if the score is less than the threshold, must reply in target language, if no suggested translation is needed, return null",
+        description='The improved translation in the target language, REQUIRED when score < 95 per the decision rules; return an empty string "" when the translation is production-ready',
     )
     notes: str = Field(
-        "", description="The notes for the score if not needed, return null"
+        "",
+        description='The notes for the score in the target language; return an empty string "" if not needed',
     )
 
 

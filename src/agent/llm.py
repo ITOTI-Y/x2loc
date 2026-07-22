@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Final
-
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import Field
 
 from src.agent.config import AgentConfigSchema
 from src.agent.prompts import (
@@ -15,43 +12,7 @@ from src.agent.prompts import (
     tag_fix_system_blocks,
     translation_system_blocks,
 )
-from src.models._share import BaseSchema
 from src.models.agent import ScoreResultSchema, TranslationOutputSchema
-
-# Single source for the suggested_translation description. The static Field
-# text below uses the placeholder verbatim; build_scorer_llm re-renders it
-# with the configured threshold before handing the schema to the provider.
-_SUGGESTED_TRANSLATION_DESC: Final = (
-    "The suggested translation if the score is less than {threshold}, "
-    "must reply in target language, "
-    "if no suggested translation is needed, return null"
-)
-
-
-class DeductionSchema(BaseSchema):
-    dim: str = Field(description="The dimension of the deduction")
-    pts: int = Field(description="The points of the deduction")
-    reason: str = Field(description="The reason for the deduction")
-
-
-class ScoreOutputSchema(BaseSchema):
-    raw_translation: str = Field(description="The raw translation")
-    score: int = Field(
-        ge=0, le=100, description="The score of the translation between 0 and 100"
-    )
-    deductions: list[DeductionSchema] = Field(
-        ...,
-        description="The deductions resulting from the scoring, must reply in target language, if no deduction is needed, return an empty list",
-        default_factory=list,
-    )
-    suggested_translation: str = Field(
-        "",
-        description=_SUGGESTED_TRANSLATION_DESC.format(threshold="the threshold"),
-    )
-    notes: str = Field(
-        "",
-        description="The notes for the scoring, must reply in target language, if no notes are needed, return null",
-    )
 
 
 def build_translator_llm(config: AgentConfigSchema) -> CompiledStateGraph:
@@ -106,19 +67,3 @@ def build_scorer_llm(config: AgentConfigSchema) -> CompiledStateGraph:
         system_prompt=system_message,
         response_format=ToolStrategy(ScoreResultSchema),
     )
-
-
-def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
-    defs = schema.get("$defs", {})
-
-    def _resolve(node: Any) -> Any:
-        if isinstance(node, dict):
-            if "$ref" in node and node["$ref"].startswith("#/$defs/"):
-                name = node["$ref"].split("/")[-1]
-                return _resolve(defs[name])
-            return {k: _resolve(v) for k, v in node.items() if k != "$defs"}
-        if isinstance(node, list):
-            return [_resolve(v) for v in node]
-        return node
-
-    return _resolve(schema)

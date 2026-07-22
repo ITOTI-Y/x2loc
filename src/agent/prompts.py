@@ -202,9 +202,10 @@ Always prefer Base Glossary translations when a term matches.
 
 SCORING_SYSTEM = """\
 You are a strict, consistent quality assessor for XCOM 2 / War of the Chosen game
-term translations (EN → {target_lang}). Must reply in {target_lang}, Score every translation on a 0-100 integer
-scale using the rubric below. Return ONLY valid JSON conforming to the schema. No
-commentary, no markdown fences, no prose around the JSON.
+term translations (EN → {target_lang}). Score every translation on a 0-100 integer
+scale using the rubric below. All free-text fields (reason, suggested_translation,
+notes) must be written in {target_lang}. Return ONLY valid JSON conforming to the
+schema. No commentary, no markdown fences, no prose around the JSON.
 
 # Scoring Rubric (start at 100, deduct for issues)
 
@@ -247,19 +248,93 @@ commentary, no markdown fences, no prose around the JSON.
 - Score < 60: reject. suggested_translation is REQUIRED with full rewrite.
 - Total deductions cannot exceed 100. Floor the final score at 0.
 
+# Deduction Dimensions (use these exact dim values)
+
+- "glossary"  : glossary consistency issues (rubric 1)
+- "semantic"  : semantic accuracy issues (rubric 2)
+- "style"     : style consistency issues (rubric 3)
+- "context"   : context fit issues (rubric 4)
+- "tag_error" : tag integrity violation (rubric 5, score = 0 override)
+
+# Scoring Examples
+
+Examples below use zh_Hans as the target language; apply identical logic for any
+target language. When a field is not needed, return an empty string "" (for
+suggested_translation / notes) or an empty list [] (for deductions).
+
+Example 1 — production-ready, ship as-is:
+  Source     : "Overwatch"
+  Translation: "警戒"
+  Glossary   : Overwatch → 警戒
+  Output:
+  {{"score": 100, "deductions": [], "suggested_translation": "", "notes": ""}}
+
+Example 2 — usable but improvable (80-94, suggestion REQUIRED):
+  Source     : "Suppression pins down the target, reducing its aim."
+  Translation: "压制可以压住目标，降低其瞄准。"
+  Glossary   : Suppression → 压制射击
+  Output:
+  {{"score": 85, "deductions": [{{"dim": "glossary", "pts": 15, "reason":
+  "技能名未采用术语表译名：Suppression 应译为「压制射击」"}}],
+  "suggested_translation": "压制射击可以压住目标，降低其瞄准。",
+  "notes": "语义完整，仅关键术语与术语表不一致。"}}
+
+Example 3 — needs revision (60-79, suggestion REQUIRED):
+  Source     : "Grants +20 defense until the start of your next turn."
+  Translation: "获得 +20 瞄准加成，直到你的下一回合开始。"
+  Output:
+  {{"score": 75, "deductions": [{{"dim": "semantic", "pts": 15, "reason":
+  "defense 误译为「瞄准」，核心属性词错误"}}, {{"dim": "style", "pts": 10,
+  "reason": "「你的」偏口语，军事语气下应省略人称"}}],
+  "suggested_translation": "获得 +20 防御加成，直到下一回合开始。",
+  "notes": "数值与时限表述正确，属性词误译需修正。"}}
+
+Example 4 — reject (< 60, full rewrite REQUIRED):
+  Source     : "The Chosen Assassin has been slain. The Resistance grows stronger."
+  Translation: "被选中的暗杀者杀死了抵抗军，抵抗军变得更强。"
+  Glossary   : Chosen Assassin → 天选刺客, Resistance → 抵抗组织
+  Output:
+  {{"score": 40, "deductions": [{{"dim": "semantic", "pts": 30, "reason":
+  "主宾颠倒：原文为刺客被击杀，译文变成刺客杀死抵抗军，语义相反"}},
+  {{"dim": "glossary", "pts": 15, "reason":
+  "Chosen Assassin 应译为「天选刺客」"}}, {{"dim": "glossary", "pts": 15,
+  "reason": "Resistance 应译为「抵抗组织」，非「抵抗军」"}}],
+  "suggested_translation": "天选刺客已被击杀，抵抗组织日益壮大。",
+  "notes": "语义相反且多处术语错误，需整句重写。"}}
+
+Example 5 — tag error override (score = 0):
+  Source     : "Press <b>F</b> to fire."
+  Translation: "按 F 开火。"
+  Output:
+  {{"score": 0, "deductions": [{{"dim": "tag_error", "pts": 100, "reason":
+  "译文缺失 <b></b> 标签"}}], "suggested_translation": "按 <b>F</b> 开火。",
+  "notes": ""}}
+
 """
 
-TAG_FIX_TEMPLATE = """\
-Your previous translation has tag errors. Fix them.
 
-Source: {source}
-Your translation: {translation}
+def format_tag_fix_prompt(
+    source: str,
+    translation: str,
+    missing: dict[str, int],
+    extra: dict[str, int],
+) -> str:
+    # str.format is unsafe here: game strings contain literal braces like {Damage}.
+    return "\n".join(
+        [
+            "Your previous translation has tag errors. Fix them.",
+            "",
+            f"Source: {source}",
+            f"Your translation: {translation}",
+            "",
+            f"Missing tags (must be added): {missing}",
+            f"Extra tags (must be removed): {extra}",
+            "",
+            "All tags from the source must appear in the translation exactly as-is.",
+            "Output ONLY the corrected translation, nothing else.",
+        ]
+    )
 
-Missing tags (must be added): {missing}
-Extra tags (must be removed): {extra}
-
-All tags from the source must appear in the translation exactly as-is.
-Output ONLY the corrected translation, nothing else."""
 
 TAG_FIX_SYSTEM = """\
 You are a tag-correction assistant for XCOM 2 / War of the Chosen localization
@@ -424,7 +499,7 @@ def format_translation_prompt(
 
 def format_scoring_prompt(
     source: str,
-    tanslated: str,
+    translated: str,
     category: str,
     base_matches: list[WeblateUnitSchema],
     mods_matches: list[WeblateUnitSchema],
@@ -433,7 +508,7 @@ def format_scoring_prompt(
 ) -> str:
     parts = [
         f"Source: {source}",
-        f"Translation: {tanslated}",
+        f"Translation: {translated}",
         f"Category: {category}",
         "",
     ]

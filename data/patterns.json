@@ -26227,5 +26227,24 @@
         "target": "寄生兽蜂巢战士尸体"
       }
     ]
+  },
+  {
+    "src_pattern": "Free {X}",
+    "tgt_pattern": "免费{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Free Respec",
+        "target": "免费重置技能点"
+      },
+      {
+        "source": "Free action",
+        "target": "免费行动"
+      },
+      {
+        "source": "Free Respec Expiration",
+        "target": "免费技能重置到期时间"
+      }
+    ]
   }
 ]

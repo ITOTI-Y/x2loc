@@ -31,7 +31,7 @@ async def scorer(
                     "role": "user",
                     "content": format_scoring_prompt(
                         source=unit.source,
-                        tanslated=unit.translated,
+                        translated=unit.translated,
                         category=unit.category,
                         base_matches=unit.glossary_base,
                         mods_matches=unit.glossary_mods,
