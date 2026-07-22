@@ -449,27 +449,27 @@
   {
     "src_pattern": "{X} Scope",
     "tgt_pattern": "{X}瞄准镜",
-    "approved_count": 5,
+    "approved_count": 6,
     "examples": [
       {
-        "source": "ADVENT Scope",
-        "target": "变种人瞄准镜"
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> Scope",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> 瞄准镜"
       },
       {
-        "source": "Elite Scope",
-        "target": "精英瞄准镜"
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> Adv. Scope",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> 高级瞄准镜"
       },
       {
-        "source": "Quick Scope",
-        "target": "快速瞄准镜"
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> Elite Scope",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> 精英瞄准镜"
       },
       {
-        "source": "Advanced Scope",
-        "target": "高级瞄准镜"
+        "source": "Advanced Focus Scope",
+        "target": "高级专注瞄准镜"
       },
       {
-        "source": "Superior Scope",
-        "target": "终极瞄准镜"
+        "source": "Focus Scope",
+        "target": "专注瞄准镜"
       }
     ]
   },
@@ -2931,27 +2931,27 @@
   {
     "src_pattern": "{X} Cannon",
     "tgt_pattern": "{X}炮",
-    "approved_count": 26,
+    "approved_count": 27,
     "examples": [
       {
-        "source": "Demolition Cannon",
-        "target": "破碎炮"
+        "source": "DON-82 Coilmaster Heavy Cannon",
+        "target": "DON-82 线圈大师重型加农炮"
       },
       {
-        "source": "Fire Apocalypse Cannon",
-        "target": "末日火焰加农炮"
+        "source": "DON-82 Coilmaster Mech Artillery Cannon",
+        "target": "DON-82“线圈大师”机甲重型加农炮"
       },
       {
-        "source": "Fire Demolition Cannon",
-        "target": "发射碎片炮"
+        "source": "Damaged Pulse Cannon",
+        "target": "受损的脉冲加农炮"
       },
       {
-        "source": "Fire Flamestorm Cannon",
-        "target": "火焰风暴加农炮"
+        "source": "Destroyer Cannon",
+        "target": "毁灭者加农炮"
       },
       {
-        "source": "Fire Inferno Cannon",
-        "target": "火焰加农炮"
+        "source": "Elemental Andromedon Cannon",
+        "target": "元素仙女座外星人加农炮"
       }
     ]
   },
@@ -3924,27 +3924,27 @@
   {
     "src_pattern": "{X} Shotgun",
     "tgt_pattern": "{X}霰弹枪",
-    "approved_count": 16,
+    "approved_count": 19,
     "examples": [
       {
-        "source": "Fire Underbarrel Shotgun",
-        "target": "发射下挂霰弹枪"
+        "source": "Chosen Apex Shotgun",
+        "target": "天选者顶级霰弹枪"
       },
       {
-        "source": "Reload Sawed-Off Shotgun",
-        "target": "装填短管霰弹枪"
+        "source": "Chosen Giga Shotgun",
+        "target": "天选者巨型霰弹枪"
       },
       {
-        "source": "Reload Underbarrel Shotgun",
-        "target": "重新装填下挂霰弹枪"
+        "source": "Chosen Magna Shotgun",
+        "target": "天选者玛格纳霰弹枪"
       },
       {
-        "source": "Automatic Magnetic Shotgun",
-        "target": "自动磁力霰弹枪"
+        "source": "Damaged Geth Shotgun",
+        "target": "受损的桀斯霰弹枪"
       },
       {
-        "source": "Requiem Shotgun",
-        "target": "安魂霰弹枪"
+        "source": "Elerium Assault Shotgun",
+        "target": "超铀突击霰弹枪"
       }
     ]
   },
@@ -17768,19 +17768,23 @@
   },
   {
     "src_pattern": "Enhanced Laser {X}",
-    "tgt_pattern": "强化激光{X}枪",
-    "approved_count": 3,
+    "tgt_pattern": "强化激光{X}",
+    "approved_count": 4,
     "examples": [
       {
-        "source": "Enhanced Laser Auto-Rifles",
+        "source": "Enhanced Laser Auto-Lance",
+        "target": "强化激光自动长矛"
+      },
+      {
+        "source": "Enhanced Laser Auto-Rifle",
         "target": "强化激光自动步枪"
       },
       {
-        "source": "Enhanced Laser LMGs",
+        "source": "Enhanced Laser LMG",
         "target": "强化激光轻机枪"
       },
       {
-        "source": "Enhanced Laser Semi-Auto Pistols",
+        "source": "Enhanced Laser Semi-Auto Pistol",
         "target": "强化激光半自动手枪"
       }
     ]
@@ -19796,81 +19800,81 @@
   {
     "src_pattern": "XCOM {X} (T2)",
     "tgt_pattern": "XCOM{X} (T2)",
-    "approved_count": 9,
+    "approved_count": 14,
     "examples": [
       {
-        "source": "XCOM LMGs (T2)",
+        "source": "XCOM Assault Rifle (T2)",
+        "target": "XCOM突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM LMG (T2)",
         "target": "XCOM轻机枪 (T2)"
       },
       {
-        "source": "XCOM Magnetic Cannons (T2)",
+        "source": "XCOM Magnetic Assault Rifle (T2)",
+        "target": "XCOM磁力突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Cannon (T2)",
         "target": "XCOM磁力加农炮 (T2)"
       },
       {
-        "source": "XCOM Magnetic Pistols (T2)",
+        "source": "XCOM Magnetic Pistol (T2)",
         "target": "XCOM磁力手枪 (T2)"
-      },
-      {
-        "source": "XCOM Magnetic Shotguns (T2)",
-        "target": "XCOM磁力霰弹枪 (T2)"
-      },
-      {
-        "source": "XCOM Magnetic Sniper Rifles (T2)",
-        "target": "XCOM磁力狙击步枪 (T2)"
       }
     ]
   },
   {
     "src_pattern": "XCOM Plasma {X}",
     "tgt_pattern": "XCOM电浆{X}",
-    "approved_count": 8,
+    "approved_count": 14,
     "examples": [
       {
-        "source": "XCOM Plasma Assault Rifle (T2)",
-        "target": "XCOM电浆突击步枪 (T2)"
+        "source": "XCOM Plasma Assault Rifle",
+        "target": "XCOM电浆突击步枪"
       },
       {
-        "source": "XCOM Plasma Cannons",
+        "source": "XCOM Plasma Assault Rifle (T3)",
+        "target": "XCOM电浆突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Cannon",
         "target": "XCOM电浆加农炮"
       },
       {
-        "source": "XCOM Plasma Cannons (T2)",
+        "source": "XCOM Plasma Cannon (T2)",
         "target": "XCOM电浆加农炮 (T2)"
       },
       {
-        "source": "XCOM Plasma Cannons (T3)",
+        "source": "XCOM Plasma Cannon (T3)",
         "target": "XCOM电浆加农炮 (T3)"
-      },
-      {
-        "source": "XCOM Plasma Pistols",
-        "target": "XCOM电浆手枪"
       }
     ]
   },
   {
     "src_pattern": "XCOM {X} (T3)",
     "tgt_pattern": "XCOM{X}",
-    "approved_count": 8,
+    "approved_count": 15,
     "examples": [
       {
-        "source": "XCOM LMGs (T3)",
+        "source": "XCOM Assault Rifle (T3)",
+        "target": "XCOM突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM LMG (T3)",
         "target": "XCOM轻机枪 (T3)"
       },
       {
-        "source": "XCOM Magnetic Cannons (T3)",
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Cannon (T3)",
         "target": "XCOM磁力加农炮 (T3)"
       },
       {
-        "source": "XCOM Magnetic Pistols (T3)",
+        "source": "XCOM Magnetic Pistol (T3)",
         "target": "XCOM磁力手枪 (T3)"
-      },
-      {
-        "source": "XCOM Magnetic Shotguns (T3)",
-        "target": "XCOM磁力霰弹枪（T3）"
-      },
-      {
-        "source": "XCOM Magnetic Sniper Rifles (T3)",
-        "target": "XCOM磁力狙击步枪 (T3)"
       }
     ]
   },
@@ -20466,19 +20470,27 @@
   {
     "src_pattern": "{X} LMG",
     "tgt_pattern": "{X}轻机枪",
-    "approved_count": 3,
+    "approved_count": 5,
     "examples": [
       {
-        "source": "Laser LMG",
-        "target": "激光轻机枪"
+        "source": "Enhanced Laser LMG",
+        "target": "强化激光轻机枪"
       },
       {
-        "source": "Pre-War LMG",
-        "target": "战前轻机枪"
+        "source": "Master-crafted Laser LMG",
+        "target": "大师级激光轻机枪"
       },
       {
-        "source": "Rotary LMG",
-        "target": "转轮式轻机枪"
+        "source": "Prototype Plasma LMG",
+        "target": "原型电浆轻机枪"
+      },
+      {
+        "source": "Turbulent Plasma LMG",
+        "target": "湍流电浆轻机枪"
+      },
+      {
+        "source": "XCOM LMG",
+        "target": "XCOM轻机枪"
       }
     ]
   },
@@ -20664,19 +20676,27 @@
   {
     "src_pattern": "{X} Flamethrower",
     "tgt_pattern": "{X}火焰喷射器",
-    "approved_count": 3,
+    "approved_count": 5,
     "examples": [
       {
-        "source": "Underbarrel Flamethrower",
-        "target": "下挂火焰喷射器"
-      },
-      {
-        "source": "Fire Flamethrower",
-        "target": "火焰喷射器"
-      },
-      {
-        "source": "Purifier Flamethrower",
+        "source": "Cleanser Flamethrower",
         "target": "净化者火焰喷射器"
+      },
+      {
+        "source": "Damaged Pyro Flamethrower",
+        "target": "受损的喷火兵火焰喷射器"
+      },
+      {
+        "source": "Purifier Captain Flamethrower",
+        "target": "净化者队长火焰喷射器"
+      },
+      {
+        "source": "Pyro Flamethrower",
+        "target": "炽焰火焰喷射器"
+      },
+      {
+        "source": "Upgraded Pyro Flamethrower",
+        "target": "升级版喷火兵火焰喷射器"
       }
     ]
   },
@@ -26178,50 +26198,54 @@
   {
     "src_pattern": "Advanced {X}",
     "tgt_pattern": "高级{X}",
-    "approved_count": 7,
+    "approved_count": 23,
     "examples": [
       {
-        "source": "Advanced Crossguard Taptic Modules",
-        "target": "高级十字护手触感模块"
+        "source": "Advanced Armor Piercing Refinement",
+        "target": "高级穿甲精炼"
       },
       {
-        "source": "Advanced Heavy Barrels",
-        "target": "高级重型枪管"
+        "source": "Advanced Armor Shredding Refinement",
+        "target": "高级破甲精炼"
       },
       {
-        "source": "Advanced Loaded Springs",
-        "target": "高级装填弹簧"
+        "source": "Advanced Base Damage Refinement",
+        "target": "高级基础伤害精炼"
       },
       {
-        "source": "Advanced Munitions Mounts",
-        "target": "高级弹药挂架"
+        "source": "Advanced Blade Frame",
+        "target": "高级刃架"
       },
       {
-        "source": "Advanced Reflex Stocks",
-        "target": "高级条件反射枪托"
+        "source": "Advanced Crit Booster Refinement",
+        "target": "高级暴击助推优化"
       }
     ]
   },
   {
     "src_pattern": "Chosen {X}",
     "tgt_pattern": "天选者{X}",
-    "approved_count": 4,
+    "approved_count": 15,
     "examples": [
       {
-        "source": "Chosen Apex SMG",
-        "target": "天选者顶级冲锋枪"
+        "source": "Chosen Apex Rifle",
+        "target": "天选者顶级步枪"
       },
       {
-        "source": "Chosen Documents",
-        "target": "天选者文件"
+        "source": "Chosen Apex Shotgun",
+        "target": "天选者顶级霰弹枪"
       },
       {
-        "source": "Chosen Giga SMG",
-        "target": "天选者吉加冲锋枪"
+        "source": "Chosen Apex Sword",
+        "target": "天选者顶级剑"
       },
       {
-        "source": "Chosen Haven Attack",
-        "target": "天选者袭击避难所"
+        "source": "Chosen Giga Pistol",
+        "target": "天选者巨型手枪"
+      },
+      {
+        "source": "Chosen Giga Rifle",
+        "target": "天选者巨型步枪"
       }
     ]
   },
@@ -26320,73 +26344,77 @@
   {
     "src_pattern": "Master-Crafted Laser {X}",
     "tgt_pattern": "大师级激光{X}",
-    "approved_count": 3,
+    "approved_count": 4,
     "examples": [
       {
-        "source": "Master-Crafted Laser Auto-Lances",
+        "source": "Master-Crafted Laser Auto-Lance",
         "target": "大师级激光自动长矛"
       },
       {
-        "source": "Master-Crafted Laser Autopistols",
+        "source": "Master-Crafted Laser Autopistol",
         "target": "大师级激光自动手枪"
       },
       {
-        "source": "Master-Crafted Laser SMGs",
+        "source": "Master-Crafted Laser SMG",
         "target": "大师级激光冲锋枪"
+      },
+      {
+        "source": "Master-Crafted Laser Semi-Auto Pistol",
+        "target": "大师级激光半自动手枪"
       }
     ]
   },
   {
     "src_pattern": "Master-crafted {X}",
-    "tgt_pattern": "大师级{X}枪",
-    "approved_count": 9,
+    "tgt_pattern": "大师级{X}",
+    "approved_count": 11,
     "examples": [
       {
-        "source": "Master-crafted Advent Enforcer Rifles",
+        "source": "Master-crafted Advent Acid Launcher",
+        "target": "大师级变种人酸液发射器"
+      },
+      {
+        "source": "Master-crafted Advent Breaker Rifle",
+        "target": "大师级变种人粉碎者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Enforcer Rifle",
         "target": "大师级变种人执行者步枪"
       },
       {
-        "source": "Master-crafted Advent Inducer Carbines",
+        "source": "Master-crafted Advent Inducer Carbine",
         "target": "大师级变种人诱导卡宾枪"
       },
       {
-        "source": "Master-crafted Advent Persuader Pistols",
+        "source": "Master-crafted Advent Persuader Pistol",
         "target": "大师级变种人劝导者手枪"
-      },
-      {
-        "source": "Master-crafted Advent SMGs",
-        "target": "大师级变种人冲锋枪"
-      },
-      {
-        "source": "Master-crafted Advent Scout Rifles",
-        "target": "大师级变种人侦察步枪"
       }
     ]
   },
   {
     "src_pattern": "Master-crafted Advent {X}",
-    "tgt_pattern": "大师级变种人{X}枪",
-    "approved_count": 7,
+    "tgt_pattern": "大师级变种人{X}",
+    "approved_count": 9,
     "examples": [
       {
-        "source": "Master-crafted Advent Enforcer Rifles",
+        "source": "Master-crafted Advent Acid Launcher",
+        "target": "大师级变种人酸液发射器"
+      },
+      {
+        "source": "Master-crafted Advent Breaker Rifle",
+        "target": "大师级变种人粉碎者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Enforcer Rifle",
         "target": "大师级变种人执行者步枪"
       },
       {
-        "source": "Master-crafted Advent Inducer Carbines",
+        "source": "Master-crafted Advent Inducer Carbine",
         "target": "大师级变种人诱导卡宾枪"
       },
       {
-        "source": "Master-crafted Advent Persuader Pistols",
+        "source": "Master-crafted Advent Persuader Pistol",
         "target": "大师级变种人劝导者手枪"
-      },
-      {
-        "source": "Master-crafted Advent SMGs",
-        "target": "大师级变种人冲锋枪"
-      },
-      {
-        "source": "Master-crafted Advent Scout Rifles",
-        "target": "大师级变种人侦察步枪"
       }
     ]
   },
@@ -26577,27 +26605,27 @@
   {
     "src_pattern": "Superior {X}",
     "tgt_pattern": "终极{X}",
-    "approved_count": 19,
+    "approved_count": 25,
     "examples": [
       {
-        "source": "Superior Armor Piercing Refinements",
+        "source": "Superior Cryo Launcher",
+        "target": "终极冷冻发射器"
+      },
+      {
+        "source": "Superior Armor Piercing Refinement",
         "target": "终极穿甲精炼"
       },
       {
-        "source": "Superior Armor Shredding Refinements",
+        "source": "Superior Armor Shredding Refinement",
         "target": "终极破甲精炼"
       },
       {
-        "source": "Superior Base Damage Refinements",
+        "source": "Superior Base Damage Refinement",
         "target": "终极基础伤害精炼"
       },
       {
-        "source": "Superior Crit Booster Refinements",
-        "target": "终极暴击助推优化"
-      },
-      {
-        "source": "Superior Crit Damage Refinements",
-        "target": "终极暴击伤害精炼"
+        "source": "Superior Blade Frame",
+        "target": "终极刀刃框架"
       }
     ]
   },
@@ -26673,27 +26701,27 @@
   {
     "src_pattern": "{X} Rifle",
     "tgt_pattern": "{X}步枪",
-    "approved_count": 10,
+    "approved_count": 45,
     "examples": [
       {
-        "source": "ADVENT Battle Rifle",
-        "target": "变种人战斗步枪"
+        "source": "Chosen Apex Rifle",
+        "target": "天选者顶级步枪"
       },
       {
-        "source": "ADVENT Plasma Rifle",
-        "target": "变种人电浆步枪"
+        "source": "Chosen Giga Rifle",
+        "target": "天选者巨型步枪"
       },
       {
-        "source": "ADVENT Plasma Sniper Rifle",
-        "target": "变种人电浆狙击步枪"
+        "source": "Coil Battle Rifle",
+        "target": "线圈战斗步枪"
       },
       {
-        "source": "ADVENT Sonic Rifle",
-        "target": "变种人音波步枪"
+        "source": "Coil Hunter Rifle",
+        "target": "线圈猎手步枪"
       },
       {
-        "source": "Advent Breaker Rifle",
-        "target": "变种人粉碎者步枪"
+        "source": "Coil Strike Rifle",
+        "target": "线圈打击步枪"
       }
     ]
   },
@@ -26845,76 +26873,80 @@
   {
     "src_pattern": "XCOM {X}",
     "tgt_pattern": "XCOM{X}",
-    "approved_count": 28,
+    "approved_count": 46,
     "examples": [
       {
-        "source": "XCOM DESIGNATION",
-        "target": "XCOM 代号"
+        "source": "XCOM Assault Rifle",
+        "target": "XCOM突击步枪"
       },
       {
-        "source": "XCOM LMGs",
+        "source": "XCOM Assault Rifle (T2)",
+        "target": "XCOM突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Assault Rifle (T3)",
+        "target": "XCOM突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM LMG",
         "target": "XCOM轻机枪"
       },
       {
-        "source": "XCOM LMGs (T2)",
+        "source": "XCOM LMG (T2)",
         "target": "XCOM轻机枪 (T2)"
-      },
-      {
-        "source": "XCOM LMGs (T3)",
-        "target": "XCOM轻机枪 (T3)"
-      },
-      {
-        "source": "XCOM Magnetic Cannons",
-        "target": "XCOM磁力加农炮"
       }
     ]
   },
   {
     "src_pattern": "XCOM Magnetic {X}",
     "tgt_pattern": "XCOM磁力{X}",
-    "approved_count": 12,
+    "approved_count": 15,
     "examples": [
       {
-        "source": "XCOM Magnetic Cannons",
+        "source": "XCOM Magnetic Assault Rifle",
+        "target": "XCOM磁力突击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T2)",
+        "target": "XCOM磁力突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Cannon",
         "target": "XCOM磁力加农炮"
       },
       {
-        "source": "XCOM Magnetic Cannons (T2)",
+        "source": "XCOM Magnetic Cannon (T2)",
         "target": "XCOM磁力加农炮 (T2)"
-      },
-      {
-        "source": "XCOM Magnetic Cannons (T3)",
-        "target": "XCOM磁力加农炮 (T3)"
-      },
-      {
-        "source": "XCOM Magnetic Pistols",
-        "target": "XCOM磁力手枪"
-      },
-      {
-        "source": "XCOM Magnetic Pistols (T2)",
-        "target": "XCOM磁力手枪 (T2)"
       }
     ]
   },
   {
     "src_pattern": "XCOM Magnetic {X} (T2)",
     "tgt_pattern": "XCOM磁力{X} (T2)",
-    "approved_count": 4,
+    "approved_count": 5,
     "examples": [
       {
-        "source": "XCOM Magnetic Cannons (T2)",
+        "source": "XCOM Magnetic Assault Rifle (T2)",
+        "target": "XCOM磁力突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Cannon (T2)",
         "target": "XCOM磁力加农炮 (T2)"
       },
       {
-        "source": "XCOM Magnetic Pistols (T2)",
+        "source": "XCOM Magnetic Pistol (T2)",
         "target": "XCOM磁力手枪 (T2)"
       },
       {
-        "source": "XCOM Magnetic Shotguns (T2)",
+        "source": "XCOM Magnetic Shotgun (T2)",
         "target": "XCOM磁力霰弹枪 (T2)"
       },
       {
-        "source": "XCOM Magnetic Sniper Rifles (T2)",
+        "source": "XCOM Magnetic Sniper Rifle (T2)",
         "target": "XCOM磁力狙击步枪 (T2)"
       }
     ]
@@ -26922,22 +26954,26 @@
   {
     "src_pattern": "XCOM Magnetic {X} (T3)",
     "tgt_pattern": "XCOM磁力{X}",
-    "approved_count": 4,
+    "approved_count": 5,
     "examples": [
       {
-        "source": "XCOM Magnetic Cannons (T3)",
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Cannon (T3)",
         "target": "XCOM磁力加农炮 (T3)"
       },
       {
-        "source": "XCOM Magnetic Pistols (T3)",
+        "source": "XCOM Magnetic Pistol (T3)",
         "target": "XCOM磁力手枪 (T3)"
       },
       {
-        "source": "XCOM Magnetic Shotguns (T3)",
+        "source": "XCOM Magnetic Shotgun (T3)",
         "target": "XCOM磁力霰弹枪（T3）"
       },
       {
-        "source": "XCOM Magnetic Sniper Rifles (T3)",
+        "source": "XCOM Magnetic Sniper Rifle (T3)",
         "target": "XCOM磁力狙击步枪 (T3)"
       }
     ]
@@ -27002,19 +27038,23 @@
   {
     "src_pattern": "XCOM Plasma {X} (T2)",
     "tgt_pattern": "XCOM电浆{X} (T2)",
-    "approved_count": 3,
+    "approved_count": 4,
     "examples": [
       {
-        "source": "XCOM Plasma Assault Rifle (T2)",
-        "target": "XCOM电浆突击步枪 (T2)"
-      },
-      {
-        "source": "XCOM Plasma Cannons (T2)",
+        "source": "XCOM Plasma Cannon (T2)",
         "target": "XCOM电浆加农炮 (T2)"
       },
       {
-        "source": "XCOM Plasma Pistols (T2)",
+        "source": "XCOM Plasma Pistol (T2)",
         "target": "XCOM电浆手枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Shotgun (T2)",
+        "target": "XCOM电浆霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Sniper RIfle (T2)",
+        "target": "XCOM电浆狙击步枪 (T2)"
       }
     ]
   },
@@ -27894,27 +27934,27 @@
   {
     "src_pattern": "{X} Launcher",
     "tgt_pattern": "{X}发射器",
-    "approved_count": 6,
+    "approved_count": 13,
     "examples": [
       {
-        "source": "ADVENT Assault Grenade Launcher",
-        "target": "变种人突击榴弹发射器"
+        "source": "Cryo Launcher",
+        "target": "冷冻发射器"
       },
       {
-        "source": "ADVENT Mark 2 Custodian Flechette Launcher",
-        "target": "变种人护卫 Mark 2 飞镖弹发射器"
+        "source": "Enhanced Advent Acid Launcher",
+        "target": "强化变种人酸液发射器"
       },
       {
-        "source": "ADVENT Rocket Launcher",
-        "target": "变种人火箭发射器"
+        "source": "Fireball Launcher",
+        "target": "火球发射器"
       },
       {
-        "source": "Adapted Shoulder Launcher",
-        "target": "改装型肩挂发射器"
+        "source": "Harrier Captain's Launcher",
+        "target": "鹞兵队长发射器"
       },
       {
-        "source": "Advent Acid Launcher",
-        "target": "变种人酸液发射器"
+        "source": "Harrier Launcher",
+        "target": "鹞式发射器"
       }
     ]
   },
@@ -27939,24 +27979,28 @@
   },
   {
     "src_pattern": "{X} Pistol",
-    "tgt_pattern": "变种人{X}手枪",
-    "approved_count": 4,
+    "tgt_pattern": "{X}手枪",
+    "approved_count": 18,
     "examples": [
       {
-        "source": "ADVENT Beam Pistol",
-        "target": "变种人光束手枪"
+        "source": "Chosen Giga Pistol",
+        "target": "天选者巨型手枪"
       },
       {
-        "source": "ADVENT Gauss Pistol",
-        "target": "变种人高斯手枪"
+        "source": "Chosen Magna Pistol",
+        "target": "天选者磁能手枪"
       },
       {
-        "source": "ADVENT Magnetic Pistol",
-        "target": "变种人磁能手枪"
+        "source": "Chosen Apex Pistol",
+        "target": "天选者终级手枪"
       },
       {
-        "source": "Advent Persuader Pistol",
-        "target": "变种人劝导者手枪"
+        "source": "Enhanced Advent Persuader Pistol",
+        "target": "强化变种人劝导者手枪"
+      },
+      {
+        "source": "Enhanced Laser Semi-Auto Pistol",
+        "target": "强化激光半自动手枪"
       }
     ]
   },
@@ -28001,19 +28045,27 @@
   {
     "src_pattern": "{X} SMG",
     "tgt_pattern": "{X}冲锋枪",
-    "approved_count": 3,
+    "approved_count": 6,
     "examples": [
       {
-        "source": "ADVENT Suppressed SMG",
-        "target": "变种人消音冲锋枪"
+        "source": "Enhanced Advent SMG",
+        "target": "强化变种人冲锋枪"
       },
       {
-        "source": "Advent SMG",
-        "target": "变种人冲锋枪"
+        "source": "Junta SMG",
+        "target": "军政府冲锋枪"
       },
       {
-        "source": "Bandit SMG",
-        "target": "强盗冲锋枪"
+        "source": "Master-Crafted Laser SMG",
+        "target": "大师级激光冲锋枪"
+      },
+      {
+        "source": "Master-crafted Advent SMG",
+        "target": "大师级变种人冲锋枪"
+      },
+      {
+        "source": "Mercenary Plasma SMG",
+        "target": "雇佣兵电浆冲锋枪"
       }
     ]
   },
@@ -28060,6 +28112,2086 @@
       {
         "source": "Arashi M4",
         "target": "岚 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Lance",
+    "tgt_pattern": "{X}长矛",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Blazing Lance",
+        "target": "炽焰长矛"
+      },
+      {
+        "source": "Coil Vektor Lance",
+        "target": "线圈维克托长矛"
+      },
+      {
+        "source": "Crimson Lance",
+        "target": "绯红长矛"
+      },
+      {
+        "source": "Eclipse Lance",
+        "target": "日蚀长矛"
+      },
+      {
+        "source": "Laser Vektor Lance",
+        "target": "激光维克托长矛"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen Apex {X}",
+    "tgt_pattern": "天选者{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Chosen Apex Rifle",
+        "target": "天选者顶级步枪"
+      },
+      {
+        "source": "Chosen Apex Shotgun",
+        "target": "天选者顶级霰弹枪"
+      },
+      {
+        "source": "Chosen Apex Sword",
+        "target": "天选者顶级剑"
+      },
+      {
+        "source": "Chosen Apex Pistol",
+        "target": "天选者终级手枪"
+      },
+      {
+        "source": "Chosen Apex Sniper",
+        "target": "天选者终级狙击枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Sword",
+    "tgt_pattern": "{X}剑",
+    "approved_count": 11,
+    "examples": [
+      {
+        "source": "Chosen Apex Sword",
+        "target": "天选者顶级剑"
+      },
+      {
+        "source": "Chosen Giga Sword",
+        "target": "天选者巨剑"
+      },
+      {
+        "source": "Chosen Magna Sword",
+        "target": "天选者磁能剑"
+      },
+      {
+        "source": "Coil Sword",
+        "target": "线圈剑"
+      },
+      {
+        "source": "Laser Sword",
+        "target": "激光剑"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen Giga {X}",
+    "tgt_pattern": "天选者巨{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Chosen Giga Pistol",
+        "target": "天选者巨型手枪"
+      },
+      {
+        "source": "Chosen Giga Rifle",
+        "target": "天选者巨型步枪"
+      },
+      {
+        "source": "Chosen Giga Shotgun",
+        "target": "天选者巨型霰弹枪"
+      },
+      {
+        "source": "Chosen Giga Sniper",
+        "target": "天选者巨型狙击步枪"
+      },
+      {
+        "source": "Chosen Giga Sword",
+        "target": "天选者巨剑"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen {X} Sniper",
+    "tgt_pattern": "天选者{X}枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Chosen Giga Sniper",
+        "target": "天选者巨型狙击步枪"
+      },
+      {
+        "source": "Chosen Magna Sniper",
+        "target": "天选者磁能狙击步枪"
+      },
+      {
+        "source": "Chosen Apex Sniper",
+        "target": "天选者终级狙击枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Chosen Magna {X}",
+    "tgt_pattern": "天选者{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Chosen Magna Pistol",
+        "target": "天选者磁能手枪"
+      },
+      {
+        "source": "Chosen Magna Shotgun",
+        "target": "天选者玛格纳霰弹枪"
+      },
+      {
+        "source": "Chosen Magna Sniper",
+        "target": "天选者磁能狙击步枪"
+      },
+      {
+        "source": "Chosen Magna Sword",
+        "target": "天选者磁能剑"
+      },
+      {
+        "source": "Chosen Magna Rifle",
+        "target": "天选者玛格纳步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Coil {X} Rifle",
+    "tgt_pattern": "线圈{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Coil Battle Rifle",
+        "target": "线圈战斗步枪"
+      },
+      {
+        "source": "Coil Hunter Rifle",
+        "target": "线圈猎手步枪"
+      },
+      {
+        "source": "Coil Strike Rifle",
+        "target": "线圈打击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Darkclaw {X}",
+    "tgt_pattern": "黑爪 M{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M1",
+        "target": "黑爪 M1"
+      },
+      {
+        "source": "Darkclaw M2",
+        "target": "黑爪 M2"
+      },
+      {
+        "source": "Darkclaw M3",
+        "target": "黑爪 M3"
+      },
+      {
+        "source": "Darkclaw M4",
+        "target": "黑爪 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} M1",
+    "tgt_pattern": "{X} M1",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M1",
+        "target": "黑爪 M1"
+      },
+      {
+        "source": "Darklance M1",
+        "target": "黑矛 M1"
+      },
+      {
+        "source": "Disruptor Rifle M1",
+        "target": "干扰步枪 M1"
+      },
+      {
+        "source": "Katana M1",
+        "target": "太刀 M1"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} M2",
+    "tgt_pattern": "{X} M2",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M2",
+        "target": "黑爪 M2"
+      },
+      {
+        "source": "Darklance M2",
+        "target": "黑矛 M2"
+      },
+      {
+        "source": "Disruptor Rifle M2",
+        "target": "干扰步枪 M2"
+      },
+      {
+        "source": "Katana M2",
+        "target": "太刀 M2"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} M3",
+    "tgt_pattern": "{X} M3",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M3",
+        "target": "黑爪 M3"
+      },
+      {
+        "source": "Darklance M3",
+        "target": "黑矛 M3"
+      },
+      {
+        "source": "Disruptor Rifle M3",
+        "target": "干扰步枪 M3"
+      },
+      {
+        "source": "Katana M3",
+        "target": "太刀 M3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} M4",
+    "tgt_pattern": "{X} M4",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darkclaw M4",
+        "target": "黑爪 M4"
+      },
+      {
+        "source": "Darklance M4",
+        "target": "黑矛 M4"
+      },
+      {
+        "source": "Disruptor Rifle M4",
+        "target": "干扰步枪 M4"
+      },
+      {
+        "source": "Katana M4",
+        "target": "太刀 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Darklance {X}",
+    "tgt_pattern": "黑矛 M{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Darklance M1",
+        "target": "黑矛 M1"
+      },
+      {
+        "source": "Darklance M2",
+        "target": "黑矛 M2"
+      },
+      {
+        "source": "Darklance M3",
+        "target": "黑矛 M3"
+      },
+      {
+        "source": "Darklance M4",
+        "target": "黑矛 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Disruptor Rifle {X}",
+    "tgt_pattern": "干扰步枪 M{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Disruptor Rifle M1",
+        "target": "干扰步枪 M1"
+      },
+      {
+        "source": "Disruptor Rifle M2",
+        "target": "干扰步枪 M2"
+      },
+      {
+        "source": "Disruptor Rifle M3",
+        "target": "干扰步枪 M3"
+      },
+      {
+        "source": "Disruptor Rifle M4",
+        "target": "干扰步枪 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Drone {X}",
+    "tgt_pattern": "无人机{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Drone Beam MK1",
+        "target": "无人机光束 MK1"
+      },
+      {
+        "source": "Drone Beam MK2",
+        "target": "无人机光束 MK2"
+      },
+      {
+        "source": "Drone Repair MK1",
+        "target": "无人机维修 MK1"
+      },
+      {
+        "source": "Drone Repair MK2",
+        "target": "无人机维修 MK2"
+      },
+      {
+        "source": "Drone Repair MK3",
+        "target": "无人机维修 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Drone Beam {X}",
+    "tgt_pattern": "无人机光束 MK{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Drone Beam MK1",
+        "target": "无人机光束 MK1"
+      },
+      {
+        "source": "Drone Beam MK2",
+        "target": "无人机光束 MK2"
+      },
+      {
+        "source": "Drone Beam MK3",
+        "target": "无人机光束 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Drone Repair {X}",
+    "tgt_pattern": "无人机维修 MK{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Drone Repair MK1",
+        "target": "无人机维修 MK1"
+      },
+      {
+        "source": "Drone Repair MK2",
+        "target": "无人机维修 MK2"
+      },
+      {
+        "source": "Drone Repair MK3",
+        "target": "无人机维修 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Enhanced {X}",
+    "tgt_pattern": "强化{X}",
+    "approved_count": 15,
+    "examples": [
+      {
+        "source": "Enhanced Advent Acid Launcher",
+        "target": "强化变种人酸液发射器"
+      },
+      {
+        "source": "Enhanced Advent Breaker Rifle",
+        "target": "强化变种人粉碎者步枪"
+      },
+      {
+        "source": "Enhanced Advent Enforcer Rifle",
+        "target": "强化变种人执行者步枪"
+      },
+      {
+        "source": "Enhanced Advent Inducer Carbine",
+        "target": "强化变种人诱导卡宾枪"
+      },
+      {
+        "source": "Enhanced Advent Persuader Pistol",
+        "target": "强化变种人劝导者手枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Enhanced Advent {X} Rifle",
+    "tgt_pattern": "强化变种人{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Enhanced Advent Breaker Rifle",
+        "target": "强化变种人粉碎者步枪"
+      },
+      {
+        "source": "Enhanced Advent Enforcer Rifle",
+        "target": "强化变种人执行者步枪"
+      },
+      {
+        "source": "Enhanced Advent Scout Rifle",
+        "target": "强化变种人侦察步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Exalted {X}",
+    "tgt_pattern": "崇高{X}",
+    "approved_count": 8,
+    "examples": [
+      {
+        "source": "Exalted Breaker Gauntlet",
+        "target": "崇高粉碎者臂套"
+      },
+      {
+        "source": "Exalted Custodian Cluster Rocket",
+        "target": "崇高护卫集束火箭"
+      },
+      {
+        "source": "Exalted Custodian Pistol",
+        "target": "崇高护卫手枪"
+      },
+      {
+        "source": "Exalted Custodian Rifle",
+        "target": "崇高护卫步枪"
+      },
+      {
+        "source": "Exalted Custodian Shotgun",
+        "target": "崇高护卫霰弹枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Exalted Custodian {X}",
+    "tgt_pattern": "崇高护卫{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Exalted Custodian Cluster Rocket",
+        "target": "崇高护卫集束火箭"
+      },
+      {
+        "source": "Exalted Custodian Pistol",
+        "target": "崇高护卫手枪"
+      },
+      {
+        "source": "Exalted Custodian Rifle",
+        "target": "崇高护卫步枪"
+      },
+      {
+        "source": "Exalted Custodian Shotgun",
+        "target": "崇高护卫霰弹枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shells",
+    "tgt_pattern": "{X}弹",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Flechette Shells",
+        "target": "飞镖弹"
+      },
+      {
+        "source": "HE Shells",
+        "target": "高爆炮弹"
+      },
+      {
+        "source": "HEAT Shells",
+        "target": "破甲弹"
+      },
+      {
+        "source": "HEDP Shells",
+        "target": "HEDP炮弹"
+      },
+      {
+        "source": "HESH Shells",
+        "target": "HESH碎甲弹"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Geth {X}",
+    "tgt_pattern": "桀斯{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Geth Pulse Cannon",
+        "target": "桀斯脉冲加农炮"
+      },
+      {
+        "source": "Geth Pulse Rifle",
+        "target": "桀斯脉冲步枪"
+      },
+      {
+        "source": "Geth Shotgun",
+        "target": "桀斯霰弹枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Hive Armor {X}",
+    "tgt_pattern": "蜂巢护甲{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Hive Armor Acid Cannon",
+        "target": "蜂巢护甲酸性加农炮"
+      },
+      {
+        "source": "Hive Armor Rending Claws",
+        "target": "蜂巢护甲撕裂利爪"
+      },
+      {
+        "source": "Hive Armor Wings",
+        "target": "蜂巢护甲背翼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Bullpup",
+    "tgt_pattern": "{X}无托式",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Kal-33 Bullpup",
+        "target": "Kal-33无托式"
+      },
+      {
+        "source": "Kal-50 Bullpup",
+        "target": "Kal-50无托式"
+      },
+      {
+        "source": "Kal-LX Bullpup",
+        "target": "Kal-LX无托式"
+      },
+      {
+        "source": "M-90 Ravager Bullpup",
+        "target": "M-90蹂躏者无托式"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Katana {X}",
+    "tgt_pattern": "太刀 M{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Katana M1",
+        "target": "太刀 M1"
+      },
+      {
+        "source": "Katana M2",
+        "target": "太刀 M2"
+      },
+      {
+        "source": "Katana M3",
+        "target": "太刀 M3"
+      },
+      {
+        "source": "Katana M4",
+        "target": "太刀 M4"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Autopistol",
+    "tgt_pattern": "{X}自动手枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Coil Autopistol",
+        "target": "线圈自动手枪"
+      },
+      {
+        "source": "Driller Autopistol",
+        "target": "钻孔者自动手枪"
+      },
+      {
+        "source": "Laser Autopistol",
+        "target": "激光自动手枪"
+      },
+      {
+        "source": "Master-Crafted Laser Autopistol",
+        "target": "大师级激光自动手枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Battle Rifle",
+    "tgt_pattern": "{X}战斗步枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Coil Battle Rifle",
+        "target": "线圈战斗步枪"
+      },
+      {
+        "source": "Laser Battle Rifle",
+        "target": "激光战斗步枪"
+      },
+      {
+        "source": "Mag Battle Rifle",
+        "target": "磁力战斗步枪"
+      },
+      {
+        "source": "Plasma Battle Rifle",
+        "target": "电浆战斗步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Strike Rifle",
+    "tgt_pattern": "{X}打击步枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Coil Strike Rifle",
+        "target": "线圈打击步枪"
+      },
+      {
+        "source": "Laser Strike Rifle",
+        "target": "激光打击步枪"
+      },
+      {
+        "source": "Mag Strike Rifle",
+        "target": "磁力打击步枪"
+      },
+      {
+        "source": "Plasma Strike Rifle",
+        "target": "电浆打击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Heavy Cannon",
+    "tgt_pattern": "{X}重型加农炮",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "DON-82 Coilmaster Heavy Cannon",
+        "target": "DON-82 线圈大师重型加农炮"
+      },
+      {
+        "source": "L-22 Leafstar Heavy Cannon",
+        "target": "L-22 叶星重型加农炮"
+      },
+      {
+        "source": "LAGO-508 Heavy Cannon",
+        "target": "LAGO-508 重型加农炮"
+      },
+      {
+        "source": "T-17 Arkhangel Heavy Cannon",
+        "target": "T-17阿尔汉格尔重型加农炮"
+      },
+      {
+        "source": "W-2000 'The Fixer' Heavy Cannon",
+        "target": "W-2000“终结者”重型加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Mech Artillery Cannon",
+    "tgt_pattern": "{X}炮",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "DON-82 Coilmaster Mech Artillery Cannon",
+        "target": "DON-82“线圈大师”机甲重型加农炮"
+      },
+      {
+        "source": "LAGO-508 Heavy Mech Artillery Cannon",
+        "target": "LAGO-508 重型机甲火炮加农炮"
+      },
+      {
+        "source": "L-22 Leafstar Mech Artillery Cannon",
+        "target": "L-22 枫星机甲重型加农炮"
+      },
+      {
+        "source": "RS-9 Redace Superlaser Mech Artillery Cannon",
+        "target": "RS-9雷德斯超级激光机甲炮"
+      },
+      {
+        "source": "T-17 Arkhangel Mech Artillery Cannon",
+        "target": "T-17“大天使”机甲加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} MK1",
+    "tgt_pattern": "{X} MK1",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Drone Beam MK1",
+        "target": "无人机光束 MK1"
+      },
+      {
+        "source": "Drone Repair MK1",
+        "target": "无人机维修 MK1"
+      },
+      {
+        "source": "Kiruka Autopulser MK1",
+        "target": "基鲁卡自动脉冲炮 MK1"
+      },
+      {
+        "source": "Resistance Mec Cannon MK1",
+        "target": "反抗军MEC加农炮 MK1"
+      },
+      {
+        "source": "Resistance Mec Launcher MK1",
+        "target": "反抗军MEC发射器 MK1"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} MK2",
+    "tgt_pattern": "{X} MK2",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Drone Beam MK2",
+        "target": "无人机光束 MK2"
+      },
+      {
+        "source": "Drone Repair MK2",
+        "target": "无人机维修 MK2"
+      },
+      {
+        "source": "Kiruka Autopulser MK2",
+        "target": "基鲁卡自动脉冲炮 MK2"
+      },
+      {
+        "source": "Resistance Mec Cannon MK2",
+        "target": "反抗军MEC加农炮 MK2"
+      },
+      {
+        "source": "Resistance Mec Launcher MK2",
+        "target": "反抗军MEC发射器 MK2"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} MK3",
+    "tgt_pattern": "{X} MK3",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Drone Repair MK3",
+        "target": "无人机维修 MK3"
+      },
+      {
+        "source": "Drone Beam MK3",
+        "target": "无人机光束 MK3"
+      },
+      {
+        "source": "Kiruka Autopulser MK3",
+        "target": "基鲁卡自动脉冲炮 MK3"
+      },
+      {
+        "source": "Resistance Mec Cannon MK3",
+        "target": "反抗军MEC加农炮 MK3"
+      },
+      {
+        "source": "Resistance Mec Launcher MK3",
+        "target": "反抗军MEC发射器 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Kiruka Autopulser {X}",
+    "tgt_pattern": "基鲁卡自动脉冲炮 MK{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Kiruka Autopulser MK1",
+        "target": "基鲁卡自动脉冲炮 MK1"
+      },
+      {
+        "source": "Kiruka Autopulser MK2",
+        "target": "基鲁卡自动脉冲炮 MK2"
+      },
+      {
+        "source": "Kiruka Autopulser MK3",
+        "target": "基鲁卡自动脉冲炮 MK3"
+      },
+      {
+        "source": "Kiruka Autopulser MK4",
+        "target": "基鲁卡自动脉冲炮 MK4"
+      },
+      {
+        "source": "Kiruka Autopulser MK5",
+        "target": "基鲁卡自动脉冲炮 MK5"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Laser {X} Rifle",
+    "tgt_pattern": "激光{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Laser Battle Rifle",
+        "target": "激光战斗步枪"
+      },
+      {
+        "source": "Laser Hunter Rifle",
+        "target": "激光猎手步枪"
+      },
+      {
+        "source": "Laser Strike Rifle",
+        "target": "激光打击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Mag {X}",
+    "tgt_pattern": "磁力{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Mag Battle Rifle",
+        "target": "磁力战斗步枪"
+      },
+      {
+        "source": "Mag Strike Rifle",
+        "target": "磁力打击步枪"
+      },
+      {
+        "source": "Mag Talon",
+        "target": "磁力利爪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Knife",
+    "tgt_pattern": "{X}匕首",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Coil Knife",
+        "target": "线圈匕首"
+      },
+      {
+        "source": "Laser Knife",
+        "target": "激光匕首"
+      },
+      {
+        "source": "Progressive Knife",
+        "target": "高振动粒子匕首"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Auto-Rifle",
+    "tgt_pattern": "{X}自动步枪",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Enhanced Laser Auto-Rifle",
+        "target": "强化激光自动步枪"
+      },
+      {
+        "source": "Marauder Auto-Rifle",
+        "target": "掠夺者自动步枪"
+      },
+      {
+        "source": "Master-crafted Laser Auto-Rifle",
+        "target": "大师级激光自动步枪"
+      },
+      {
+        "source": "Prototype Plasma Auto-Rifle",
+        "target": "原型电浆自动步枪"
+      },
+      {
+        "source": "Turbulent Plasma Auto-Rifle",
+        "target": "紊乱电浆自动步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Semi-Auto Pistol",
+    "tgt_pattern": "{X}半自动手枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Enhanced Laser Semi-Auto Pistol",
+        "target": "强化激光半自动手枪"
+      },
+      {
+        "source": "Master-Crafted Laser Semi-Auto Pistol",
+        "target": "大师级激光半自动手枪"
+      },
+      {
+        "source": "Prototype Plasma Semi-Auto Pistol",
+        "target": "原型电浆半自动手枪"
+      },
+      {
+        "source": "Turbulent Plasma Semi-Auto Pistol",
+        "target": "湍流电浆半自动手枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Strike Module",
+    "tgt_pattern": "{X}击模块",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Heavy Strike Module",
+        "target": "重击模块"
+      },
+      {
+        "source": "Powered Strike Module",
+        "target": "动力打击模块"
+      },
+      {
+        "source": "Prototype Strike Module",
+        "target": "原型打击模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Master-crafted Advent {X} Rifle",
+    "tgt_pattern": "大师级变种人{X}步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Master-crafted Advent Breaker Rifle",
+        "target": "大师级变种人粉碎者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Enforcer Rifle",
+        "target": "大师级变种人执行者步枪"
+      },
+      {
+        "source": "Master-crafted Advent Scout Rifle",
+        "target": "大师级变种人侦察步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Powered {X}",
+    "tgt_pattern": "动力{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Powered Grappling Hook",
+        "target": "动力爪钩"
+      },
+      {
+        "source": "Powered Shield",
+        "target": "动力护盾"
+      },
+      {
+        "source": "Powered Strike Module",
+        "target": "动力打击模块"
+      },
+      {
+        "source": "Powered Guardian Shield",
+        "target": "动力守护者护盾"
+      },
+      {
+        "source": "Powered Bayonet",
+        "target": "动力刺刀"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Prototype {X}",
+    "tgt_pattern": "原型{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Prototype Plasma Auto-Long Rifle",
+        "target": "原型电浆自动长步枪"
+      },
+      {
+        "source": "Prototype Plasma Auto-Rifle",
+        "target": "原型电浆自动步枪"
+      },
+      {
+        "source": "Prototype Plasma LMG",
+        "target": "原型电浆轻机枪"
+      },
+      {
+        "source": "Prototype Plasma Semi-Auto Pistol",
+        "target": "原型电浆半自动手枪"
+      },
+      {
+        "source": "Prototype Plasma Trench Gun",
+        "target": "原型电浆战壕枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Resistance Mec {X}",
+    "tgt_pattern": "反抗军MEC{X}",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Resistance Mec Cannon MK1",
+        "target": "反抗军MEC加农炮 MK1"
+      },
+      {
+        "source": "Resistance Mec Cannon MK2",
+        "target": "反抗军MEC加农炮 MK2"
+      },
+      {
+        "source": "Resistance Mec Cannon MK3",
+        "target": "反抗军MEC加农炮 MK3"
+      },
+      {
+        "source": "Resistance Mec Launcher MK1",
+        "target": "反抗军MEC发射器 MK1"
+      },
+      {
+        "source": "Resistance Mec Launcher MK2",
+        "target": "反抗军MEC发射器 MK2"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Resistance Mec Cannon {X}",
+    "tgt_pattern": "反抗军MEC加农炮 MK{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Resistance Mec Cannon MK1",
+        "target": "反抗军MEC加农炮 MK1"
+      },
+      {
+        "source": "Resistance Mec Cannon MK2",
+        "target": "反抗军MEC加农炮 MK2"
+      },
+      {
+        "source": "Resistance Mec Cannon MK3",
+        "target": "反抗军MEC加农炮 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Resistance Mec Launcher {X}",
+    "tgt_pattern": "反抗军MEC发射器 MK{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Resistance Mec Launcher MK1",
+        "target": "反抗军MEC发射器 MK1"
+      },
+      {
+        "source": "Resistance Mec Launcher MK2",
+        "target": "反抗军MEC发射器 MK2"
+      },
+      {
+        "source": "Resistance Mec Launcher MK3",
+        "target": "反抗军MEC发射器 MK3"
+      }
+    ]
+  },
+  {
+    "src_pattern": "SPARK Arm: Power Arm {X}",
+    "tgt_pattern": "SPARK手臂：动力臂{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "SPARK Arm: Power Arm MK1",
+        "target": "SPARK手臂：动力臂 MK1"
+      },
+      {
+        "source": "SPARK Arm: Power Arm MK2",
+        "target": "SPARK手臂：动力臂 MK2"
+      },
+      {
+        "source": "SPARK Arm: Power Arm MK3",
+        "target": "SPARK手臂：动力臂 MK3"
+      },
+      {
+        "source": "SPARK Arm: Power Arm Mk4",
+        "target": "SPARK手臂：动力臂Mk4"
+      },
+      {
+        "source": "SPARK Arm: Power Arm Mk5",
+        "target": "SPARK手臂：动力臂 Mk5"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pulse Cannon",
+    "tgt_pattern": "{X}脉冲加农炮",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Damaged Pulse Cannon",
+        "target": "受损的脉冲加农炮"
+      },
+      {
+        "source": "Geth Pulse Cannon",
+        "target": "桀斯脉冲加农炮"
+      },
+      {
+        "source": "Upgraded Pulse Cannon",
+        "target": "升级型脉冲加农炮"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pulse Rifle",
+    "tgt_pattern": "{X}脉冲步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Damaged Pulse Rifle",
+        "target": "受损的脉冲步枪"
+      },
+      {
+        "source": "Geth Pulse Rifle",
+        "target": "桀斯脉冲步枪"
+      },
+      {
+        "source": "Upgraded Pulse Rifle",
+        "target": "升级版脉冲步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Module",
+    "tgt_pattern": "{X}模块",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Heavy Strike Module",
+        "target": "重击模块"
+      },
+      {
+        "source": "Powered Strike Module",
+        "target": "动力打击模块"
+      },
+      {
+        "source": "Prototype Strike Module",
+        "target": "原型打击模块"
+      },
+      {
+        "source": "World Breaker Module",
+        "target": "世界粉碎者模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Sniper Rifle",
+    "tgt_pattern": "{X}狙击步枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Junta Sniper Rifle",
+        "target": "军政府狙击步枪"
+      },
+      {
+        "source": "Marksman Sniper Rifle",
+        "target": "神射手狙击步枪"
+      },
+      {
+        "source": "Stolen Sniper Rifle",
+        "target": "被盗的狙击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifle",
+        "target": "XCOM磁力狙击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Upgraded {X}",
+    "tgt_pattern": "升级{X}",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "Upgraded Geth Shotgun",
+        "target": "升级版桀斯霰弹枪"
+      },
+      {
+        "source": "Upgraded Pulse Cannon",
+        "target": "升级型脉冲加农炮"
+      },
+      {
+        "source": "Upgraded Pulse Rifle",
+        "target": "升级版脉冲步枪"
+      },
+      {
+        "source": "Upgraded Pyro Flamethrower",
+        "target": "升级版喷火兵火焰喷射器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X} Rifle",
+    "tgt_pattern": "XCOM{X}击步枪",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle",
+        "target": "XCOM突击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle",
+        "target": "XCOM磁力突击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifle",
+        "target": "XCOM磁力狙击步枪"
+      },
+      {
+        "source": "XCOM Plasma Assault Rifle",
+        "target": "XCOM电浆突击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Assault {X}",
+    "tgt_pattern": "XCOM突击步枪{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle",
+        "target": "XCOM突击步枪"
+      },
+      {
+        "source": "XCOM Assault Rifle (T2)",
+        "target": "XCOM突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Assault Rifle (T3)",
+        "target": "XCOM突击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X} Rifle (T2)",
+    "tgt_pattern": "XCOM{X}击步枪 (T2)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle (T2)",
+        "target": "XCOM突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T2)",
+        "target": "XCOM磁力突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifle (T2)",
+        "target": "XCOM磁力狙击步枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM {X} Rifle (T3)",
+    "tgt_pattern": "XCOM{X}击步枪 (T3)",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle (T3)",
+        "target": "XCOM突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Sniper Rifle (T3)",
+        "target": "XCOM磁力狙击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Assault Rifle (T3)",
+        "target": "XCOM电浆突击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Magnetic Assault {X}",
+    "tgt_pattern": "XCOM磁力突击步枪{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Assault Rifle",
+        "target": "XCOM磁力突击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T2)",
+        "target": "XCOM磁力突击步枪 (T2)"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Assault Rifle",
+    "tgt_pattern": "XCOM{X}突击步枪",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle",
+        "target": "XCOM突击步枪"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle",
+        "target": "XCOM磁力突击步枪"
+      },
+      {
+        "source": "XCOM Plasma Assault Rifle",
+        "target": "XCOM电浆突击步枪"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Assault Rifle (T3)",
+    "tgt_pattern": "XCOM{X}突击步枪 (T3)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Assault Rifle (T3)",
+        "target": "XCOM突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Magnetic Assault Rifle (T3)",
+        "target": "XCOM磁力突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Assault Rifle (T3)",
+        "target": "XCOM电浆突击步枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pistol (T2)",
+    "tgt_pattern": "XCOM{X}手枪 (T2)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Pistol (T2)",
+        "target": "XCOM磁力手枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Pistol (T2)",
+        "target": "XCOM电浆手枪 (T2)"
+      },
+      {
+        "source": "XCOM Pistol (T2)",
+        "target": "XCOM手枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pistol (T3)",
+    "tgt_pattern": "XCOM{X}手枪 (T3)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Pistol (T3)",
+        "target": "XCOM磁力手枪 (T3)"
+      },
+      {
+        "source": "XCOM Pistol (T3)",
+        "target": "XCOM手枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Pistol (T3)",
+        "target": "XCOM电浆手枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shotgun (T2)",
+    "tgt_pattern": "XCOM{X}霰弹枪 (T2)",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Shotgun (T2)",
+        "target": "XCOM磁力霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Plasma Shotgun (T2)",
+        "target": "XCOM电浆霰弹枪 (T2)"
+      },
+      {
+        "source": "XCOM Shotgun (T2)",
+        "target": "XCOM霰弹枪 (T2)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shotgun (T3)",
+    "tgt_pattern": "XCOM{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "XCOM Magnetic Shotgun (T3)",
+        "target": "XCOM磁力霰弹枪（T3）"
+      },
+      {
+        "source": "XCOM Plasma Shotgun (T3)",
+        "target": "XCOM电浆霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Shotgun (T3)",
+        "target": "XCOM霰弹枪 (T3)"
+      }
+    ]
+  },
+  {
+    "src_pattern": "XCOM Plasma {X} (T3)",
+    "tgt_pattern": "XCOM电浆{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "XCOM Plasma Assault Rifle (T3)",
+        "target": "XCOM电浆突击步枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Cannon (T3)",
+        "target": "XCOM电浆加农炮 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Pistol (T3)",
+        "target": "XCOM电浆手枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Shotgun (T3)",
+        "target": "XCOM电浆霰弹枪 (T3)"
+      },
+      {
+        "source": "XCOM Plasma Sniper RIfle (T3)",
+        "target": "XCOM电浆狙击步枪（T3）"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Lens</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}镜</font>",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Amplifying Lens</font>",
+        "target": "<font color='#df07b7'>增幅透镜</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Focusing Lens</font>",
+        "target": "<font color='#df07b7'>聚焦透镜</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Prime Lens</font>",
+        "target": "<font color='#df07b7'>至尊瞄准镜</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Resonating Lens</font>",
+        "target": "<font color='#df07b7'>回响透镜</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Discharge Capacitor</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}放电电容器</font>",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Burst Discharge Capacitor</font>",
+        "target": "<font color='#df07b7'>突发放电电容器</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Pulse Discharge Capacitor</font>",
+        "target": "<font color='#df07b7'>脉冲放电电容器</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Rapid Discharge Capacitor</font>",
+        "target": "<font color='#df07b7'>快速放电电容器</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Regulative Discharge Capacitor</font>",
+        "target": "<font color='#df07b7'>稳压放电电容器</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Resonant Discharge Capacitor</font>",
+        "target": "<font color='#df07b7'>回响放电电容器</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Magazine</font>",
+    "tgt_pattern": "<font color='#df07b7'>{X}弹匣</font>",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "<font color='#df07b7'>Macro Magazine</font>",
+        "target": "<font color='#df07b7'>巨型弹匣</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Micro Magazine</font>",
+        "target": "<font color='#df07b7'>微型弹匣</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Pulser Magazine</font>",
+        "target": "<font color='#df07b7'>脉冲弹匣</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Quickfire Magazine</font>",
+        "target": "<font color='#df07b7'>速射弹匣</font>"
+      },
+      {
+        "source": "<font color='#df07b7'>Smart Magazine</font>",
+        "target": "<font color='#df07b7'>智能弹匣</font>"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Trigger",
+    "tgt_pattern": "{X}扳机",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> Hair Trigger",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> 微力扳机"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> Adv. Hair Trigger",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> 高级微力扳机"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> Elite Hair Trigger",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> 精英微力扳机"
+      },
+      {
+        "source": "Advanced Rupture Trigger",
+        "target": "高级撕裂扳机"
+      },
+      {
+        "source": "Rupture Trigger",
+        "target": "撕裂扳机"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Stock",
+    "tgt_pattern": "{X}枪托",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> Stock",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> 枪托"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> Adv. Stock",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> 高级枪托"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> Elite Stock",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> 精英枪托"
+      },
+      {
+        "source": "Advanced Reflex Stock",
+        "target": "高级条件反射枪托"
+      },
+      {
+        "source": "Reflex Stock",
+        "target": "条件反射枪托"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Suppressor",
+    "tgt_pattern": "{X}消音器",
+    "approved_count": 4,
+    "examples": [
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> Suppressor",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP1g' width='24' height='24' vspace='-4'> 消音器"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> Adv. Suppressor",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP2b' width='24' height='24' vspace='-4'> 高级消音器"
+      },
+      {
+        "source": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> Elite Suppressor",
+        "target": "<img src='img:///qUIck_LW2_UILibrary.Tug_WUP3r' width='24' height='24' vspace='-4'> 精英消音器"
+      },
+      {
+        "source": "Superior Suppressor",
+        "target": "终极消音器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Advanced {X} Refinement",
+    "tgt_pattern": "高级{X}",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Advanced Armor Piercing Refinement",
+        "target": "高级穿甲精炼"
+      },
+      {
+        "source": "Advanced Armor Shredding Refinement",
+        "target": "高级破甲精炼"
+      },
+      {
+        "source": "Advanced Base Damage Refinement",
+        "target": "高级基础伤害精炼"
+      },
+      {
+        "source": "Advanced Crit Booster Refinement",
+        "target": "高级暴击助推优化"
+      },
+      {
+        "source": "Advanced Crit Damage Refinement",
+        "target": "高级暴击伤害精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Damage Refinement",
+    "tgt_pattern": "{X}伤害精炼",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Advanced Base Damage Refinement",
+        "target": "高级基础伤害精炼"
+      },
+      {
+        "source": "Advanced Crit Damage Refinement",
+        "target": "高级暴击伤害精炼"
+      },
+      {
+        "source": "Base Damage Refinement",
+        "target": "基础伤害精炼"
+      },
+      {
+        "source": "Crit Damage Refinement",
+        "target": "暴击伤害精炼"
+      },
+      {
+        "source": "Superior Base Damage Refinement",
+        "target": "终极基础伤害精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Tracker",
+    "tgt_pattern": "{X}追踪器",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Advanced Crit Tracker",
+        "target": "高级暴击追踪器"
+      },
+      {
+        "source": "Advanced Network Tracker",
+        "target": "高级网络追踪器"
+      },
+      {
+        "source": "Basic Network Tracker",
+        "target": "基础网络追踪器"
+      },
+      {
+        "source": "Crit Tracker",
+        "target": "暴击追踪器"
+      },
+      {
+        "source": "Superior Crit Tracker",
+        "target": "终极暴击追踪器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Chip",
+    "tgt_pattern": "{X}芯片",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Armour System Chip",
+        "target": "装甲系统芯片"
+      },
+      {
+        "source": "Caustic Protocol Chip",
+        "target": "腐蚀性协议芯片"
+      },
+      {
+        "source": "Chaining Jolt Chip",
+        "target": "连锁电击芯片"
+      },
+      {
+        "source": "Combat Scanner Chip",
+        "target": "战术扫描仪芯片"
+      },
+      {
+        "source": "Toxic Protocol Chip",
+        "target": "毒性协议芯片"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Piercing Refinement",
+    "tgt_pattern": "{X}穿甲精炼",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Armor Piercing Refinement",
+        "target": "高级穿甲精炼"
+      },
+      {
+        "source": "Armor Piercing Refinement",
+        "target": "穿甲精炼"
+      },
+      {
+        "source": "Superior Armor Piercing Refinement",
+        "target": "终极穿甲精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Shredding Refinement",
+    "tgt_pattern": "{X}破甲精炼",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Armor Shredding Refinement",
+        "target": "高级破甲精炼"
+      },
+      {
+        "source": "Armor Shredding Refinement",
+        "target": "破甲精炼"
+      },
+      {
+        "source": "Superior Armor Shredding Refinement",
+        "target": "终极破甲精炼"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Blade Frame",
+    "tgt_pattern": "{X}架",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Blade Frame",
+        "target": "高级剑刃框架"
+      },
+      {
+        "source": "Basic Blade Frame",
+        "target": "基础剑刃框架"
+      },
+      {
+        "source": "Superior Blade Frame",
+        "target": "终极剑刃框架"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Charge Packet",
+    "tgt_pattern": "{X}药包",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Explosive Charge Packet",
+        "target": "高级爆炸物装药包"
+      },
+      {
+        "source": "Explosive Charge Packet",
+        "target": "成型炸药包"
+      },
+      {
+        "source": "Superior Explosive Charge Packet",
+        "target": "终极成型炸药包"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Feedback Capacitor",
+    "tgt_pattern": "{X}反噬电容器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Feedback Capacitor",
+        "target": "高级反噬电容器"
+      },
+      {
+        "source": "Basic Feedback Capacitor",
+        "target": "基础反噬电容器"
+      },
+      {
+        "source": "Superior Feedback Capacitor",
+        "target": "终极反噬电容器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Loaded Mag",
+    "tgt_pattern": "{X}前装弹匣",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Front Loaded Mag",
+        "target": "高级前装弹匣"
+      },
+      {
+        "source": "Front Loaded Mag",
+        "target": "前装弹匣"
+      },
+      {
+        "source": "Superior Front Loaded Mag",
+        "target": "终极前装弹匣"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Barrel",
+    "tgt_pattern": "{X}枪管",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Heavy Barrel",
+        "target": "高级重型枪管"
+      },
+      {
+        "source": "Heavy Barrel",
+        "target": "重型枪管"
+      },
+      {
+        "source": "Superior Heavy Barrel",
+        "target": "终极重型枪管"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Spring",
+    "tgt_pattern": "{X}装填弹簧",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Loaded Spring",
+        "target": "高级装填弹簧"
+      },
+      {
+        "source": "Superior Loaded Spring",
+        "target": "终极装填弹簧"
+      },
+      {
+        "source": "Loaded Spring",
+        "target": "装填弹簧"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Network Tracker",
+    "tgt_pattern": "{X}网络追踪器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Network Tracker",
+        "target": "高级网络追踪器"
+      },
+      {
+        "source": "Basic Network Tracker",
+        "target": "基础网络追踪器"
+      },
+      {
+        "source": "Superior Network Tracker",
+        "target": "终极网络追踪器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pommel Micro Motor",
+    "tgt_pattern": "{X}柄端微型马达",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Pommel Micro Motor",
+        "target": "高级柄端微型马达"
+      },
+      {
+        "source": "Basic Pommel Micro Motor",
+        "target": "基础柄端微型马达"
+      },
+      {
+        "source": "Superior Pommel Micro Motor",
+        "target": "终极柄端微型马达"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Pressurized Dispenser",
+    "tgt_pattern": "{X}加压分配器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Pressurized Dispenser",
+        "target": "高级加压分配器"
+      },
+      {
+        "source": "Basic Pressurized Dispenser",
+        "target": "基础加压分配器"
+      },
+      {
+        "source": "Superior Pressurized Dispenser",
+        "target": "终极加压分配器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Scrambler",
+    "tgt_pattern": "{X}器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Scrambler",
+        "target": "高级干扰器"
+      },
+      {
+        "source": "Basic Scrambler",
+        "target": "基础扰频器"
+      },
+      {
+        "source": "Superior Scrambler",
+        "target": "终极干扰器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Loader",
+    "tgt_pattern": "{X}冲刺装填器",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Sprint Loader",
+        "target": "高级冲刺装填器"
+      },
+      {
+        "source": "Sprint Loader",
+        "target": "冲刺装填器"
+      },
+      {
+        "source": "Superior Sprint Loader",
+        "target": "终极冲刺装填器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Targeting Module",
+    "tgt_pattern": "{X}瞄准模块",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Advanced Targeting Module",
+        "target": "高级瞄准模块"
+      },
+      {
+        "source": "Basic Targeting Module",
+        "target": "基础瞄准模块"
+      },
+      {
+        "source": "Superior Targeting Module",
+        "target": "终极瞄准模块"
+      }
+    ]
+  },
+  {
+    "src_pattern": "{X} Upgrade",
+    "tgt_pattern": "{X}升级",
+    "approved_count": 6,
+    "examples": [
+      {
+        "source": "Advent Killer Upgrade",
+        "target": "变种人克星升级"
+      },
+      {
+        "source": "Alien Killer Upgrade",
+        "target": "外星人克星升级"
+      },
+      {
+        "source": "Faceoff Upgrade",
+        "target": "对峙升级"
+      },
+      {
+        "source": "Hail of Bullets Upgrade",
+        "target": "枪林弹雨升级"
+      },
+      {
+        "source": "Kill Zone Upgrade",
+        "target": "杀戮地带升级"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Crit {X}",
+    "tgt_pattern": "暴击{X}",
+    "approved_count": 3,
+    "examples": [
+      {
+        "source": "Crit Booster Refinement",
+        "target": "暴击助推优化"
+      },
+      {
+        "source": "Crit Damage Refinement",
+        "target": "暴击伤害精炼"
+      },
+      {
+        "source": "Crit Tracker",
+        "target": "暴击追踪器"
+      }
+    ]
+  },
+  {
+    "src_pattern": "Superior {X} Refinement",
+    "tgt_pattern": "终极{X}精炼",
+    "approved_count": 5,
+    "examples": [
+      {
+        "source": "Superior Armor Piercing Refinement",
+        "target": "终极穿甲精炼"
+      },
+      {
+        "source": "Superior Armor Shredding Refinement",
+        "target": "终极破甲精炼"
+      },
+      {
+        "source": "Superior Base Damage Refinement",
+        "target": "终极基础伤害精炼"
+      },
+      {
+        "source": "Superior Crit Booster Refinement",
+        "target": "终极暴击助推精炼"
+      },
+      {
+        "source": "Superior Crit Damage Refinement",
+        "target": "终极暴击伤害精炼"
       }
     ]
   }
