@@ -97,7 +97,9 @@ async def collect_context_for_term(
             page_size=20,
             q=position_query,
         )
-        component.nearby = [u for u in nearby_page.units if component.key in u.context]
+        component.nearby = [
+            u for u in nearby_page.results if component.key in u.context
+        ]
         return component
 
     search_query = strip_html(input_unit.source) or input_unit.source

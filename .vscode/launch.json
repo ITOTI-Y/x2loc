@@ -35,5 +35,12 @@
             "module": "tests.agent.test_agent",
             "console": "integratedTerminal"
         },
+        {
+            "name": "Test Weblate",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tests.services.test_weblate",
+            "console": "integratedTerminal"
+        }
     ]
 }

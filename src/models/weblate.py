@@ -28,11 +28,42 @@ class WeblateRequestParamsSchema(BaseSchema):
     q: str | None = None
 
 
+class WeblateLanguageSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    id: int
+    code: str
+    name: str
+
+
+class WeblateComponentSchema(BaseSchema):
+    name: str
+    slug: str
+    source_csv: bytes | None = None
+    source_language: WeblateLanguageSchema = Field(alias="source_language")
+
+
+class WeblateTaskResultSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    error: str | None = None
+
+
+class WeblateTaskSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    completed: bool
+    progress: int = 0
+    result: WeblateTaskResultSchema | None = None
+
+
 class WeblateRequestSchema(BaseSchema):
     path: str
-    method: Literal["GET", "POST", "PATCH"]
+    method: Literal["GET", "POST", "PATCH", "DELETE"]
     params: WeblateRequestParamsSchema | None = None
     json_body: dict[str, Any] | None = None
+    data: dict[str, Any] | None = None
+    files: dict[str, Any] | None = None
 
 
 class WeblateUnitSchema(BaseSchema):
@@ -51,10 +82,10 @@ class WeblateUnitSchema(BaseSchema):
     note: str | None = None
 
 
-class WeblatePageSchema(BaseSchema):
+class WeblatePageSchema[T: WeblateComponentSchema | WeblateUnitSchema](BaseSchema):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    units: list[WeblateUnitSchema] = Field(default_factory=list, alias="results")
+    results: list[T] = Field(default_factory=list)
     next: str | None
     count: int | None = None
     page: int | None = None
