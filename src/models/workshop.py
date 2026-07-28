@@ -5,6 +5,7 @@ from pydantic import Field, field_validator
 
 from src._share import EXT_LANG_MAP
 from src.models._share import BaseSchema
+from src.models.mod import ModInfoSchema
 
 XCOM2_APP_ID: Final[int] = 268500
 TARGET_LANGUAGE: Final[str] = "zh_Hans"
@@ -21,7 +22,17 @@ class WorkshopLimitsSchema(BaseSchema):
 
 
 class WorkshopItemSchema(BaseSchema):
-    pass
+    workshop_id: str
+    mod_root: Path
+    mod_info: ModInfoSchema
+    files: list[Path]
+
+    @field_validator("workshop_id")
+    @classmethod
+    def validate_workshop_id(cls, value: str) -> str:
+        if not value.isdecimal() or value == "0":
+            raise ValueError("workshop_id must be a non-zero decimal integer")
+        return value
 
 
 class LocalizationAssetSchema(BaseSchema):

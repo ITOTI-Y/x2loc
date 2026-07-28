@@ -5,6 +5,9 @@ from urllib.parse import parse_qs, urlparse
 
 from src.models.workshop import (
     SOURCE_SUFFIX,
+    TARGET_SUFFIX,
+    LocalizationAssetSchema,
+    WorkshopItemSchema,
     WorkshopLimitsSchema,
 )
 
@@ -45,7 +48,9 @@ def scan_mod_tree(mod_root: Path, limits: WorkshopLimitsSchema) -> list[Path]:
     root = mod_root.resolve(strict=True)
     files: list[Path] = []
     total_bytes = 0
-    for candidate in sorted(root.glob("**/*.int")):
+    for candidate in sorted(root.rglob("*")):
+        if candidate.is_symlink():
+            raise WorkshopInputError("Workshop content contains a symbolic link")
         if not candidate.is_file():
             continue
         resolved = candidate.resolve(strict=True)
@@ -65,3 +70,45 @@ def scan_mod_tree(mod_root: Path, limits: WorkshopLimitsSchema) -> list[Path]:
         if total_bytes > limits.max_total_bytes:
             raise WorkshopInputError("Workshop content exceeds the total size limit")
     return files
+
+
+def discover_localization_assets(
+    item: WorkshopItemSchema,
+) -> list[LocalizationAssetSchema]:
+    root = item.mod_root.resolve(strict=True)
+    existing = set(item.files)
+    sources = [
+        path
+        for path in item.files
+        if path.suffix.casefold() == SOURCE_SUFFIX
+        and any(
+            part.casefold() == LOCALIZATION_DIR
+            for part in path.relative_to(root).parts[:-1]
+        )
+    ]
+    if not sources:
+        raise WorkshopInputError(
+            f"no {SOURCE_SUFFIX} file found below Localization directories"
+        )
+
+    collections: dict[str, PurePosixPath] = {}
+    assets: list[LocalizationAssetSchema] = []
+    for source in sources:
+        relative_source = PurePosixPath(source.relative_to(root).as_posix())
+        relative_target = relative_source.with_suffix(TARGET_SUFFIX)
+        target = source.with_suffix(TARGET_SUFFIX)
+        asset = LocalizationAssetSchema(
+            source_path=source,
+            existing_target_path=target if target in existing else None,
+            relative_source_path=relative_source,
+            relative_target_path=relative_target,
+            component_slug=component_slug(item.workshop_id, relative_source),
+        )
+        previous = collections.get(asset.windows_collision_key)
+        if previous is not None:
+            raise WorkshopInputError(
+                f"Windows output collision: {previous} and {relative_target}"
+            )
+        collections[asset.windows_collision_key] = relative_target
+        assets.append(asset)
+    return assets

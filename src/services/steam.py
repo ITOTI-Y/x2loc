@@ -50,7 +50,7 @@ class SteamDownloader:
             raise SteamDownloadError("Workshop item is not a resolvable mod") from exc
         logger.info("Downloaded Workshop item {} ({} files)", workshop_id, len(files))
         return WorkshopItemSchema(
-            workshop_id=workshop_id,
+            workshop_id=str(workshop_id),
             mod_root=mod_root.resolve(strict=True),
             mod_info=mod_info,
             files=files,
