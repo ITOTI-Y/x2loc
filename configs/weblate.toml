@@ -1,3 +1,7 @@
+service_token = ""
+data_root = "data/service"
+bind_port = 8100
+
 [weblate]
 url = "http://localhost:8000/api"
 token = ""
@@ -18,3 +22,14 @@ base_glossary_slug = "glossary-base-xcom2-wotc"
 mods_glossary_slug = "glossary-mods"
 custom_glossary_slug = "glossary-custom"
 target_lang = "zh_Hans"
+
+[steam]
+steam_username = ""
+steam_password = ""
+executable = "/usr/games/steamcmd"
+root = "data/steam"
+
+[glossary]
+base_slug = "glossary-base-xcom2-wotc"
+mods_slug = "glossary-mods"
+custom_slug = "glossary-custom"

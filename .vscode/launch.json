@@ -5,7 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            // tests/test_parser.py::TestParseEntry to run only this test
             "name": "Parse Loc File",
             "type": "debugpy",
             "request": "launch",
@@ -17,7 +16,6 @@
             "console": "integratedTerminal"
         },
         {
-            // tests/test_extractor.py::TestExtractCommand to run only this test
             "name": "Extract Glossary",
             "type": "debugpy",
             "request": "launch",
@@ -54,6 +52,20 @@
             "args": [
                 "tests/core/test_workshop.py",
                 "-v"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.agent.cli",
+            "args": [
+                "run",
+                "--config",
+                "configs/weblate.local.toml",
+                "--batch-size",
+                "10",
             ],
             "console": "integratedTerminal"
         }

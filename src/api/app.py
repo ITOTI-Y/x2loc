@@ -231,8 +231,8 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                     steam=SteamDownloader(
                         executable=config.steam.executable,
                         steam_root=config.steam.root,
-                        username=config.steam.username,
-                        password=config.steam.password,
+                        username=config.steam.steam_username,
+                        password=config.steam.steam_password,
                         limits=config.limits,
                     ),
                     weblate=weblate,

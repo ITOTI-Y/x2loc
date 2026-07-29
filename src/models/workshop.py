@@ -83,5 +83,12 @@ class LocalizationAssetSchema(BaseSchema):
 
 
 class SteamConfigSchema(BaseSchema):
+    """Steam access shared by the interactive CLI and the service.
+
+    Field names mirror the `[steam]` table in `configs/weblate.local.toml`.
+    """
+
     steam_username: str
     steam_password: SecretStr
+    executable: Path = Path("/usr/games/steamcmd")
+    root: Path = Path("data/steam")

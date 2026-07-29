@@ -34,11 +34,7 @@ from src.models.job import (
     WorkshopJobRequestSchema,
 )
 from src.models.weblate import CorpusUnitSchema
-from src.models.workshop import (
-    LocalizationAssetSchema,
-    SteamConfigSchema,
-    WorkshopItemSchema,
-)
+from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
 from src.services.steam import SteamDownloader, SteamDownloadError
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
@@ -358,10 +354,7 @@ class WorkshopPipeline:
     def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
         return ConfigSchema(
             weblate=self._config.weblate,
-            steam=SteamConfigSchema(
-                steam_username=self._config.steam.username,
-                steam_password=self._config.steam.password,
-            ),
+            steam=self._config.steam,
             base_glossary_slug=self._config.glossary.base_slug,
             mods_glossary_slug=self._config.glossary.mods_slug,
             custom_glossary_slug=self._config.glossary.custom_slug,

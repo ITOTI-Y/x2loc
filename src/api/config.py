@@ -4,18 +4,16 @@ import ipaddress
 from pathlib import Path
 
 from pydantic import Field, SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 from src.models._share import BaseSchema
 from src.models.weblate import WeblateConfigSchema
-from src.models.workshop import WorkshopLimitsSchema
-
-
-class SteamConfigSchema(BaseSchema):
-    executable: Path
-    root: Path
-    username: str
-    password: SecretStr
+from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
 
 
 class GlossaryConfigSchema(BaseSchema):
@@ -35,17 +33,23 @@ def _default_limits() -> WorkshopLimitsSchema:
 
 
 class ServiceConfigSchema(BaseSettings):
-    """Loaded from `X2LOC_`-prefixed environment variables only.
+    """Layered service configuration: env > TOML > defaults.
 
-    Credentials come from the process environment; the repository holds no
-    `.env` or credential template files. Nested fields use `__`, e.g.
-    `X2LOC_WEBLATE__TOKEN` and `X2LOC_STEAM__PASSWORD`.
+    The TOML source is `configs/weblate.local.toml` — the same file the
+    interactive CLI reads, so one gitignored file holds every credential.
+    Top-level keys (`service_token`, `data_root`, `bind_port`) sit above
+    the first table; `[weblate]`, `[steam]` and `[glossary]` map to the
+    nested models. `X2LOC_`-prefixed environment variables override any
+    of it for container or CI deployments, nested via `__`, e.g.
+    `X2LOC_WEBLATE__TOKEN` and `X2LOC_STEAM__STEAM_PASSWORD`. The path is
+    relative to the working directory: run the service from the repository
+    root or override via environment.
     """
 
     model_config = SettingsConfigDict(
         env_prefix="X2LOC_",
         env_nested_delimiter="__",
-        env_file=None,
+        toml_file="configs/weblate.local.toml",
         extra="ignore",
     )
 
@@ -58,6 +62,21 @@ class ServiceConfigSchema(BaseSettings):
     weblate: WeblateConfigSchema
     limits: WorkshopLimitsSchema = Field(default_factory=_default_limits)
     glossary: GlossaryConfigSchema = Field(default_factory=GlossaryConfigSchema)
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            TomlConfigSettingsSource(settings_cls),
+        )
 
     @model_validator(mode="after")
     def validate_loopback(self) -> ServiceConfigSchema:
