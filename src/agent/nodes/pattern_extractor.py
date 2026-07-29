@@ -24,10 +24,10 @@ type _TemplateKey = tuple[tuple[str, ...], tuple[str, ...]]
 
 class PatternExtractorOutputSchema(TypedDict):
     approved_pairs: dict[str, str]
-    patterns: dict[str, PatternSchema]
+    patterns: dict[str, tuple[PatternSchema, ...]]
 
 
-def load_cached_patterns() -> dict[str, PatternSchema]:
+def load_cached_patterns() -> dict[str, tuple[PatternSchema, ...]]:
     if not PATTERN_CACHE_PATH.exists():
         return {}
     try:
@@ -37,16 +37,18 @@ def load_cached_patterns() -> dict[str, PatternSchema]:
         logger.warning(f"Failed to load pattern cache: {exc}")
         return {}
     logger.info(f"Loaded {len(patterns)} cached patterns from {PATTERN_CACHE_PATH}")
-    return {p.src_pattern: p for p in patterns}
+    return {p.src_pattern: (p,) for p in patterns}
 
 
-def _save_cache(patterns: dict[str, PatternSchema]) -> None:
+def _save_cache(patterns: dict[str, tuple[PatternSchema, ...]]) -> None:
+    """Atomic replace: an interrupted write must not truncate the cache."""
     try:
         PATTERN_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        payload = [p.model_dump() for p in patterns.values()]
-        PATTERN_CACHE_PATH.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), "utf-8"
-        )
+        payload = [p.model_dump() for group in patterns.values() for p in group]
+        serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+        temporary = PATTERN_CACHE_PATH.with_suffix(".json.tmp")
+        temporary.write_text(serialized, "utf-8")
+        temporary.replace(PATTERN_CACHE_PATH)
     except OSError as exc:
         logger.warning(f"Failed to save pattern cache: {exc}")
 
@@ -59,9 +61,12 @@ def pattern_extractor(state: NewAgentStateSchema) -> PatternExtractorOutputSchem
     if len(pairs) >= PATTERN_MIN_EXAMPLES:
         for src_pattern, mined in _detect_patterns(pairs).items():
             current = patterns.get(src_pattern)
-            if current is not None and current.approved_count >= mined.approved_count:
+            if (
+                current is not None
+                and current[0].approved_count >= mined.approved_count
+            ):
                 continue
-            patterns[src_pattern] = mined
+            patterns[src_pattern] = (mined,)
             changed = True
             if current is None:
                 logger.info(

@@ -20,6 +20,19 @@ class PatternSchema(BaseSchema):
     examples: list[PatternExampleSchema]
 
 
+class AgentMessageSchema(TypedDict):
+    role: Literal["user"]
+    content: str
+
+
+class AgentInputSchema(TypedDict):
+    messages: list[AgentMessageSchema]
+
+
+class StructuredAgentResponseSchema[T](TypedDict, total=False):
+    structured_response: T
+
+
 class StatsSchema(TypedDict):
     auto: int
     approved: int
@@ -109,18 +122,24 @@ class ReviewDecisionSchema(BaseSchema):
 class NewAgentStateSchema(BaseSchema):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
+    component_slug: str = ""
+
     stats: StatsSchema = Field(
         default_factory=lambda: StatsSchema(auto=0, approved=0, modified=0, skipped=0)
     )
 
-    base_glossary: dict[str, WeblateUnitSchema] = Field(default_factory=dict)
-    mods_glossary: dict[str, WeblateUnitSchema] = Field(default_factory=dict)
+    base_glossary: dict[str, tuple[WeblateUnitSchema, ...]] = Field(
+        default_factory=dict
+    )
+    mods_glossary: dict[str, tuple[WeblateUnitSchema, ...]] = Field(
+        default_factory=dict
+    )
 
     current_page: int = Field(default=1)
     skip_ids: list[int] = Field(default_factory=list)
 
     should_continue: bool = Field(default=True)
-    patterns: dict[str, PatternSchema] = Field(default_factory=dict)
+    patterns: dict[str, tuple[PatternSchema, ...]] = Field(default_factory=dict)
 
     to_translate: list[WeblateUnitSchema] = Field(default_factory=list)
     is_end: bool = Field(default=False)
@@ -132,5 +151,10 @@ class NewAgentStateSchema(BaseSchema):
     scores: list[TranslationUnitSchema] = Field(default_factory=list)
 
     decisions: list[ReviewDecisionSchema] = Field(default_factory=list)
+    accepted_decisions: list[ReviewDecisionSchema] = Field(default_factory=list)
+
+    quality_feedback: dict[int, str] = Field(default_factory=dict)
+    attempts: int = Field(default=0)
+    retry_pending: bool = Field(default=False)
 
     approved_pairs: dict[str, str] = Field(default_factory=dict)

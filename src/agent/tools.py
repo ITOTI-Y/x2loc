@@ -1,6 +1,7 @@
 import asyncio
 import re
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from typing import Final
 
 from rapidfuzz import process
@@ -57,11 +58,13 @@ def tokenize(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(strip_html(text))}
 
 
-def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema, dict)](
-    source: str, cache: dict[str, T], limit: int = 10
+def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema)](
+    source: str,
+    cache: Mapping[str, Sequence[T]],
+    limit: int = 10,
 ) -> list[T]:
     if source in cache:
-        return [cache[source]]
+        return list(cache[source])
 
     matched = process.extract(
         source,
@@ -71,7 +74,7 @@ def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema, dict)](
         limit=limit,
     )
 
-    return [cache[m[0]] for m in matched]
+    return [item for match in matched for item in cache[match[0]]]
 
 
 async def collect_context_for_term(

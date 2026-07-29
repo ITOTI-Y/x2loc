@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
+from src.agent.llm import ScoringAgent
 from src.agent.prompts import format_scoring_prompt
 from src.models.agent import (
+    AgentInputSchema,
     NewAgentStateSchema,
     ScoreResultSchema,
     TranslationUnitSchema,
@@ -22,9 +23,9 @@ async def scorer(
     state: NewAgentStateSchema,
     *,
     agent_config: AgentConfigSchema,
-    llm: CompiledStateGraph,
+    llm: ScoringAgent,
 ) -> ScorerOutputSchema:
-    def _build_score_input(unit: TranslationUnitSchema) -> dict:
+    def build_input(unit: TranslationUnitSchema) -> AgentInputSchema:
         return {
             "messages": [
                 {
@@ -43,11 +44,13 @@ async def scorer(
         }
 
     scores: list[TranslationUnitSchema] = []
-    to_score: list[TranslationUnitSchema] = []
-    for c in state.candidates:
-        if not c.tag_valid:
+    pending: list[TranslationUnitSchema] = []
+    for candidate in state.candidates:
+        if candidate.tag_valid:
+            pending.append(candidate)
+        else:
             scores.append(
-                c.model_copy(
+                candidate.model_copy(
                     update={
                         "score_result": ScoreResultSchema(
                             score=0,
@@ -58,36 +61,30 @@ async def scorer(
                     }
                 )
             )
-        else:
-            to_score.append(c)
 
-    if to_score:
-        responses = await llm.abatch([_build_score_input(c) for c in to_score])
-        for response, unit in zip(responses, to_score, strict=True):
-            if response is not None:
-                structured = response.get("structured_response")
-                if isinstance(structured, ScoreResultSchema):
-                    scores.append(
-                        unit.model_copy(
-                            update={
-                                "score_result": structured,
-                                "suggested_translation": structured.suggested_translation,
-                            }
-                        )
-                    )
-                else:
-                    scores.append(
-                        unit.model_copy(
-                            update={
-                                "score_result": ScoreResultSchema(
-                                    score=0,
-                                    deductions=[],
-                                    suggested_translation="",
-                                    notes="no-score-result",
-                                ),
-                                "suggested_translation": "",
-                            }
-                        )
-                    )
-    logger.success(f"Scored {len(scores)} units")
+    responses = await llm.abatch(
+        [build_input(candidate) for candidate in pending],
+        config={"max_concurrency": agent_config.max_concurrency},
+    )
+    for response, candidate in zip(responses, pending, strict=True):
+        structured = response.get("structured_response") if response else None
+        result = (
+            structured
+            if isinstance(structured, ScoreResultSchema)
+            else ScoreResultSchema(
+                score=0,
+                deductions=[],
+                suggested_translation="",
+                notes="no-score-result",
+            )
+        )
+        scores.append(
+            candidate.model_copy(
+                update={
+                    "score_result": result,
+                    "suggested_translation": result.suggested_translation,
+                }
+            )
+        )
+    logger.success("Scored {} units", len(scores))
     return {"scores": scores}

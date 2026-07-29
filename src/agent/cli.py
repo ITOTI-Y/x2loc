@@ -7,9 +7,11 @@ import typer
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
+from src.agent._share import GRAPH_RECURSION_LIMIT
 from src.agent.config import AgentConfigSchema, load_config
 from src.agent.graph import build_graph
 from src.agent.nodes.pattern_extractor import load_cached_patterns
+from src.agent.review import InterruptReview
 from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
 from src.ui.user import prompt_user_review
 
@@ -18,10 +20,14 @@ app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
 
 async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
     """Drive the graph through its async API."""
-    graph, nodes = build_graph(config)
-    thread: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
+    graph, nodes = build_graph(config, review=InterruptReview())
+    thread: RunnableConfig = {
+        "configurable": {"thread_id": str(uuid4())},
+        "recursion_limit": GRAPH_RECURSION_LIMIT,
+    }
     state: NewAgentStateSchema | Command = NewAgentStateSchema(
-        patterns=load_cached_patterns()
+        component_slug=config.mods_glossary_slug,
+        patterns=load_cached_patterns(),
     )
 
     try:

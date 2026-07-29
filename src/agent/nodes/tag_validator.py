@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langchain_core.runnables import Runnable
 from loguru import logger
 
 from src.agent.config import AgentConfigSchema
+from src.agent.llm import TranslationAgent
 from src.agent.prompts import format_tag_fix_prompt
 from src.agent.tools import validate_tags
 from src.models.agent import (
+    AgentInputSchema,
     NewAgentStateSchema,
     TranslationOutputSchema,
     TranslationUnitSchema,
@@ -20,60 +21,59 @@ class TagValidatorOutputSchema(TypedDict):
 
 
 async def tag_validator(
-    state: NewAgentStateSchema, *, agent_config: AgentConfigSchema, llm: Runnable
+    state: NewAgentStateSchema,
+    *,
+    agent_config: AgentConfigSchema,
+    llm: TranslationAgent,
 ) -> TagValidatorOutputSchema:
-    def _build_validate_input(
-        c: TranslationUnitSchema, missing: dict[str, int], extra: dict[str, int]
-    ) -> dict:
-        fix_prompt = format_tag_fix_prompt(
-            source=c.source,
-            translation=c.translated,
-            missing=missing,
-            extra=extra,
-        )
+    def build_input(
+        candidate: TranslationUnitSchema,
+        missing: dict[str, int],
+        extra: dict[str, int],
+    ) -> AgentInputSchema:
         return {
             "messages": [
                 {
                     "role": "user",
-                    "content": fix_prompt,
+                    "content": format_tag_fix_prompt(
+                        source=candidate.source,
+                        translation=candidate.translated,
+                        missing=missing,
+                        extra=extra,
+                    ),
                 }
             ]
         }
 
     results: list[TranslationUnitSchema] = []
-    to_validate: list[tuple[TranslationUnitSchema, dict, dict]] = []
-    for c in state.candidates:
-        if not c.translated.strip():
-            results.append(c.model_copy(update={"tag_valid": False}))
+    pending: list[tuple[TranslationUnitSchema, dict[str, int], dict[str, int]]] = []
+    for candidate in state.candidates:
+        if not candidate.translated.strip():
+            results.append(candidate.model_copy(update={"tag_valid": False}))
             continue
-        passed, missing, extra = validate_tags(c.source, c.translated)
+        passed, missing, extra = validate_tags(candidate.source, candidate.translated)
         if passed:
-            results.append(c.model_copy(update={"tag_valid": True}))
-            continue
-        to_validate.append((c, missing, extra))
+            results.append(candidate.model_copy(update={"tag_valid": True}))
+        else:
+            pending.append((candidate, missing, extra))
 
-    inputs = [
-        _build_validate_input(c, missing, extra) for c, missing, extra in to_validate
-    ]
     responses = await llm.abatch(
-        inputs=inputs,
+        [
+            build_input(candidate, missing, extra)
+            for candidate, missing, extra in pending
+        ],
+        config={"max_concurrency": agent_config.max_concurrency},
     )
-    fixed_count = 0
-    for response, (c, _, _) in zip(responses, to_validate, strict=True):
+    for response, (candidate, _missing, _extra) in zip(responses, pending, strict=True):
         structured = response.get("structured_response") if response else None
         if isinstance(structured, TranslationOutputSchema) and structured.result:
-            passed, _, _ = validate_tags(c.source, structured.result)
-            fixed_count += passed
+            passed, _, _ = validate_tags(candidate.source, structured.result)
             results.append(
-                c.model_copy(
+                candidate.model_copy(
                     update={"translated": structured.result, "tag_valid": passed}
                 )
             )
         else:
-            results.append(c.model_copy(update={"tag_valid": False}))
-    if fixed_count < len(to_validate):
-        logger.warning(
-            f"Tag validator failed to fix {len(to_validate) - fixed_count} units"
-        )
-    logger.success(f"Validated {len(results)} units")
+            results.append(candidate.model_copy(update={"tag_valid": False}))
+    logger.success("Validated {} units", len(results))
     return {"candidates": results}

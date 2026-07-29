@@ -74,7 +74,7 @@ async def fetch_empty(
     agent_config: AgentConfigSchema,
 ) -> FetchEmptyOutputSchema:
     units, is_end = await unit_iterator.get_units(
-        component_slug=agent_config.component_slug,
+        component_slug=state.component_slug,
         lang=agent_config.target_lang,
         batch_size=agent_config.batch_size,
         q="state:empty",

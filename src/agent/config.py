@@ -3,7 +3,11 @@ from pathlib import Path
 
 from pydantic import Field, SecretStr
 
-from src.agent._share import DEFAULT_BATCH_SIZE
+from src.agent._share import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_LLM_CONCURRENCY,
+    MAX_TRANSLATION_ATTEMPTS,
+)
 from src.models._share import BaseSchema
 from src.models.weblate import WeblateConfigSchema
 
@@ -20,9 +24,20 @@ class AgentConfigSchema(BaseSchema):
     scoring_temperature: float = 0.0
     batch_size: int = DEFAULT_BATCH_SIZE
     auto_approve_threshold: int = 95
-    component_slug: str = "glossary-mods"
+    max_translation_attempts: int = MAX_TRANSLATION_ATTEMPTS
+    max_concurrency: int = DEFAULT_LLM_CONCURRENCY
     base_glossary_slug: str = "glossary-base-xcom2-wotc"
+    mods_glossary_slug: str = "glossary-mods"
+    custom_glossary_slug: str = "glossary-custom"
     target_lang: str = "zh_Hans"
+
+    @property
+    def effective_validate_model(self) -> str:
+        return self.validate_model_name or self.translation_model_name
+
+    @property
+    def effective_scoring_model(self) -> str:
+        return self.scoring_model_name or self.translation_model_name
 
 
 def load_config(
@@ -30,15 +45,5 @@ def load_config(
 ) -> AgentConfigSchema:
     with open(weblate_config_path, "rb") as f:
         raw = tomllib.load(f)
-    weblate_config = raw.get("weblate")
-    if weblate_config is None:
-        raise ValueError("weblate config not found")
-    weblate = WeblateConfigSchema.model_validate(weblate_config)
-
-    agent_config = raw.get("agent")
-    if agent_config is None:
-        raise ValueError("agent config not found")
-    agent_config.update({"weblate": weblate})
-    agent_config = AgentConfigSchema.model_validate(agent_config)
-
-    return agent_config
+    weblate = WeblateConfigSchema.model_validate(raw["weblate"])
+    return AgentConfigSchema.model_validate(raw["agent"] | {"weblate": weblate})

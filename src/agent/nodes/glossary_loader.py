@@ -1,71 +1,50 @@
 import asyncio
-import json
-from pathlib import Path
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 from loguru import logger
 
-from src._share import TEMP_DIR
 from src.agent.config import AgentConfigSchema
-from src.models.agent import NewAgentStateSchema
+from src.core.glossary import group_units
 from src.models.weblate import WeblateUnitSchema
 from src.services.weblate import AsyncWeblateClient
 
 
 class GlossaryLoaderOutputSchema(TypedDict):
-    base_glossary: dict[str, WeblateUnitSchema]
-    mods_glossary: dict[str, WeblateUnitSchema]
+    base_glossary: dict[str, tuple[WeblateUnitSchema, ...]]
+    mods_glossary: dict[str, tuple[WeblateUnitSchema, ...]]
 
 
 async def glossary_loader(
-    state: NewAgentStateSchema,
     *,
     client: AsyncWeblateClient,
     agent_config: AgentConfigSchema,
 ) -> GlossaryLoaderOutputSchema:
+    """Load the three glossaries fresh from Weblate and index them.
 
-    base, mods = await asyncio.gather(
-        _load_data("base", agent_config.target_lang, agent_config, client),
-        _load_data("mods", agent_config.target_lang, agent_config, client),
+    `mods` and `custom` are merged: both are mod-scoped terminology and the
+    translator consults them as one table. No cache outlives the job —
+    Weblate is the authority, and a previous job may have appended custom
+    terms that this job must see.
+    """
+
+    async def _load(slug: str) -> list[WeblateUnitSchema]:
+        return await client.list_units(
+            slug, agent_config.target_lang, q="state:translated"
+        )
+
+    base, mods, custom = await asyncio.gather(
+        _load(agent_config.base_glossary_slug),
+        _load(agent_config.mods_glossary_slug),
+        _load(agent_config.custom_glossary_slug),
     )
 
-    logger.success(f"Loaded glossaries: {len(base)} base + {len(mods)} mods")
+    logger.success(
+        "Loaded glossaries: {} base + {} mods + {} custom",
+        len(base),
+        len(mods),
+        len(custom),
+    )
     return {
-        "base_glossary": base,
-        "mods_glossary": mods,
+        "base_glossary": group_units(base),
+        "mods_glossary": group_units([*mods, *custom]),
     }
-
-
-def _cache_path(mode: Literal["base", "mods"], lang: str) -> Path:
-    return TEMP_DIR / f"{mode}_{lang}.json"
-
-
-async def _load_data(
-    mode: Literal["base", "mods"],
-    lang: str,
-    agent_config: AgentConfigSchema,
-    client: AsyncWeblateClient,
-) -> dict[str, WeblateUnitSchema]:
-    path = _cache_path(mode, lang)
-    if path.exists():
-        result: dict[str, WeblateUnitSchema] = {}
-        for item in json.loads(path.read_text("utf-8")):
-            unit = WeblateUnitSchema.model_validate(item)
-            result[unit.source] = unit
-        return result
-    if mode == "base":
-        slug = agent_config.base_glossary_slug
-    else:
-        slug = agent_config.component_slug
-    data = await client.list_units(slug, lang, q="state:translated")
-    _save_data(mode, lang, data)
-    return {unit.source: unit for unit in data}
-
-
-def _save_data(
-    mode: Literal["base", "mods"], lang: str, data: list[WeblateUnitSchema]
-) -> None:
-    path = _cache_path(mode, lang)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    result = [unit.model_dump() for unit in data]
-    path.write_text(json.dumps(result, ensure_ascii=False, indent=2), "utf-8")
