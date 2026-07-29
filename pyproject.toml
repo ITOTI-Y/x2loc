@@ -58,6 +58,7 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 x2loc = "src.cli.app:app"
+x2loc-api = "src.api.app:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

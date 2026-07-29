@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import hmac
+import shutil
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated
 
+import httpx
+import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
-from src.api.config import ServiceConfigSchema
+from src.api.config import GlossaryConfigSchema, ServiceConfigSchema
+from src.core.glossary import CustomGlossaryWriter
 from src.core.workshop import WorkshopInputError
 from src.jobs._share import SSE_PING_SECONDS
 from src.jobs.manager import JobManager
@@ -23,7 +28,13 @@ from src.models.job import (
     JobStatusResponseSchema,
     WorkshopJobRequestSchema,
 )
-from src.services.steam import SteamDownloadError, fetch_workshop_metadata
+from src.models.workshop import TARGET_LANGUAGE
+from src.services.steam import (
+    SteamDownloader,
+    SteamDownloadError,
+    fetch_workshop_metadata,
+)
+from src.services.weblate import AsyncWeblateClient
 
 
 @dataclass(frozen=True)
@@ -158,3 +169,98 @@ def create_app(
         )
 
     return app
+
+
+def _llm_http_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
+    """Shared LLM transports for every job's ChatOpenAI instances.
+
+    `trust_env=False` ignores proxy environment variables and
+    `follow_redirects=False` refuses 30x, so neither can steer an outbound
+    call away from the caller-supplied LLM endpoint.
+    """
+    timeout = httpx.Timeout(60.0, connect=10.0)
+    return (
+        httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False),
+        httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False),
+    )
+
+
+async def validate_weblate_components(
+    client: AsyncWeblateClient, glossary: GlossaryConfigSchema
+) -> None:
+    """Assert the three pre-provisioned glossary components are usable.
+
+    They are operational assets; this implementation never creates or
+    migrates them, so a missing one must stop startup rather than surface
+    as a confusing mid-job failure.
+    """
+    for slug in (glossary.base_slug, glossary.mods_slug, glossary.custom_slug):
+        component = await client.get_component(slug)
+        if component is None:
+            raise RuntimeError(f"required Weblate component is missing: {slug}")
+        if component.file_format != "csv":
+            raise RuntimeError(f"Weblate component must use CSV: {slug}")
+        if slug == glossary.custom_slug and not component.manage_units:
+            raise RuntimeError("custom glossary must enable manage units")
+
+
+def _reset_directory(path: Path) -> None:
+    """Failing to wipe must stop startup: booting on a half-cleared
+    directory would serve stale artifacts from a forgotten process."""
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True)
+
+
+def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
+    @asynccontextmanager
+    async def factory() -> AsyncIterator[ServiceResources]:
+        _reset_directory(config.work_root)
+        _reset_directory(config.artifact_root)
+        llm_sync, llm_async = _llm_http_clients()
+        steam_web = AsyncClient(timeout=30.0, trust_env=False)
+        try:
+            async with AsyncWeblateClient(config.weblate) as weblate:
+                await validate_weblate_components(weblate, config.glossary)
+                manager = JobManager()
+                pipeline = WorkshopPipeline(
+                    config=config,
+                    jobs=manager,
+                    steam=SteamDownloader(
+                        executable=config.steam.executable,
+                        steam_root=config.steam.root,
+                        username=config.steam.username,
+                        password=config.steam.password,
+                        limits=config.limits,
+                    ),
+                    weblate=weblate,
+                    glossary_writer=CustomGlossaryWriter(
+                        weblate,
+                        component_slug=config.glossary.custom_slug,
+                        target_lang=TARGET_LANGUAGE,
+                    ),
+                    llm_clients=(llm_sync, llm_async),
+                )
+                yield ServiceResources(
+                    manager=manager, pipeline=pipeline, steam_web=steam_web
+                )
+        finally:
+            await steam_web.aclose()
+            await llm_async.aclose()
+            llm_sync.close()
+
+    return factory
+
+
+def run() -> None:
+    """Console-script entry point for `x2loc-api`."""
+    # BaseSettings fills required fields from X2LOC_* environment variables.
+    config = ServiceConfigSchema()
+    uvicorn.run(
+        create_app(config, build_resources(config)),
+        host=config.bind_host,
+        port=config.bind_port,
+        workers=1,
+        access_log=False,
+        log_config=None,
+    )
