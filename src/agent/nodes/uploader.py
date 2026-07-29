@@ -1,12 +1,16 @@
 import asyncio
-from typing import Final, TypedDict
+from typing import TypedDict
 
+from httpx2 import TransportError
 from loguru import logger
 
 from src.models.agent import NewAgentStateSchema, StatsSchema
-from src.services.weblate import AsyncWeblateClient
-
-WEBLATE_STATE_TRANSLATED: Final = 20
+from src.models.weblate import WeblateUnitPatchSchema
+from src.services.weblate import (
+    WEBLATE_STATE_TRANSLATED,
+    AsyncWeblateClient,
+    WeblateAPIError,
+)
 
 
 class UploaderOutputSchema(TypedDict):
@@ -14,6 +18,14 @@ class UploaderOutputSchema(TypedDict):
 
 
 class BackgroundUploader:
+    """Fire-and-drain Weblate writes.
+
+    The interactive path submits a batch and moves on to the next one while
+    it uploads. Tasks stay referenced until `drain`, which re-raises every
+    background failure as one ExceptionGroup — a log line alone would let
+    the caller treat a lost batch as success.
+    """
+
     def __init__(self, client: AsyncWeblateClient) -> None:
         self._client = client
         self._tasks: set[asyncio.Task[None]] = set()
@@ -21,27 +33,34 @@ class BackgroundUploader:
     def submit(self, items: list[tuple[int, str]]) -> None:
         if not items:
             return
-        task = asyncio.create_task(self._upload(items))
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        self._tasks.add(asyncio.create_task(self._upload(items)))
 
     async def drain(self) -> None:
-        if self._tasks:
-            await asyncio.gather(*tuple(self._tasks))
+        tasks, self._tasks = self._tasks, set()
+        if not tasks:
+            return
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        errors = [result for result in results if isinstance(result, BaseException)]
+        if errors:
+            raise BaseExceptionGroup("background Weblate uploads failed", errors)
 
     async def _upload(self, items: list[tuple[int, str]]) -> None:
         results = await asyncio.gather(
             *[self._patch(unit_id, target) for unit_id, target in items]
         )
-        logger.success(f"[UPLOAD] {sum(results)}/{len(items)} units patched")
+        failed = len(items) - sum(results)
+        if failed:
+            raise WeblateAPIError(502, f"{failed}/{len(items)} unit patches")
+        logger.success(f"[UPLOAD] {len(items)} units patched")
 
     async def _patch(self, unit_id: int, target: str) -> bool:
         try:
             await self._client.patch_unit(
-                unit_id, {"target": [target], "state": WEBLATE_STATE_TRANSLATED}
+                unit_id,
+                WeblateUnitPatchSchema(target=[target], state=WEBLATE_STATE_TRANSLATED),
             )
-        except Exception as e:
-            logger.error(f"PATCH failed for unit {unit_id}: {e!r}")
+        except (WeblateAPIError, TransportError) as exc:
+            logger.error(f"PATCH failed for unit {unit_id}: {exc!r}")
             return False
         return True
 
@@ -55,9 +74,8 @@ async def uploader(
 
     for decision in state.decisions:
         unit = units.get(decision.unit_id)
-        if unit is None:
-            continue
-        target = decision.translation or unit.translated
+        fallback = unit.translated if unit is not None else ""
+        target = decision.translation or fallback
         if decision.action == "skip" or not target:
             n_skipped += 1
             continue

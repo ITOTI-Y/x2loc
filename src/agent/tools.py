@@ -11,15 +11,9 @@ from src.agent._share import (
     MAX_CONTEXT_COMPONENTS,
     MAX_MATCHES_PER_COMPONENT,
 )
-from src.models.agent import (
-    ComponentInfoSchema,
-    PatternSchema,
-)
-from src.services.weblate import (
-    AsyncWeblateClient,
-    WeblateRequestParamsSchema,
-    WeblateUnitSchema,
-)
+from src.models.agent import ComponentInfoSchema, PatternSchema
+from src.models.weblate import WeblateRequestParamsSchema, WeblateUnitSchema
+from src.services.weblate import AsyncWeblateClient
 
 TAG_PATTERNS: Final[list[re.Pattern[str]]] = [
     re.compile(p)
@@ -86,16 +80,16 @@ async def collect_context_for_term(
     nearby_range: int = DEFAULT_NEARBY_RANGE,
 ) -> list[ComponentInfoSchema]:
     async def _enrich(component: ComponentInfoSchema) -> ComponentInfoSchema:
-        position_query = (
-            f"position:[{component.position - nearby_range}"
-            f" to {component.position + nearby_range}]"
-        )
         nearby_page = await client.list_units_page(
-            component_slug=component.slug,
-            lang=component.lang,
-            page=1,
-            page_size=20,
-            q=position_query,
+            component.slug,
+            component.lang,
+            WeblateRequestParamsSchema(
+                page_size=20,
+                q=(
+                    f"position:[{component.position - nearby_range}"
+                    f" to {component.position + nearby_range}]"
+                ),
+            ),
         )
         component.nearby = [
             u for u in nearby_page.results if component.key in u.context
@@ -116,12 +110,10 @@ async def collect_context_for_term(
 
     components: list[ComponentInfoSchema] = []
     for u in units:
-        turl = u.translation
-        unit_lang = u.language_code
-        parts = turl.rstrip("/").split("/")
-        slug = parts[-2]
+        parts = u.translation.rstrip("/").split("/")
         if len(parts) < 2:
             continue
+        slug = parts[-2]
         if slug.startswith("glossary"):
             continue
         components.append(
@@ -129,7 +121,7 @@ async def collect_context_for_term(
                 unit=u,
                 key=u.context.split("::")[0],
                 slug=slug,
-                lang=unit_lang,
+                lang=u.language_code,
                 position=u.position,
                 nearby=[],
             )
@@ -148,6 +140,4 @@ async def collect_context_for_term(
         if len(picked) >= MAX_CONTEXT_COMPONENTS:
             break
 
-    enriched = await asyncio.gather(*[_enrich(c) for c in picked])
-
-    return enriched
+    return list(await asyncio.gather(*[_enrich(c) for c in picked]))

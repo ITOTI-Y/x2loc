@@ -16,10 +16,10 @@ import pytest
 from httpx2 import ConnectError, MockTransport, Request, Response
 
 from src.models.weblate import (
-    WeblateComponentSchema,
+    WeblateComponentDraftSchema,
     WeblateConfigSchema,
-    WeblateLanguageSchema,
     WeblateRequestParamsSchema,
+    WeblateUnitPatchSchema,
 )
 from src.services.weblate import (
     RETRY_MAX_ATTEMPTS,
@@ -34,7 +34,7 @@ TOKEN = "wlp_test_token"
 COMPONENT = "mod-42-abc"
 LANG = "zh_Hans"
 
-PROJECT_PATH = f"projects/{PROJECT}/"
+COMPONENT_PATH = f"components/{PROJECT}/{COMPONENT}/"
 COMPONENTS_PATH = f"projects/{PROJECT}/components/"
 UNITS_PATH = f"translations/{PROJECT}/{COMPONENT}/{LANG}/units/"
 
@@ -61,7 +61,7 @@ class FakeWeblate:
     def paginate(self, path: str, pages: list[dict[str, Any]]) -> None:
         """Serve page N by the request's `page` param, not by call order.
 
-        `_paginate` fetches pages 2..N concurrently, so arrival order is
+        `list_units` fetches pages 2..N concurrently, so arrival order is
         undefined and a plain response queue would hand back the wrong page.
         """
 
@@ -105,11 +105,7 @@ def unit_payload(unit_id: int, **overrides: Any) -> dict[str, Any]:
 
 
 def component_payload(slug: str) -> dict[str, Any]:
-    return {
-        "name": slug,
-        "slug": slug,
-        "source_language": {"id": 1, "code": "en", "name": "English"},
-    }
+    return {"slug": slug, "name": slug, "file_format": "csv", "manage_units": False}
 
 
 @pytest.fixture
@@ -145,28 +141,41 @@ def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
 
 
 @pytest.fixture
-def component() -> WeblateComponentSchema:
-    return WeblateComponentSchema(
+def draft() -> WeblateComponentDraftSchema:
+    return WeblateComponentDraftSchema(
         name="Test Component",
         slug="test-component",
         source_csv="source,target\nOK,确定\n".encode(),
-        source_language=WeblateLanguageSchema(id=1, code="en", name="English"),
     )
 
 
-async def test_get_project_returns_payload(
+async def test_get_component_parses_payload(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(200, json={"slug": PROJECT}))
-    assert await client.get_project() == {"slug": PROJECT}
-    assert fake.requests[0].url.path == API_PREFIX + PROJECT_PATH
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
+
+    component = await client.get_component(COMPONENT)
+
+    assert component is not None
+    assert component.slug == COMPONENT
+    assert fake.requests[0].url.path == API_PREFIX + COMPONENT_PATH
+
+
+async def test_get_component_returns_none_on_missing(
+    client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
+) -> None:
+    fake.route("GET", COMPONENT_PATH, Response(404, text="Not found"))
+
+    assert await client.get_component(COMPONENT) is None
+    assert len(fake.requests) == 1
+    assert sleeps == []
 
 
 async def test_requests_carry_token_auth(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(200, json={}))
-    await client.get_project()
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
+    await client.get_component(COMPONENT)
     assert fake.requests[0].headers["Authorization"] == f"Token {TOKEN}"
 
 
@@ -174,39 +183,10 @@ async def test_base_url_tolerates_missing_trailing_slash(fake: FakeWeblate) -> N
     config = WeblateConfigSchema(
         url="https://weblate.example.com/api", token=TOKEN, project_slug=PROJECT
     )
-    fake.route("GET", PROJECT_PATH, Response(200, json={}))
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
     async with AsyncWeblateClient(config, transport=MockTransport(fake)) as client:
-        await client.get_project()
-    assert fake.requests[0].url.path == API_PREFIX + PROJECT_PATH
-
-
-async def test_list_components_returns_single_page(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.paginate(
-        COMPONENTS_PATH,
-        [page_payload([component_payload("a"), component_payload("b")], count=2)],
-    )
-    components = await client.list_components()
-    assert [c.slug for c in components] == ["a", "b"]
-    assert len(fake.requests) == 1
-
-
-async def test_list_components_aggregates_all_pages(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    pages = [
-        page_payload(
-            [component_payload(f"c-{start + i}") for i in range(size)], count=250
-        )
-        for start, size in ((0, 100), (100, 100), (200, 50))
-    ]
-    fake.paginate(COMPONENTS_PATH, pages)
-
-    components = await client.list_components()
-
-    assert [c.slug for c in components] == [f"c-{i}" for i in range(250)]
-    assert sorted(int(r.url.params["page"]) for r in fake.requests) == [1, 2, 3]
+        await client.get_component(COMPONENT)
+    assert fake.requests[0].url.path == API_PREFIX + COMPONENT_PATH
 
 
 async def test_list_units_aggregates_all_pages(
@@ -238,7 +218,9 @@ async def test_list_units_page_forwards_params(
     fake.route("GET", UNITS_PATH, Response(200, json=page_payload([], count=0)))
 
     page = await client.list_units_page(
-        COMPONENT, LANG, page=2, page_size=50, q="state:<20"
+        COMPONENT,
+        LANG,
+        WeblateRequestParamsSchema(page=2, page_size=50, q="state:<20"),
     )
 
     assert page.count == 0
@@ -274,97 +256,46 @@ async def test_search_units_handles_missing_results_key(
 async def test_patch_unit_sends_json_body(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("PATCH", "units/7/", Response(200, json={"id": 7}))
+    fake.route("PATCH", "units/7/", Response(200, json=unit_payload(7)))
 
-    result = await client.patch_unit(7, {"target": ["确定"], "state": 20})
+    result = await client.patch_unit(
+        7, WeblateUnitPatchSchema(target=["确定"], state=20)
+    )
 
-    assert result == {"id": 7}
+    assert result.id == 7
+    assert result.target == "确定"
     assert json.loads(fake.requests[0].content) == {"target": ["确定"], "state": 20}
 
 
 async def test_create_component_uploads_csv_as_multipart(
-    client: AsyncWeblateClient, fake: FakeWeblate, component: WeblateComponentSchema
+    client: AsyncWeblateClient, fake: FakeWeblate, draft: WeblateComponentDraftSchema
 ) -> None:
-    fake.route("POST", COMPONENTS_PATH, Response(201, json={"slug": component.slug}))
+    fake.route("POST", COMPONENTS_PATH, Response(201, json={"task_url": None}))
 
-    await client.create_component(component=component)
+    await client.create_component(draft)
 
     request = fake.requests[0]
     assert request.headers["Content-Type"].startswith("multipart/form-data")
     body = request.content.decode()
     assert 'name="slug"' in body
-    assert component.slug in body
+    assert draft.slug in body
     assert 'name="file_format"' in body
+    assert 'name="source_language"' in body
+    assert 'name="license"' in body
+    assert 'name="docfile"' in body
     assert 'filename="test-component.csv"' in body
     assert "OK,确定" in body
 
 
-async def test_create_component_swallows_duplicate_slug(
-    client: AsyncWeblateClient, fake: FakeWeblate, component: WeblateComponentSchema
-) -> None:
-    fake.route(
-        "POST",
-        COMPONENTS_PATH,
-        Response(400, json={"slug": ["component with this slug already exists"]}),
-    )
-    await client.create_component(component=component)
-
-
 async def test_create_component_raises_on_other_errors(
-    client: AsyncWeblateClient, fake: FakeWeblate, component: WeblateComponentSchema
+    client: AsyncWeblateClient, fake: FakeWeblate, draft: WeblateComponentDraftSchema
 ) -> None:
     fake.route("POST", COMPONENTS_PATH, Response(403, text="permission denied"))
 
     with pytest.raises(WeblateAPIError) as excinfo:
-        await client.create_component(component=component)
+        await client.create_component(draft)
 
-    assert excinfo.value.status == 403
-
-
-async def test_delete_component_accepts_no_content(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    path = f"components/{PROJECT}/{COMPONENT}/"
-    fake.route("DELETE", path, Response(204))
-    await client.delete_component(component_slug=COMPONENT)
-    assert fake.requests[0].url.path == API_PREFIX + path
-
-
-async def test_delete_component_treats_missing_as_deleted(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.route(
-        "DELETE", f"components/{PROJECT}/{COMPONENT}/", Response(404, text="Not found")
-    )
-    await client.delete_component(component_slug=COMPONENT)
-
-
-async def test_delete_component_raises_on_forbidden(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.route(
-        "DELETE", f"components/{PROJECT}/{COMPONENT}/", Response(403, text="denied")
-    )
-
-    with pytest.raises(WeblateAPIError) as excinfo:
-        await client.delete_component(component_slug=COMPONENT)
-
-    assert excinfo.value.status == 403
-
-
-async def test_rate_limit_retry_honours_retry_after(
-    client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
-) -> None:
-    fake.route(
-        "GET",
-        PROJECT_PATH,
-        Response(429, headers={"Retry-After": "7"}, text="slow down"),
-        Response(200, json={"slug": PROJECT}),
-    )
-
-    assert await client.get_project() == {"slug": PROJECT}
-    assert sleeps == [7.0]
-    assert len(fake.requests) == 2
+    assert excinfo.value.status_code == 403
 
 
 async def test_server_error_retry_backs_off_exponentially(
@@ -372,29 +303,30 @@ async def test_server_error_retry_backs_off_exponentially(
 ) -> None:
     fake.route(
         "GET",
-        PROJECT_PATH,
+        COMPONENT_PATH,
         Response(500, text="boom"),
         Response(503, text="unavailable"),
-        Response(200, json={"slug": PROJECT}),
+        Response(200, json=component_payload(COMPONENT)),
     )
 
-    assert await client.get_project() == {"slug": PROJECT}
-    assert sleeps == [1.0, 2.0]
+    component = await client.get_component(COMPONENT)
+
+    assert component is not None and component.slug == COMPONENT
+    assert sleeps == [2.0, 4.0]
     assert len(fake.requests) == 3
 
 
 async def test_server_error_raises_after_max_attempts(
     client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(500, text="still broken"))
+    fake.route("GET", COMPONENT_PATH, Response(500, text="still broken"))
 
     with pytest.raises(WeblateAPIError) as excinfo:
-        await client.get_project()
+        await client.get_component(COMPONENT)
 
-    assert excinfo.value.status == 500
-    assert "still broken" in excinfo.value.message
+    assert excinfo.value.status_code == 500
     assert len(fake.requests) == RETRY_MAX_ATTEMPTS
-    assert sleeps == [1.0, 2.0]
+    assert sleeps == [2.0, 4.0, 8.0]
 
 
 async def test_transport_error_is_retried(
@@ -402,73 +334,60 @@ async def test_transport_error_is_retried(
 ) -> None:
     fake.route(
         "GET",
-        PROJECT_PATH,
+        COMPONENT_PATH,
         ConnectError("connection reset"),
-        Response(200, json={"slug": PROJECT}),
+        Response(200, json=component_payload(COMPONENT)),
     )
 
-    assert await client.get_project() == {"slug": PROJECT}
-    assert sleeps == [1.0]
+    component = await client.get_component(COMPONENT)
+
+    assert component is not None and component.slug == COMPONENT
+    assert sleeps == [2.0]
 
 
 async def test_transport_error_propagates_after_max_attempts(
     client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
 ) -> None:
-    fake.route("GET", PROJECT_PATH, ConnectError("host unreachable"))
+    fake.route("GET", COMPONENT_PATH, ConnectError("host unreachable"))
 
     with pytest.raises(ConnectError):
-        await client.get_project()
+        await client.get_component(COMPONENT)
 
     assert len(fake.requests) == RETRY_MAX_ATTEMPTS
-    assert sleeps == [1.0, 2.0]
+    assert sleeps == [2.0, 4.0, 8.0]
 
 
 async def test_client_error_is_not_retried(
     client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(404, text="No Project matches"))
+    fake.route("GET", COMPONENT_PATH, Response(403, text="permission denied"))
 
     with pytest.raises(WeblateAPIError) as excinfo:
-        await client.get_project()
+        await client.get_component(COMPONENT)
 
-    assert excinfo.value.status == 404
-    assert "No Project matches" in excinfo.value.message
+    assert excinfo.value.status_code == 403
     assert len(fake.requests) == 1
     assert sleeps == []
 
 
-async def test_error_message_is_truncated(
+async def test_error_message_excludes_response_body(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(400, text="x" * 900))
+    fake.route("GET", COMPONENT_PATH, Response(400, text="token-echoing body"))
 
     with pytest.raises(WeblateAPIError) as excinfo:
-        await client.get_project()
+        await client.get_component(COMPONENT)
 
-    assert len(excinfo.value.message) == 500
+    assert excinfo.value.status_code == 400
+    assert "token-echoing body" not in str(excinfo.value)
 
 
 async def test_closed_client_rejects_further_requests(
     weblate_config: WeblateConfigSchema, fake: FakeWeblate
 ) -> None:
-    fake.route("GET", PROJECT_PATH, Response(200, json={}))
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
     client = AsyncWeblateClient(weblate_config, transport=MockTransport(fake))
     await client.close()
 
     with pytest.raises(RuntimeError):
-        await client.get_project()
-
-
-@pytest.mark.xfail(
-    raises=ZeroDivisionError,
-    strict=True,
-    reason=(
-        "_paginate derives the page count from len(page1.results); a non-zero "
-        "count with an empty first page divides by zero"
-    ),
-)
-async def test_paginate_empty_first_page_with_nonzero_count(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.paginate(COMPONENTS_PATH, [page_payload([], count=5)])
-    await client.list_components()
+        await client.get_component(COMPONENT)
