@@ -200,6 +200,14 @@ class AsyncWeblateClient:
         The multipart field for VCS-less creation is `docfile`, not `file`;
         Weblate answers with a background task that must finish before the
         component's units exist.
+
+        `manage_units` and `edit_template` are applied via a post-create
+        PATCH: Weblate silently drops them on the creation POST, and the
+        pair is required together — without `edit_template`, every later
+        `method="add"` upload and `create_unit` call fails with "Adding
+        strings is disabled in the component configuration" even when
+        `manage_units` is True (verified against Weblate 5.x, 2026-04 and
+        2026-07).
         """
         response = await self._request(
             WeblateRequestSchema(
@@ -218,6 +226,13 @@ class AsyncWeblateClient:
             timeout=HTTP_UPLOAD_TIMEOUT,
         )
         await self._await_task(response.json().get("task_url"))
+        await self._request(
+            WeblateRequestSchema(
+                method="PATCH",
+                path=f"components/{self.config.project_slug}/{draft.slug}/",
+                json_body={"manage_units": True, "edit_template": True},
+            )
+        )
         logger.success(f"Created component {draft.slug}")
 
     async def ensure_translation(self, component_slug: str, language: str) -> None:
@@ -319,31 +334,46 @@ class AsyncWeblateClient:
     async def create_unit(
         self,
         component_slug: str,
-        language: str,
         draft: WeblateUnitDraftSchema,
     ) -> None:
+        """Create one source string on a template component.
+
+        Weblate rejects unit creation on non-source translations with "Add
+        the string to the source language instead"; the source-side body is
+        the monolingual key/value shape with plural-form list value
+        (verified against Weblate 5.x, 2026-07). Targets are filled
+        afterwards via `upload_targets`.
+        """
         await self._request(
             WeblateRequestSchema(
                 method="POST",
                 path=(
                     f"translations/{self.config.project_slug}/{component_slug}"
-                    f"/{language}/units/"
+                    f"/{self.config.source_language}/units/"
                 ),
-                json_body=draft.model_dump(),
+                json_body={"key": draft.context, "value": [draft.source]},
             )
         )
 
-    async def patch_unit(
-        self, unit_id: int, patch: WeblateUnitPatchSchema
-    ) -> WeblateUnitSchema:
-        response = await self._request(
+    async def upload_targets(
+        self, component_slug: str, language: str, units: list[CorpusUnitSchema]
+    ) -> None:
+        """Fill existing units' targets in batches with catch-up retries."""
+        for batch in _batched(units, TARGET_BATCH_SIZE):
+            payload = units_to_csv(batch, content="target")
+            if payload.count(b"\n") > 1:
+                await self._upload_targets(component_slug, language, payload)
+
+    async def patch_unit(self, unit_id: int, patch: WeblateUnitPatchSchema) -> None:
+        """Weblate answers a unit PATCH with a partial body (no id/source/
+        context on 5.x); nothing consumes it, so it is not parsed."""
+        await self._request(
             WeblateRequestSchema(
                 method="PATCH",
                 path=f"units/{unit_id}/",
                 json_body=patch.model_dump(),
             )
         )
-        return WeblateUnitSchema.model_validate(response.json())
 
     async def sync_corpus(
         self,
@@ -388,10 +418,7 @@ class AsyncWeblateClient:
         await self.ensure_translation(component_slug, language)
         if not has_existing_target:
             return
-        for batch in _batched(units, TARGET_BATCH_SIZE):
-            payload = units_to_csv(batch, content="target")
-            if payload.count(b"\n") > 1:
-                await self._upload_targets(component_slug, language, payload)
+        await self.upload_targets(component_slug, language, units)
 
     async def _upload_targets(
         self, component_slug: str, language: str, payload: bytes

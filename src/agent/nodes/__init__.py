@@ -4,7 +4,7 @@ from typing import Any
 from httpx import AsyncClient, Client
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.agent.llm import (
     build_scorer_llm,
     build_tag_validator_llm,
@@ -42,7 +42,7 @@ class WorkflowNodes:
     def __init__(
         self,
         client: AsyncWeblateClient,
-        config: AgentConfigSchema,
+        config: ConfigSchema,
         *,
         review: ReviewPolicy,
         owns_client: bool = True,

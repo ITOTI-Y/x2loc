@@ -7,9 +7,10 @@ from uuid import uuid4
 
 import httpx
 from loguru import logger
+from openai import APIStatusError
 from pydantic import ConfigDict
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.agent.graph import build_graph, graph_recursion_limit
 from src.agent.review import ThresholdReview, TranslationQualityError
 from src.api.config import ServiceConfigSchema
@@ -33,7 +34,11 @@ from src.models.job import (
     WorkshopJobRequestSchema,
 )
 from src.models.weblate import CorpusUnitSchema
-from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
+from src.models.workshop import (
+    LocalizationAssetSchema,
+    SteamConfigSchema,
+    WorkshopItemSchema,
+)
 from src.services.steam import SteamDownloader, SteamDownloadError
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
@@ -45,6 +50,7 @@ ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
     (TranslationQualityError, "translation_quality_failed"),
     (ArtifactValidationError, "artifact_failed"),
     (WeblateAPIError, "weblate_failed"),
+    (APIStatusError, "llm_failed"),
     (ValueError, "invalid_request"),
 )
 
@@ -349,9 +355,13 @@ class WorkshopPipeline:
         glossary = await asyncio.to_thread(self._extractor.extract, corpora)
         return await self._glossary_writer.write(glossary.terms)
 
-    def _agent_config(self, request: WorkshopJobRequestSchema) -> AgentConfigSchema:
-        return AgentConfigSchema(
+    def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
+        return ConfigSchema(
             weblate=self._config.weblate,
+            steam=SteamConfigSchema(
+                steam_username=self._config.steam.username,
+                steam_password=self._config.steam.password,
+            ),
             base_glossary_slug=self._config.glossary.base_slug,
             mods_glossary_slug=self._config.glossary.mods_slug,
             custom_glossary_slug=self._config.glossary.custom_slug,

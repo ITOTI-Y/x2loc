@@ -75,7 +75,17 @@ class SteamDownloader:
         self._limits = limits
 
     async def download(self, workshop_id: str) -> WorkshopItemSchema:
-        await self._run_steamcmd(workshop_id)
+        # Cached-token login first: a password login triggers a Steam Guard
+        # mobile confirmation on every run, a cached token never does. The
+        # password fallback re-establishes the cache when the token expires,
+        # at the cost of one confirmation tap on the phone.
+        if not await self._run_steamcmd(workshop_id, with_password=False):
+            logger.warning(
+                "Cached Steam login failed; retrying with password "
+                "(expect a Steam Guard confirmation on the phone)"
+            )
+            if not await self._run_steamcmd(workshop_id, with_password=True):
+                raise SteamDownloadError("SteamCMD exited with a non-zero status")
         mod_root = (
             self._steam_root
             / "steamapps"
@@ -101,14 +111,15 @@ class SteamDownloader:
             files=files,
         )
 
-    async def _run_steamcmd(self, workshop_id: str) -> None:
+    async def _run_steamcmd(self, workshop_id: str, *, with_password: bool) -> bool:
+        login = ["+login", self._username]
+        if with_password:
+            login.append(self._password.get_secret_value())
         process = await asyncio.create_subprocess_exec(
             str(self._executable),
             "+force_install_dir",
             str(self._steam_root),
-            "+login",
-            self._username,
-            self._password.get_secret_value(),
+            *login,
             "+workshop_download_item",
             str(XCOM2_APP_ID),
             workshop_id,
@@ -125,8 +136,7 @@ class SteamDownloader:
             raise SteamDownloadError("SteamCMD timed out") from exc
         finally:
             await self._terminate(process)
-        if process.returncode != 0:
-            raise SteamDownloadError("SteamCMD exited with a non-zero status")
+        return process.returncode == 0
 
     async def _terminate(self, process: asyncio.subprocess.Process) -> None:
         if process.returncode is not None:

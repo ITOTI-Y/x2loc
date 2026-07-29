@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from typing import Final
+
 from httpx import AsyncClient, Client
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import SystemMessage
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
+from openai import APIStatusError
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.agent.prompts import (
     scoring_system_blocks,
     tag_fix_system_blocks,
@@ -29,11 +32,25 @@ type ScoringAgent = Runnable[
     StructuredAgentResponseSchema[ScoreResultSchema],
 ]
 
+FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
+
+
+def raise_if_fatal_llm_error(exc: BaseException) -> None:
+    """Re-raise configuration-class LLM failures instead of degrading them.
+
+    Auth, permission, unknown-model and malformed-request errors fail every
+    retry identically, so retrying them only burns quality-gate rounds.
+    Timeouts, rate limits and 5xx are per-request weather that the nodes
+    absorb as empty results for the quality gate to retry.
+    """
+    if isinstance(exc, APIStatusError) and exc.status_code in FATAL_LLM_STATUS:
+        raise exc
+
 
 def _chat_model(
     *,
     model: str,
-    config: AgentConfigSchema,
+    config: ConfigSchema,
     temperature: float,
     http_client: Client | None,
     http_async_client: AsyncClient | None,
@@ -52,7 +69,7 @@ def _chat_model(
 
 
 def build_translator_llm(
-    config: AgentConfigSchema,
+    config: ConfigSchema,
     *,
     http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
@@ -74,7 +91,7 @@ def build_translator_llm(
 
 
 def build_tag_validator_llm(
-    config: AgentConfigSchema,
+    config: ConfigSchema,
     *,
     http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
@@ -96,7 +113,7 @@ def build_tag_validator_llm(
 
 
 def build_scorer_llm(
-    config: AgentConfigSchema,
+    config: ConfigSchema,
     *,
     http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,

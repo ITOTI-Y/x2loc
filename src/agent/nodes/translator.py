@@ -5,8 +5,8 @@ from typing import TypedDict
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
-from src.agent.llm import TranslationAgent
+from src.agent.config import ConfigSchema
+from src.agent.llm import TranslationAgent, raise_if_fatal_llm_error
 from src.agent.prompts import format_translation_prompt
 from src.agent.tools import lookup_glossary_or_patterns
 from src.models.agent import (
@@ -31,7 +31,7 @@ type _Matches = tuple[
 async def translator(
     state: NewAgentStateSchema,
     *,
-    agent_config: AgentConfigSchema,
+    agent_config: ConfigSchema,
     agent: TranslationAgent,
 ) -> TranslateOutputSchema:
     matches: dict[str, _Matches] = {}
@@ -83,11 +83,20 @@ async def translator(
         lambda: [_build_translate_input(unit) for unit in state.to_translate]
     )
     responses = await agent.abatch(
-        inputs, config={"max_concurrency": agent_config.max_concurrency}
+        inputs,
+        config={"max_concurrency": agent_config.max_concurrency},
+        return_exceptions=True,
     )
 
     candidates: list[TranslationUnitSchema] = []
     for unit, response in zip(state.to_translate, responses, strict=True):
+        if isinstance(response, BaseException):
+            raise_if_fatal_llm_error(response)
+            logger.warning(
+                f"Translation request failed for unit {unit.id}: {response!r}"
+            )
+            candidates.append(_candidate(unit, ""))
+            continue
         structured = response.get("structured_response") if response else None
         if isinstance(structured, TranslationOutputSchema):
             candidates.append(_candidate(unit, structured.result))

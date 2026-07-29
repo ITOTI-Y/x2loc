@@ -3,7 +3,7 @@ from typing import TypedDict
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.core.glossary import group_units
 from src.models.weblate import WeblateUnitSchema
 from src.services.weblate import AsyncWeblateClient
@@ -17,7 +17,7 @@ class GlossaryLoaderOutputSchema(TypedDict):
 async def glossary_loader(
     *,
     client: AsyncWeblateClient,
-    agent_config: AgentConfigSchema,
+    agent_config: ConfigSchema,
 ) -> GlossaryLoaderOutputSchema:
     """Load the three glossaries fresh from Weblate and index them.
 

@@ -56,12 +56,15 @@ class WeblateComponentDraftSchema(BaseSchema):
 
 
 class WeblateUnitDraftSchema(BaseSchema):
-    """Payload for creating one unit in a manage-units component."""
+    """Payload for creating one source string on a template component.
+
+    Weblate only accepts unit creation on the source translation, in the
+    monolingual key/value shape; targets are filled afterwards through
+    translate uploads.
+    """
 
     context: str
     source: str
-    target: str
-    state: int
 
 
 class WeblateUnitPatchSchema(BaseSchema):
@@ -92,6 +95,7 @@ class WeblateComponentSchema(BaseSchema):
     name: str = ""
     file_format: str = ""
     manage_units: bool = False
+    edit_template: bool = False
 
 
 class WeblateUnitSchema(BaseSchema):

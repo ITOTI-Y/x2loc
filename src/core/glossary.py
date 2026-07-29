@@ -6,8 +6,12 @@ import unicodedata
 from collections import defaultdict
 
 from src.models.glossary import GlossaryTerm
-from src.models.weblate import WeblateUnitDraftSchema, WeblateUnitSchema
-from src.services.weblate import WEBLATE_STATE_TRANSLATED, AsyncWeblateClient
+from src.models.weblate import (
+    CorpusUnitSchema,
+    WeblateUnitDraftSchema,
+    WeblateUnitSchema,
+)
+from src.services.weblate import AsyncWeblateClient
 
 
 def normalize_term(text: str) -> str:
@@ -58,8 +62,11 @@ class CustomGlossaryWriter:
     async def write(self, terms: list[GlossaryTerm]) -> tuple[int, int]:
         """Create the pairs that are not present yet; return (added, skipped).
 
-        The lock covers only the read-and-diff. Creating units is then done
-        concurrently — the client's own semaphore bounds the request rate.
+        Two-phase by Weblate's template-component contract: source strings
+        are created on the source translation (the only place unit creation
+        is allowed), then the targets are filled through one translate
+        upload. The lock covers only the read-and-diff; creation runs
+        concurrently under the client's own semaphore.
         """
         pairs = sorted(
             {
@@ -83,20 +90,31 @@ class CustomGlossaryWriter:
                 if normalize_term(unit.source) and normalize_term(unit.target)
             }
             new_pairs = [pair for pair in pairs if pair not in existing]
+        if not new_pairs:
+            return 0, len(pairs)
 
         await asyncio.gather(
             *(
                 self._client.create_unit(
                     self._component_slug,
-                    self._target_lang,
                     WeblateUnitDraftSchema(
-                        context=term_context(source, target),
-                        source=source,
-                        target=target,
-                        state=WEBLATE_STATE_TRANSLATED,
+                        context=term_context(source, target), source=source
                     ),
                 )
                 for source, target in new_pairs
             )
+        )
+        await self._client.upload_targets(
+            self._component_slug,
+            self._target_lang,
+            [
+                CorpusUnitSchema(
+                    context=term_context(source, target),
+                    source=source,
+                    target=target,
+                    note="",
+                )
+                for source, target in new_pairs
+            ],
         )
         return len(new_pairs), len(pairs) - len(new_pairs)

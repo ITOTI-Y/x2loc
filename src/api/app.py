@@ -198,8 +198,12 @@ async def validate_weblate_components(
             raise RuntimeError(f"required Weblate component is missing: {slug}")
         if component.file_format != "csv":
             raise RuntimeError(f"Weblate component must use CSV: {slug}")
-        if slug == glossary.custom_slug and not component.manage_units:
-            raise RuntimeError("custom glossary must enable manage units")
+        if slug == glossary.custom_slug and not (
+            component.manage_units and component.edit_template
+        ):
+            raise RuntimeError(
+                "custom glossary must enable manage units and edit template"
+            )
 
 
 def _reset_directory(path: Path) -> None:

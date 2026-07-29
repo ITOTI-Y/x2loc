@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from src.agent._share import GRAPH_RECURSION_LIMIT
-from src.agent.config import AgentConfigSchema, load_config
+from src.agent.config import ConfigSchema, load_config
 from src.agent.graph import build_graph
 from src.agent.nodes.pattern_extractor import load_cached_patterns
 from src.agent.review import InterruptReview
@@ -18,7 +18,7 @@ from src.ui.user import prompt_user_review
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
 
 
-async def _run_async(config: AgentConfigSchema, auto_accept: bool) -> None:
+async def _run_async(config: ConfigSchema, auto_accept: bool) -> None:
     """Drive the graph through its async API."""
     graph, nodes = build_graph(config, review=InterruptReview())
     thread: RunnableConfig = {

@@ -1,7 +1,7 @@
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Final
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator
 
 from src._share import EXT_LANG_MAP
 from src.models._share import BaseSchema
@@ -80,3 +80,8 @@ class LocalizationAssetSchema(BaseSchema):
     @property
     def windows_collision_key(self) -> str:
         return PureWindowsPath(self.relative_target_path).as_posix().casefold()
+
+
+class SteamConfigSchema(BaseSchema):
+    steam_username: str
+    steam_password: SecretStr

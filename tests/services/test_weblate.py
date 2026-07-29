@@ -256,14 +256,14 @@ async def test_search_units_handles_missing_results_key(
 async def test_patch_unit_sends_json_body(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("PATCH", "units/7/", Response(200, json=unit_payload(7)))
-
-    result = await client.patch_unit(
-        7, WeblateUnitPatchSchema(target=["确定"], state=20)
+    # Weblate 5.x answers with a partial unit body; the client must not
+    # depend on any of its fields.
+    fake.route(
+        "PATCH", "units/7/", Response(200, json={"target": ["确定"], "state": 20})
     )
 
-    assert result.id == 7
-    assert result.target == "确定"
+    await client.patch_unit(7, WeblateUnitPatchSchema(target=["确定"], state=20))
+
     assert json.loads(fake.requests[0].content) == {"target": ["确定"], "state": 20}
 
 
@@ -271,6 +271,7 @@ async def test_create_component_uploads_csv_as_multipart(
     client: AsyncWeblateClient, fake: FakeWeblate, draft: WeblateComponentDraftSchema
 ) -> None:
     fake.route("POST", COMPONENTS_PATH, Response(201, json={"task_url": None}))
+    fake.route("PATCH", f"components/{PROJECT}/{draft.slug}/", Response(200, json={}))
 
     await client.create_component(draft)
 
@@ -285,6 +286,12 @@ async def test_create_component_uploads_csv_as_multipart(
     assert 'name="docfile"' in body
     assert 'filename="test-component.csv"' in body
     assert "OK,确定" in body
+
+    patch_request = fake.requests[1]
+    assert json.loads(patch_request.content) == {
+        "manage_units": True,
+        "edit_template": True,
+    }
 
 
 async def test_create_component_raises_on_other_errors(

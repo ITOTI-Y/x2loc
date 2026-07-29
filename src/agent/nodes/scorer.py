@@ -4,8 +4,8 @@ from typing import TypedDict
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
-from src.agent.llm import ScoringAgent
+from src.agent.config import ConfigSchema
+from src.agent.llm import ScoringAgent, raise_if_fatal_llm_error
 from src.agent.prompts import format_scoring_prompt
 from src.models.agent import (
     AgentInputSchema,
@@ -22,7 +22,7 @@ class ScorerOutputSchema(TypedDict):
 async def scorer(
     state: NewAgentStateSchema,
     *,
-    agent_config: AgentConfigSchema,
+    agent_config: ConfigSchema,
     llm: ScoringAgent,
 ) -> ScorerOutputSchema:
     def build_input(unit: TranslationUnitSchema) -> AgentInputSchema:
@@ -65,9 +65,17 @@ async def scorer(
     responses = await llm.abatch(
         [build_input(candidate) for candidate in pending],
         config={"max_concurrency": agent_config.max_concurrency},
+        return_exceptions=True,
     )
     for response, candidate in zip(responses, pending, strict=True):
-        structured = response.get("structured_response") if response else None
+        if isinstance(response, BaseException):
+            raise_if_fatal_llm_error(response)
+            logger.warning(
+                f"Scoring request failed for unit {candidate.id}: {response!r}"
+            )
+            structured = None
+        else:
+            structured = response.get("structured_response") if response else None
         result = (
             structured
             if isinstance(structured, ScoreResultSchema)

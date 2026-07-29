@@ -5,7 +5,7 @@ from typing import Protocol, TypedDict
 from langgraph.types import interrupt
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.models.agent import (
     NewAgentStateSchema,
     ReviewDecisionSchema,
@@ -34,7 +34,7 @@ class ReviewPolicy(Protocol):
     extracts_patterns: bool
 
     async def __call__(
-        self, state: NewAgentStateSchema, *, agent_config: AgentConfigSchema
+        self, state: NewAgentStateSchema, *, agent_config: ConfigSchema
     ) -> ReviewOutputSchema: ...
 
 
@@ -50,7 +50,7 @@ class InterruptReview:
     extracts_patterns = True
 
     async def __call__(
-        self, state: NewAgentStateSchema, *, agent_config: AgentConfigSchema
+        self, state: NewAgentStateSchema, *, agent_config: ConfigSchema
     ) -> ReviewOutputSchema:
         decisions: list[ReviewDecisionSchema] = interrupt(state.scores)
         return {
@@ -74,7 +74,7 @@ class ThresholdReview:
     extracts_patterns = False
 
     async def __call__(
-        self, state: NewAgentStateSchema, *, agent_config: AgentConfigSchema
+        self, state: NewAgentStateSchema, *, agent_config: ConfigSchema
     ) -> ReviewOutputSchema:
         accepted = list(state.accepted_decisions)
         failed: list[TranslationUnitSchema] = []

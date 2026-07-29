@@ -10,10 +10,12 @@ from src.agent._share import (
 )
 from src.models._share import BaseSchema
 from src.models.weblate import WeblateConfigSchema
+from src.models.workshop import SteamConfigSchema
 
 
-class AgentConfigSchema(BaseSchema):
+class ConfigSchema(BaseSchema):
     weblate: WeblateConfigSchema
+    steam: SteamConfigSchema
     translation_model_name: str = "gemini-3.1-flash-lite-preview"
     validate_model_name: str = ""
     scoring_model_name: str = ""
@@ -42,8 +44,11 @@ class AgentConfigSchema(BaseSchema):
 
 def load_config(
     weblate_config_path: str | Path = "configs/weblate.local.toml",
-) -> AgentConfigSchema:
+) -> ConfigSchema:
     with open(weblate_config_path, "rb") as f:
         raw = tomllib.load(f)
     weblate = WeblateConfigSchema.model_validate(raw["weblate"])
-    return AgentConfigSchema.model_validate(raw["agent"] | {"weblate": weblate})
+    steam = SteamConfigSchema.model_validate(raw["steam"])
+    return ConfigSchema.model_validate(
+        raw["agent"] | {"weblate": weblate, "steam": steam}
+    )

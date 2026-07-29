@@ -3,7 +3,7 @@ from typing import TypedDict
 
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.models.agent import NewAgentStateSchema
 from src.models.weblate import WeblateUnitSchema
 from src.services.weblate import AsyncWeblateClient
@@ -71,7 +71,7 @@ class UnitIterator:
 async def fetch_empty(
     state: NewAgentStateSchema,
     unit_iterator: UnitIterator,
-    agent_config: AgentConfigSchema,
+    agent_config: ConfigSchema,
 ) -> FetchEmptyOutputSchema:
     units, is_end = await unit_iterator.get_units(
         component_slug=state.component_slug,

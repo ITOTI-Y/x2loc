@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
-from src.agent.config import AgentConfigSchema
+from src.agent.config import ConfigSchema
 from src.agent.nodes import WorkflowNodes
 from src.agent.review import ReviewPolicy
 from src.models.agent import NewAgentStateSchema
@@ -48,7 +48,7 @@ def graph_recursion_limit(
 
 
 def build_graph(
-    config: AgentConfigSchema,
+    config: ConfigSchema,
     *,
     review: ReviewPolicy,
     client: AsyncWeblateClient | None = None,
