@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import hmac
 import shutil
 from collections.abc import AsyncIterator, Callable
