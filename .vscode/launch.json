@@ -36,10 +36,25 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Test Weblate",
+            "name": "Test Services",
             "type": "debugpy",
             "request": "launch",
-            "module": "tests.services.test_weblate",
+            "module": "pytest",
+            "args": [
+                "tests/services/",
+                "-v"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Test Workshop",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/core/test_workshop.py",
+                "-v"
+            ],
             "console": "integratedTerminal"
         }
     ]

@@ -1,6 +1,6 @@
 """Shared test fixtures with auto-generated binary fixture files."""
 
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -10,8 +10,6 @@ from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
 from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
-from src.models.weblate import WeblateConfigSchema
-from src.services.weblate import AsyncWeblateClient
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -235,24 +233,6 @@ def converter() -> CorpusConverter:
 @pytest.fixture
 def loc_writer() -> LocFileWriter:
     return LocFileWriter()
-
-
-@pytest.fixture
-def weblate_config() -> WeblateConfigSchema:
-    return WeblateConfigSchema(
-        url="https://weblate.example.com/api/",
-        token="wlp_test_token",
-        project_slug="xcom2-test",
-    )
-
-
-@pytest.fixture
-async def weblate_client(
-    weblate_config: WeblateConfigSchema,
-) -> AsyncGenerator[AsyncWeblateClient]:
-    client = AsyncWeblateClient(weblate_config)
-    yield client
-    await client.close()
 
 
 @pytest.fixture

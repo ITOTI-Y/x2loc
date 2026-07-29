@@ -29,7 +29,7 @@ class SteamDownloader:
         self._password = password
         self._limits = limits
 
-    async def download(self, workshop_id: int) -> WorkshopItemSchema:
+    async def download(self, workshop_id: str) -> WorkshopItemSchema:
         await self._run_steamcmd(workshop_id)
         mod_root = (
             self._steam_root
@@ -44,19 +44,19 @@ class SteamDownloader:
         files = await asyncio.to_thread(scan_mod_tree, mod_root, self._limits)
         try:
             mod_info = await asyncio.to_thread(
-                resolve_mod, mod_root, mod_root, str(workshop_id)
+                resolve_mod, mod_root, mod_root, workshop_id
             )
         except ModResolveError as exc:
             raise SteamDownloadError("Workshop item is not a resolvable mod") from exc
         logger.info("Downloaded Workshop item {} ({} files)", workshop_id, len(files))
         return WorkshopItemSchema(
-            workshop_id=str(workshop_id),
+            workshop_id=workshop_id,
             mod_root=mod_root.resolve(strict=True),
             mod_info=mod_info,
             files=files,
         )
 
-    async def _run_steamcmd(self, workshop_id: int) -> None:
+    async def _run_steamcmd(self, workshop_id: str) -> None:
         process = await asyncio.create_subprocess_exec(
             str(self._executable),
             "+force_install_dir",
@@ -66,7 +66,7 @@ class SteamDownloader:
             self._password.get_secret_value(),
             "+workshop_download_item",
             str(XCOM2_APP_ID),
-            str(workshop_id),
+            workshop_id,
             "+quit",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,

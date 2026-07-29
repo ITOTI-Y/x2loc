@@ -5,7 +5,14 @@ import tomllib
 from pathlib import Path
 from typing import Any, Final, Self, cast
 
-from httpx2 import AsyncClient, Limits, Request, Response, TransportError
+from httpx2 import (
+    AsyncBaseTransport,
+    AsyncClient,
+    Limits,
+    Request,
+    Response,
+    TransportError,
+)
 from loguru import logger
 
 from src.models.weblate import (
@@ -46,7 +53,6 @@ RETRY_MAX_ATTEMPTS: Final[int] = 3
 RETRY_BASE_DELAY: Final[float] = 1.0
 PAGINATE_CONCURRENCY: Final[int] = 10
 REQUEST_CONCURRENCY: Final[int] = 16
-LIST_UNITS_PAGE_SIZE: Final[int] = 500
 TRANSLATION_CACHE_TTL: Final[float] = 300.0
 KEEPALIVE_EXPIRY: Final[float] = 300.0
 
@@ -76,11 +82,16 @@ async def _on_response(response: Response) -> None:
 
 
 class AsyncWeblateClient:
-    def __init__(self, config: WeblateConfigSchema) -> None:
+    def __init__(
+        self,
+        config: WeblateConfigSchema,
+        transport: AsyncBaseTransport | None = None,
+    ) -> None:
         self.config = config
         self.base_url = config.url.rstrip("/") + "/"
         self._client = AsyncClient(
             base_url=self.base_url,
+            transport=transport,
             headers={
                 "Authorization": f"Token {config.token}",
                 "Accept": "application/json",
@@ -154,6 +165,8 @@ class AsyncWeblateClient:
                 logger.warning(
                     f"Failed to create component {component.slug}: {exc.message}"
                 )
+            else:
+                raise
 
     async def delete_component(self, component_slug: str) -> None:
         try:
