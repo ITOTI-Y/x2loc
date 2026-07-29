@@ -66,22 +66,63 @@ def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema)](
     if source in cache:
         return list(cache[source])
 
-    matched = process.extract(
+    results: list[T] = []
+    matched_keys = _phrase_hits(source, cache)
+    for key in matched_keys:
+        results.extend(cache[key])
+    if len(results) >= limit:
+        return results[:limit]
+
+    fuzzy = process.extract(
         source,
         cache.keys(),
         scorer=WRatio,
         score_cutoff=65,
         limit=limit,
     )
+    for match in fuzzy:
+        if match[0] not in matched_keys:
+            results.extend(cache[match[0]])
+    return results[:limit]
 
-    return [item for match in matched for item in cache[match[0]]]
+
+def _phrase_hits[T](source: str, cache: Mapping[str, Sequence[T]]) -> set[str]:
+    """Word-boundary hits of glossary keys inside the source text.
+
+    Whole-string fuzzy matching never surfaces a short term inside a long
+    sentence — "Sectoid" scores far below the cutoff against a 100-character
+    quote — which starves the translator of exactly the official names the
+    scorer later insists on. Possessive and plural suffixes are folded so
+    "Sectoids" and "sectoid's" still hit the "Sectoid" entry.
+    """
+    words = re.findall(r"[a-z0-9']+", source.lower())
+    phrases: set[str] = set()
+    for word in words:
+        phrases.add(word)
+        if word.endswith("'s"):
+            phrases.add(word[:-2])
+        elif word.endswith("s"):
+            phrases.add(word[:-1])
+    for n in (2, 3):
+        for i in range(len(words) - n + 1):
+            phrases.add(" ".join(words[i : i + n]))
+    return {key for key in cache if len(key) >= 3 and key.lower() in phrases}
 
 
 async def collect_context_for_term(
     client: AsyncWeblateClient,
     input_unit: WeblateUnitSchema,
     nearby_range: int = DEFAULT_NEARBY_RANGE,
+    exclude_slug: str = "",
 ) -> list[ComponentInfoSchema]:
+    """Collect cross-component context for one source string.
+
+    `exclude_slug` keeps the component being translated out of its own
+    context: its nearby units are sibling fields of the same template
+    (title next to description), and feeding those back misleads both the
+    translator and the scorer into swapping field contents.
+    """
+
     async def _enrich(component: ComponentInfoSchema) -> ComponentInfoSchema:
         nearby_page = await client.list_units_page(
             component.slug,
@@ -117,7 +158,7 @@ async def collect_context_for_term(
         if len(parts) < 2:
             continue
         slug = parts[-2]
-        if slug.startswith("glossary"):
+        if slug.startswith("glossary") or slug == exclude_slug:
             continue
         components.append(
             ComponentInfoSchema(

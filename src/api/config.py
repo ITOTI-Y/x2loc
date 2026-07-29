@@ -11,6 +11,7 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
+from src.agent._share import DEFAULT_BATCH_SIZE
 from src.models._share import BaseSchema
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
@@ -20,6 +21,22 @@ class GlossaryConfigSchema(BaseSchema):
     base_slug: str = "glossary-base-xcom2-wotc"
     mods_slug: str = "glossary-mods"
     custom_slug: str = "glossary-custom"
+
+
+class AgentDefaultsSchema(BaseSchema):
+    """Job LLM defaults from the `[agent]` TOML table.
+
+    A job request may override any of them; empty request fields fall back
+    here, so routine submissions carry nothing but the workshop URL.
+    """
+
+    api_key: SecretStr = SecretStr("")
+    base_url: str = "https://openrouter.ai/api/v1"
+    translation_model_name: str = ""
+    validate_model_name: str = ""
+    scoring_model_name: str = ""
+    batch_size: int = DEFAULT_BATCH_SIZE
+    auto_approve_threshold: int = 95
 
 
 def _default_limits() -> WorkshopLimitsSchema:
@@ -63,6 +80,7 @@ class ServiceConfigSchema(BaseSettings):
 
     steam: SteamConfigSchema
     weblate: WeblateConfigSchema
+    agent: AgentDefaultsSchema = Field(default_factory=AgentDefaultsSchema)
     limits: WorkshopLimitsSchema = Field(default_factory=_default_limits)
     glossary: GlossaryConfigSchema = Field(default_factory=GlossaryConfigSchema)
 

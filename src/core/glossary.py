@@ -11,7 +11,7 @@ from src.models.weblate import (
     WeblateUnitDraftSchema,
     WeblateUnitSchema,
 )
-from src.services.weblate import AsyncWeblateClient
+from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
 
 def normalize_term(text: str) -> str:
@@ -93,17 +93,25 @@ class CustomGlossaryWriter:
         if not new_pairs:
             return 0, len(pairs)
 
-        await asyncio.gather(
-            *(
-                self._client.create_unit(
+        async def _create(source: str, target: str) -> None:
+            try:
+                await self._client.create_unit(
                     self._component_slug,
                     WeblateUnitDraftSchema(
                         context=term_context(source, target), source=source
                     ),
                 )
-                for source, target in new_pairs
-            )
-        )
+            except WeblateAPIError as exc:
+                # Creation is not idempotent on Weblate's side: a retry of a
+                # slow-but-successful POST, or a source string left over from
+                # an earlier partial run, answers 400 "already exists". The
+                # key/value are code-generated, so 400 here cannot mean a
+                # validation error; the upload below fills the target either
+                # way, which also heals empty-target orphans.
+                if exc.status_code != 400:
+                    raise
+
+        await asyncio.gather(*(_create(source, target) for source, target in new_pairs))
         await self._client.upload_targets(
             self._component_slug,
             self._target_lang,

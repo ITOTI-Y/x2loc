@@ -39,9 +39,11 @@ TERMINAL_STATUSES = frozenset(
 class WorkshopJobRequestSchema(BaseSchema):
     workshop_url: HttpUrl
     target_lang: str = TARGET_LANGUAGE
-    llm_api_base_url: HttpUrl
-    llm_api_key: SecretStr = Field(repr=False)
-    translation_model: str = Field(min_length=1)
+    # Empty LLM fields fall back to the service's `[agent]` TOML defaults;
+    # a routine submission carries nothing but the workshop URL.
+    llm_api_base_url: HttpUrl | None = None
+    llm_api_key: SecretStr = Field(default=SecretStr(""), repr=False)
+    translation_model: str = ""
     validation_model: str = ""
     scoring_model: str = ""
     llm_concurrency: int = Field(
@@ -57,8 +59,8 @@ class WorkshopJobRequestSchema(BaseSchema):
 
     @field_validator("llm_api_base_url")
     @classmethod
-    def validate_llm_url(cls, value: HttpUrl) -> HttpUrl:
-        if value.scheme != "https":
+    def validate_llm_url(cls, value: HttpUrl | None) -> HttpUrl | None:
+        if value is not None and value.scheme != "https":
             raise ValueError("LLM base URL must use HTTPS")
         return value
 

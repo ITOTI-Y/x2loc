@@ -130,7 +130,9 @@ class WorkshopPipeline:
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.SYNCING_WEBLATE))
         async with asyncio.TaskGroup() as sync_group:
             for work in works:
-                sync_group.create_task(self._sync(work, request.target_lang))
+                sync_group.create_task(
+                    self._sync(work, request.target_lang, item.mod_info.namespace)
+                )
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.TRANSLATING))
         translated = await self._translate(request, works)
@@ -224,10 +226,16 @@ class WorkshopPipeline:
             raise WorkshopInputError("mod contains no translatable localization units")
         return works
 
-    async def _sync(self, work: AssetWorkSchema, target_lang: str) -> None:
+    async def _sync(
+        self, work: AssetWorkSchema, target_lang: str, namespace: str
+    ) -> None:
+        # The slug is already unique per mod and file; the display name
+        # carries the mod namespace because a bare relative path such as
+        # "Localization/XComGame.int" is identical across most mods and
+        # Weblate rejects duplicate component names within one project.
         await self._weblate.sync_corpus(
             work.asset.component_slug,
-            name=work.asset.relative_source_path.as_posix(),
+            name=f"{namespace}/{work.asset.relative_source_path.as_posix()}",
             language=target_lang,
             units=work.units,
             has_existing_target=work.asset.existing_target_path is not None,
@@ -352,17 +360,43 @@ class WorkshopPipeline:
         return await self._glossary_writer.write(glossary.terms)
 
     def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
+        """Merge the request over the service's `[agent]` defaults.
+
+        Explicit request fields win; empty ones fall back to the TOML so
+        the independently configured validation and scoring models apply
+        to routine submissions.
+        """
+        defaults = self._config.agent
+        api_key = (
+            request.llm_api_key
+            if request.llm_api_key.get_secret_value()
+            else defaults.api_key
+        )
+        translation_model = request.translation_model or defaults.translation_model_name
+        if not api_key.get_secret_value() or not translation_model:
+            raise ValueError(
+                "no LLM api key or translation model: provide them in the "
+                "request or in the [agent] table of the service TOML"
+            )
+        base_url = (
+            str(request.llm_api_base_url)
+            if request.llm_api_base_url
+            else defaults.base_url
+        )
         return ConfigSchema(
             weblate=self._config.weblate,
             steam=self._config.steam,
             base_glossary_slug=self._config.glossary.base_slug,
             mods_glossary_slug=self._config.glossary.mods_slug,
             custom_glossary_slug=self._config.glossary.custom_slug,
-            translation_model_name=request.translation_model,
-            validate_model_name=request.validation_model,
-            scoring_model_name=request.scoring_model,
-            base_url=str(request.llm_api_base_url),
-            api_key=request.llm_api_key,
+            translation_model_name=translation_model,
+            validate_model_name=request.validation_model
+            or defaults.validate_model_name,
+            scoring_model_name=request.scoring_model or defaults.scoring_model_name,
+            base_url=base_url,
+            api_key=api_key,
+            batch_size=defaults.batch_size,
+            auto_approve_threshold=defaults.auto_approve_threshold,
             target_lang=request.target_lang,
             max_concurrency=request.llm_concurrency,
         )

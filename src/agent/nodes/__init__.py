@@ -96,7 +96,9 @@ class WorkflowNodes:
         prefetched = await self._harvest_prefetch(state.component_slug)
         hit = {u.id: prefetched[u.id] for u in state.to_translate if u.id in prefetched}
         missing = [u for u in state.to_translate if u.id not in prefetched]
-        fresh = await context_collector(missing, client=self._client)
+        fresh = await context_collector(
+            missing, client=self._client, exclude_slug=state.component_slug
+        )
         self._start_prefetch(state.component_slug)
         return {
             "context_results": {**hit, **fresh},
@@ -151,7 +153,9 @@ class WorkflowNodes:
         if not next_units:
             return
         self._prefetch[component_slug] = asyncio.create_task(
-            context_collector(next_units, client=self._client)
+            context_collector(
+                next_units, client=self._client, exclude_slug=component_slug
+            )
         )
 
     async def aclose(self) -> None:

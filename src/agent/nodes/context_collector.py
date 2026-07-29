@@ -19,6 +19,7 @@ async def context_collector(
     units: list[WeblateUnitSchema],
     *,
     client: AsyncWeblateClient,
+    exclude_slug: str = "",
 ) -> dict[int, list[ComponentInfoSchema]]:
     if not units:
         return {}
@@ -32,6 +33,7 @@ async def context_collector(
             components = await collect_context_for_term(
                 client,
                 unit,
+                exclude_slug=exclude_slug,
             )
         return unit.id, components
 

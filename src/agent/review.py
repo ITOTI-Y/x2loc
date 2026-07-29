@@ -105,6 +105,20 @@ class ThresholdReview:
 
         attempts = state.attempts + 1
         if attempts >= agent_config.max_translation_attempts:
+            for unit in failed:
+                score = unit.score_result.score if unit.score_result else 0
+                notes = unit.score_result.notes if unit.score_result else ""
+                logger.error(
+                    "Quality gate exhausted for unit {} [{}]: score={} "
+                    "tag_valid={} notes={!r} source={!r} last_translation={!r}",
+                    unit.id,
+                    unit.key,
+                    score,
+                    unit.tag_valid,
+                    notes,
+                    unit.source[:120],
+                    unit.translated[:120],
+                )
             raise TranslationQualityError(failed)
 
         logger.warning(
