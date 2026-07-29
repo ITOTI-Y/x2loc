@@ -1,16 +1,61 @@
 import asyncio
 from pathlib import Path
+from typing import Final
 
+from httpx2 import AsyncClient
 from loguru import logger
 from pydantic import SecretStr
 
 from src.core.mod_resolver import ModResolveError, resolve_mod
-from src.core.workshop import scan_mod_tree
-from src.models.workshop import XCOM2_APP_ID, WorkshopItemSchema, WorkshopLimitsSchema
+from src.core.workshop import WorkshopInputError, scan_mod_tree
+from src.models.workshop import (
+    XCOM2_APP_ID,
+    WorkshopDetailsEnvelopeSchema,
+    WorkshopItemSchema,
+    WorkshopLimitsSchema,
+    WorkshopMetadataSchema,
+)
 
 
 class SteamDownloadError(RuntimeError):
     """SteamCMD did not produce a usable Workshop item."""
+
+
+STEAM_DETAILS_URL: Final[str] = (
+    "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+)
+STEAM_RESULT_OK: Final[int] = 1
+
+
+async def fetch_workshop_metadata(
+    workshop_id: str, *, client: AsyncClient
+) -> WorkshopMetadataSchema:
+    """Anonymous metadata preflight against the official Steam Web API.
+
+    XCOM 2 items carry no `file_url` (verified 2026-07-29: `file_size=0`,
+    content exists only as an `hcontent_file` depot handle), so this call
+    cannot replace the SteamCMD download. It rejects nonexistent or
+    foreign-app items before SteamCMD starts and supplies `title` and
+    `time_updated` for job display.
+    """
+    response = await client.post(
+        STEAM_DETAILS_URL,
+        data={"itemcount": "1", "publishedfileids[0]": workshop_id},
+    )
+    if response.status_code != 200:
+        raise SteamDownloadError(f"Steam Web API returned {response.status_code}")
+    try:
+        payload = WorkshopDetailsEnvelopeSchema.model_validate(response.json())
+    except ValueError as exc:
+        raise SteamDownloadError("Steam Web API returned an invalid response") from exc
+    if not payload.response.publishedfiledetails:
+        raise WorkshopInputError(f"Workshop item {workshop_id} does not exist")
+    metadata = payload.response.publishedfiledetails[0]
+    if metadata.result != STEAM_RESULT_OK:
+        raise WorkshopInputError(f"Workshop item {workshop_id} does not exist")
+    if metadata.consumer_app_id != XCOM2_APP_ID:
+        raise WorkshopInputError(f"Workshop item {workshop_id} is not an XCOM 2 mod")
+    return metadata
 
 
 class SteamDownloader:

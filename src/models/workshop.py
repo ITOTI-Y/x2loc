@@ -1,7 +1,7 @@
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Final
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from src._share import EXT_LANG_MAP
 from src.models._share import BaseSchema
@@ -19,6 +19,34 @@ class WorkshopLimitsSchema(BaseSchema):
     max_total_bytes: int = Field(gt=0)
     max_file_count: int = Field(gt=0)
     max_loc_file_bytes: int = Field(gt=0)
+
+
+class WorkshopMetadataSchema(BaseSchema):
+    """One item's metadata from ISteamRemoteStorage/GetPublishedFileDetails."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    publishedfileid: str
+    result: int = 0
+    consumer_app_id: int = 0
+    title: str = ""
+    time_updated: int = 0
+
+
+class WorkshopDetailsListSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    publishedfiledetails: list[WorkshopMetadataSchema] = Field(default_factory=list)
+
+
+class WorkshopDetailsEnvelopeSchema(BaseSchema):
+    """Top-level envelope of the GetPublishedFileDetails response."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    response: WorkshopDetailsListSchema = Field(
+        default_factory=WorkshopDetailsListSchema
+    )
 
 
 class WorkshopItemSchema(BaseSchema):
