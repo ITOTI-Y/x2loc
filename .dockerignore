@@ -1,0 +1,15 @@
+# Never let local credentials or caches enter the build context.
+configs/
+data/
+output/
+logs/
+temp/
+.git/
+.venv/
+.vscode/
+.claude/
+docs/
+scripts/
+tests/
+**/__pycache__/
+*.zip

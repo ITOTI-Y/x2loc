@@ -1,0 +1,27 @@
+services:
+  x2loc:
+    build: .
+    image: x2loc:latest
+    restart: unless-stopped
+    ports:
+      # Host exposure stays loopback-only; change deliberately if a
+      # reverse proxy on another host must reach it.
+      - "127.0.0.1:8180:8180"
+    environment:
+      X2LOC_BIND_PORT: "8180"
+    volumes:
+      # One gitignored TOML carries every credential (same file the CLI uses).
+      - ./configs/weblate.local.toml:/app/configs/weblate.local.toml:ro
+      # SteamCMD self-update plus its login-token cache. Losing these means
+      # re-confirming Steam Guard on the phone, so they persist.
+      - steamcmd-install:/opt/steamcmd
+      - steam-home:/root/.local/share/Steam
+      - steam-root-home:/root/Steam
+      # Workshop download cache; speeds up repeat submissions of one mod.
+      - steam-content:/srv/steam
+
+volumes:
+  steamcmd-install:
+  steam-home:
+  steam-root-home:
+  steam-content:

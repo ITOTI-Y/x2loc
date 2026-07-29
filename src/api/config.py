@@ -57,6 +57,9 @@ class ServiceConfigSchema(BaseSettings):
     data_root: Path
     bind_host: str = "127.0.0.1"
     bind_port: int = Field(default=8100, ge=1, le=65535)
+    # Containers bind 0.0.0.0 inside their private network namespace and
+    # rely on the host-side publish rule for exposure control.
+    allow_non_loopback_bind: bool = False
 
     steam: SteamConfigSchema
     weblate: WeblateConfigSchema
@@ -80,8 +83,13 @@ class ServiceConfigSchema(BaseSettings):
 
     @model_validator(mode="after")
     def validate_loopback(self) -> ServiceConfigSchema:
+        if self.allow_non_loopback_bind:
+            return self
         if not ipaddress.ip_address(self.bind_host).is_loopback:
-            raise ValueError("service must bind to a loopback IP address")
+            raise ValueError(
+                "service must bind to a loopback IP address; set "
+                "allow_non_loopback_bind=true only behind a container publish rule"
+            )
         return self
 
     @property
