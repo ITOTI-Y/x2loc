@@ -25,6 +25,9 @@ STEAM_DETAILS_URL: Final[str] = (
     "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
 )
 STEAM_RESULT_OK: Final[int] = 1
+# SteamCMD prints login and download errors last; this many lines diagnose
+# a failure without flooding the log with progress output.
+STEAMCMD_LOG_TAIL_LINES: Final[int] = 20
 
 
 async def fetch_workshop_metadata(
@@ -124,19 +127,35 @@ class SteamDownloader:
             str(XCOM2_APP_ID),
             workshop_id,
             "+quit",
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
             cwd=self._steam_root,
         )
         try:
-            await asyncio.wait_for(
-                process.wait(), timeout=self._limits.download_timeout_seconds
+            output, _ = await asyncio.wait_for(
+                process.communicate(), timeout=self._limits.download_timeout_seconds
             )
         except TimeoutError as exc:
             raise SteamDownloadError("SteamCMD timed out") from exc
         finally:
             await self._terminate(process)
+        if process.returncode != 0:
+            logger.warning(
+                "SteamCMD exited with {} ({} login); last output:\n{}",
+                process.returncode,
+                "password" if with_password else "cached",
+                self._output_tail(output),
+            )
         return process.returncode == 0
+
+    def _output_tail(self, output: bytes) -> str:
+        """Last non-empty lines, with the password masked in case it is echoed."""
+        text = output.decode("utf-8", errors="replace")
+        secret = self._password.get_secret_value()
+        if secret:
+            text = text.replace(secret, "***")
+        lines = [line for line in text.replace("\r", "\n").splitlines() if line.strip()]
+        return "\n".join(lines[-STEAMCMD_LOG_TAIL_LINES:])
 
     async def _terminate(self, process: asyncio.subprocess.Process) -> None:
         if process.returncode is not None:

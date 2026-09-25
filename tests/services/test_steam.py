@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from loguru import logger
 from pydantic import SecretStr
 
 from src.models.workshop import XCOM2_APP_ID, WorkshopLimitsSchema
@@ -32,8 +33,11 @@ def downloader(tmp_path: Path, **overrides: float) -> SteamDownloader:
 
 
 class FakeProcess:
-    def __init__(self, returncode: int | None = 0, hang: bool = False) -> None:
+    def __init__(
+        self, returncode: int | None = 0, hang: bool = False, output: bytes = b""
+    ) -> None:
         self.returncode = returncode
+        self._output = output
         self._hang = hang
         self.terminated = False
         self.killed = False
@@ -42,6 +46,10 @@ class FakeProcess:
         if self._hang:
             await asyncio.Event().wait()
         return self.returncode or 0
+
+    async def communicate(self) -> tuple[bytes, None]:
+        await self.wait()
+        return self._output, None
 
     def terminate(self) -> None:
         self.terminated = True
@@ -155,3 +163,28 @@ async def test_password_never_reaches_logs(
     _write_xcommod(root)
     await downloader(tmp_path).download("42")
     assert "steam-password" not in caplog.text
+
+
+async def test_failure_logs_masked_output_tail(
+    tmp_path: Path, spawn: list[FakeProcess]
+) -> None:
+    output = (
+        b"progress\r" * 50
+        + b"Logging in user 'steam-user' steam-password\nFAILED (Invalid Password)\n"
+    )
+    spawn.append(FakeProcess(returncode=5, output=output))
+    messages: list[str] = []
+    sink = logger.add(messages.append, level="WARNING")
+    try:
+        with pytest.raises(SteamDownloadError):
+            await downloader(tmp_path).download("42")
+    finally:
+        logger.remove(sink)
+    # One output tail per attempt: cached-token login, then password login.
+    tails = [m for m in messages if "last output:" in m]
+    assert len(tails) == 2
+    for message in tails:
+        tail = message.split("last output:\n", 1)[1].strip().splitlines()
+        assert tail[-1] == "FAILED (Invalid Password)"
+        assert len(tail) == 20
+        assert "steam-password" not in message
