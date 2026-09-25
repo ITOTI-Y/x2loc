@@ -1,7 +1,4 @@
-from pathlib import Path
 from typing import Final
-
-PATTERN_CACHE_PATH: Final = Path("data/cache_translation_patterns.json")
 
 DEFAULT_NEARBY_RANGE: Final = 2
 CONTEXT_COLLECTOR_CONCURRENCY: Final = 10

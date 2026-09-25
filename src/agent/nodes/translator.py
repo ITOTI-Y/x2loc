@@ -8,7 +8,7 @@ from loguru import logger
 from src.agent.config import ConfigSchema
 from src.agent.llm import TranslationAgent, raise_if_fatal_llm_error
 from src.agent.prompts import format_translation_prompt
-from src.agent.tools import lookup_glossary_or_patterns
+from src.agent.tools import lookup_glossary, match_patterns
 from src.models.agent import (
     AgentInputSchema,
     NewAgentStateSchema,
@@ -37,13 +37,13 @@ async def translator(
     matches: dict[str, _Matches] = {}
 
     def _matches(source: str) -> _Matches:
-        """Fuzzy lookup is O(len(glossary)) per miss; do it once per source."""
+        """Lookups scan every glossary key and template; do them once per source."""
         hit = matches.get(source)
         if hit is None:
             hit = matches[source] = (
-                lookup_glossary_or_patterns(source, state.base_glossary),
-                lookup_glossary_or_patterns(source, state.mods_glossary),
-                lookup_glossary_or_patterns(source, state.patterns),
+                lookup_glossary(source, state.base_glossary),
+                lookup_glossary(source, state.mods_glossary),
+                match_patterns(source, state.patterns),
             )
         return hit
 

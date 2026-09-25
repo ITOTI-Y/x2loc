@@ -26,7 +26,7 @@ def group_units(
     """Index units by NFC-normalized source, keeping every distinct target.
 
     Normalization is unconditional: an unnormalized key would make the exact
-    match in `lookup_glossary_or_patterns` hit for one caller and miss for
+    match in `lookup_glossary` hit for one caller and miss for
     another on the same term.
     """
     grouped: dict[str, list[WeblateUnitSchema]] = defaultdict(list)

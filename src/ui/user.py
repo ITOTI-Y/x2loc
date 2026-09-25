@@ -107,7 +107,7 @@ def _render_unit_panel(
 
     if unit.patterns:
         pats = "; ".join(
-            f"{p.src_pattern} → {p.tgt_pattern} (x{p.approved_count})"
+            f"{p.src_pattern} → {p.tgt_pattern} (x{p.example_count})"
             for p in unit.patterns
         )
         body.add_row("Patterns", Text(pats, style="dim"))

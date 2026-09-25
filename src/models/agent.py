@@ -16,7 +16,7 @@ class PatternSchema(BaseSchema):
     model_config = ConfigDict(extra="ignore")
     src_pattern: str
     tgt_pattern: str
-    approved_count: int
+    example_count: int
     examples: list[PatternExampleSchema]
 
 

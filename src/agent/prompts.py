@@ -187,7 +187,7 @@ The user message will provide:
 - Base Glossary Reference  (AUTHORITATIVE — prefer these established terms)
 - Mods Glossary Reference  (secondary; use when base has no entry)
 - Nearby Strings           (context for tone/term consistency)
-- Established Session Patterns (templated translations to follow when applicable)
+- Established Translation Patterns (glossary-derived templates to follow when applicable)
 
 Always prefer Base Glossary translations when a term matches.
 
@@ -486,10 +486,10 @@ def format_translation_prompt(
         parts.append("")
 
     if patterns:
-        parts.append("Established Session Patterns:")
+        parts.append("Established Translation Patterns:")
         for p in patterns:
             parts.append(
-                f"  {p.src_pattern} → {p.tgt_pattern} ({p.approved_count} approved)"
+                f"  {p.src_pattern} → {p.tgt_pattern} ({p.example_count} examples)"
             )
         parts.append("")
 
@@ -533,10 +533,10 @@ def format_scoring_prompt(
         parts.append("")
 
     if patterns:
-        parts.append("Established Session Patterns:")
+        parts.append("Established Translation Patterns:")
         for p in patterns:
             parts.append(
-                f"  {p.src_pattern} → {p.tgt_pattern} ({p.approved_count} approved)"
+                f"  {p.src_pattern} → {p.tgt_pattern} ({p.example_count} examples)"
             )
         parts.append("")
 

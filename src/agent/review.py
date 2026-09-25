@@ -27,8 +27,9 @@ class ReviewPolicy(Protocol):
     """Turns scored candidates into accept/skip decisions.
 
     `extracts_patterns` selects whether the graph runs `pattern_extractor`
-    after upload. Only human-approved translations may feed the pattern
-    cache, so the automatic policy leaves it out.
+    after upload to add templates from this session's decisions on top of
+    the glossary-derived ones. Only human-approved translations may feed
+    it, so the automatic policy leaves it out.
     """
 
     extracts_patterns: bool

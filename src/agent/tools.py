@@ -2,6 +2,7 @@ import asyncio
 import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from functools import cache
 from typing import Final
 
 from rapidfuzz import process
@@ -23,35 +24,78 @@ def strip_html(text: str) -> str:
     return _HTML_TAG_RE.sub("", text).strip()
 
 
-def lookup_glossary_or_patterns[T: (WeblateUnitSchema, PatternSchema)](
+def lookup_glossary(
     source: str,
-    cache: Mapping[str, Sequence[T]],
+    glossary: Mapping[str, Sequence[WeblateUnitSchema]],
     limit: int = 10,
-) -> list[T]:
-    if source in cache:
-        return list(cache[source])
+) -> list[WeblateUnitSchema]:
+    if source in glossary:
+        return list(glossary[source])
 
-    results: list[T] = []
-    matched_keys = _phrase_hits(source, cache)
+    results: list[WeblateUnitSchema] = []
+    matched_keys = _phrase_hits(source, glossary)
     for key in matched_keys:
-        results.extend(cache[key])
+        results.extend(glossary[key])
     if len(results) >= limit:
         return results[:limit]
 
     fuzzy = process.extract(
         source,
-        cache.keys(),
+        glossary.keys(),
         scorer=WRatio,
         score_cutoff=65,
         limit=limit,
     )
     for match in fuzzy:
         if match[0] not in matched_keys:
-            results.extend(cache[match[0]])
+            results.extend(glossary[match[0]])
     return results[:limit]
 
 
-def _phrase_hits[T](source: str, cache: Mapping[str, Sequence[T]]) -> set[str]:
+def match_patterns(
+    source: str,
+    patterns: Mapping[str, Sequence[PatternSchema]],
+    limit: int = 5,
+) -> list[PatternSchema]:
+    """Templates whose literal words occur around a non-empty slot in `source`.
+
+    Keys contain `{X}`, which neither word-boundary nor fuzzy glossary lookup
+    can match, so each template compiles to its own regex. The most specific
+    (longest literal) and best supported templates come first.
+    """
+    hits = [
+        pattern
+        for key, group in patterns.items()
+        if _template_regex(key).search(source)
+        for pattern in group
+    ]
+    hits.sort(key=lambda p: (-len(p.src_pattern), -p.example_count))
+    return hits[:limit]
+
+
+@cache
+def _template_regex(src_pattern: str) -> re.Pattern[str]:
+    prefix, _, suffix = (part.strip() for part in src_pattern.partition("{X}"))
+    parts: list[str] = []
+    if prefix:
+        parts.append(_edge(prefix, start=True) + re.escape(prefix) + r"\s+")
+    parts.append(r"\S(?:.*?\S)?")
+    if suffix:
+        parts.append(r"\s+" + re.escape(suffix) + _edge(suffix, start=False))
+    return re.compile("".join(parts))
+
+
+def _edge(literal: str, *, start: bool) -> str:
+    """Word boundary only where the literal itself begins/ends with a word char."""
+    char = literal[0] if start else literal[-1]
+    if not (char.isalnum() or char == "_"):
+        return ""
+    return r"(?<!\w)" if start else r"(?!\w)"
+
+
+def _phrase_hits(
+    source: str, glossary: Mapping[str, Sequence[WeblateUnitSchema]]
+) -> set[str]:
     """Word-boundary hits of glossary keys inside the source text.
 
     Whole-string fuzzy matching never surfaces a short term inside a long
@@ -71,7 +115,7 @@ def _phrase_hits[T](source: str, cache: Mapping[str, Sequence[T]]) -> set[str]:
     for n in (2, 3):
         for i in range(len(words) - n + 1):
             phrases.add(" ".join(words[i : i + n]))
-    return {key for key in cache if len(key) >= 3 and key.lower() in phrases}
+    return {key for key in glossary if len(key) >= 3 and key.lower() in phrases}
 
 
 async def collect_context_for_term(

@@ -10,7 +10,6 @@ from langgraph.types import Command
 from src.agent._share import GRAPH_RECURSION_LIMIT
 from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph
-from src.agent.nodes.pattern_extractor import load_cached_patterns
 from src.agent.review import InterruptReview
 from src.config import ServiceConfigSchema
 from src.models._share import DEFAULT_LLM_CONCURRENCY
@@ -29,8 +28,7 @@ async def _run_async(config: ConfigSchema, auto_accept: bool) -> None:
         "recursion_limit": GRAPH_RECURSION_LIMIT,
     }
     state: NewAgentStateSchema | Command = NewAgentStateSchema(
-        component_slug=config.mods_glossary_slug,
-        patterns=load_cached_patterns(),
+        component_slug=config.mods_glossary_slug
     )
 
     try:
