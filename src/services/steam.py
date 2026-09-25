@@ -10,6 +10,7 @@ from src.core.mod_resolver import ModResolveError, resolve_mod
 from src.core.workshop import WorkshopInputError, scan_mod_tree
 from src.models.workshop import (
     XCOM2_APP_ID,
+    CollectionEnvelopeSchema,
     WorkshopDetailsEnvelopeSchema,
     WorkshopItemSchema,
     WorkshopLimitsSchema,
@@ -23,6 +24,9 @@ class SteamDownloadError(RuntimeError):
 
 STEAM_DETAILS_URL: Final[str] = (
     "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+)
+STEAM_COLLECTION_URL: Final[str] = (
+    "https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/"
 )
 STEAM_RESULT_OK: Final[int] = 1
 # SteamCMD prints login and download errors last; this many lines diagnose
@@ -59,6 +63,40 @@ async def fetch_workshop_metadata(
     if metadata.consumer_app_id != XCOM2_APP_ID:
         raise WorkshopInputError(f"Workshop item {workshop_id} is not an XCOM 2 mod")
     return metadata
+
+
+async def fetch_collection_items(
+    collection_id: str, *, client: AsyncClient
+) -> list[WorkshopMetadataSchema]:
+    """Metadata of every child of a public Workshop collection, in order.
+
+    Children that are hidden, deleted or foreign-app still appear, with the
+    corresponding `result` and `consumer_app_id`; the caller decides.
+    """
+    response = await client.post(
+        STEAM_COLLECTION_URL,
+        data={"collectioncount": "1", "publishedfileids[0]": collection_id},
+    )
+    if response.status_code != 200:
+        raise SteamDownloadError(f"Steam Web API returned {response.status_code}")
+    details = CollectionEnvelopeSchema.model_validate(response.json())
+    found = details.response.collectiondetails
+    if not found or found[0].result != STEAM_RESULT_OK:
+        raise WorkshopInputError(
+            f"Workshop collection {collection_id} does not exist or is not public"
+        )
+    ids = [child.publishedfileid for child in found[0].children]
+    if not ids:
+        return []
+    response = await client.post(
+        STEAM_DETAILS_URL,
+        data={"itemcount": str(len(ids))}
+        | {f"publishedfileids[{index}]": item for index, item in enumerate(ids)},
+    )
+    if response.status_code != 200:
+        raise SteamDownloadError(f"Steam Web API returned {response.status_code}")
+    payload = WorkshopDetailsEnvelopeSchema.model_validate(response.json())
+    return list(payload.response.publishedfiledetails)
 
 
 class SteamDownloader:

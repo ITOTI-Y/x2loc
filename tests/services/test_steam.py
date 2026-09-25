@@ -188,3 +188,77 @@ async def test_failure_logs_masked_output_tail(
         assert tail[-1] == "FAILED (Invalid Password)"
         assert len(tail) == 20
         assert "steam-password" not in message
+
+
+async def test_fetch_collection_items_expands_children() -> None:
+    from httpx2 import AsyncClient, MockTransport, Request, Response
+
+    from src.services.steam import (
+        STEAM_COLLECTION_URL,
+        fetch_collection_items,
+    )
+
+    def handler(request: Request) -> Response:
+        if str(request.url) == STEAM_COLLECTION_URL:
+            return Response(
+                200,
+                json={
+                    "response": {
+                        "collectiondetails": [
+                            {
+                                "publishedfileid": "9",
+                                "result": 1,
+                                "children": [
+                                    {"publishedfileid": "1"},
+                                    {"publishedfileid": "2"},
+                                ],
+                            }
+                        ]
+                    }
+                },
+            )
+        return Response(
+            200,
+            json={
+                "response": {
+                    "publishedfiledetails": [
+                        {
+                            "publishedfileid": "1",
+                            "result": 1,
+                            "consumer_app_id": XCOM2_APP_ID,
+                            "title": "A",
+                            "file_size": "1200",
+                        },
+                        {"publishedfileid": "2", "result": 9},
+                    ]
+                }
+            },
+        )
+
+    async with AsyncClient(transport=MockTransport(handler)) as client:
+        items = await fetch_collection_items("9", client=client)
+    assert [(i.publishedfileid, i.result, i.file_size) for i in items] == [
+        ("1", 1, 1200),
+        ("2", 9, 0),
+    ]
+
+
+async def test_fetch_collection_rejects_private_collection() -> None:
+    from httpx2 import AsyncClient, MockTransport, Request, Response
+
+    from src.core.workshop import WorkshopInputError
+    from src.services.steam import fetch_collection_items
+
+    def handler(request: Request) -> Response:
+        return Response(
+            200,
+            json={
+                "response": {
+                    "collectiondetails": [{"publishedfileid": "9", "result": 9}]
+                }
+            },
+        )
+
+    async with AsyncClient(transport=MockTransport(handler)) as client:
+        with pytest.raises(WorkshopInputError, match="not public"):
+            await fetch_collection_items("9", client=client)

@@ -64,6 +64,21 @@ All routes require `Authorization: Bearer <service_token>`.
 
 A job downloads the mod with SteamCMD, syncs its localization into Weblate components, translates missing units with automatic threshold review, writes Chinese overlay files, adds newly mined terms to the custom glossary, and packages the result. Jobs and artifacts live in memory and under `data_root`, which is reset on every start.
 
+### Batch translation of a collection
+
+```bash
+docker compose exec x2loc x2loc batch \
+  "https://steamcommunity.com/sharedfiles/filedetails/?id=<collection id>" \
+  --max-size-mb 5 --limit 30
+```
+
+`x2loc batch` runs the job pipeline in-process for every item of a public Workshop collection, one at a time, and writes each overlay zip plus `summary.json` to `output/batch/<UTC timestamp>/`. It differs from the service in two ways:
+
+- Glossaries are kept on disk (`glossary_cache_dir`, the `glossary-cache` volume in Docker): the first run reads them in full, later runs pull only units changed since the last sync, and a full re-read happens once a day.
+- New custom-glossary terms are queued locally and published once the run ends; later jobs of the same run already use them. If a run stops early, the queue stays on disk and the next run publishes it.
+
+Run it inside the container, where SteamCMD and its login cache live, and do not submit service jobs meanwhile: both would drive the same SteamCMD install.
+
 ### Docker
 
 ```bash

@@ -27,6 +27,7 @@ RUN uv sync --frozen --no-dev
 ENV X2LOC_STEAM__EXECUTABLE=/opt/steamcmd/steamcmd.sh \
     X2LOC_STEAM__ROOT=/srv/steam \
     X2LOC_DATA_ROOT=/srv/data \
+    X2LOC_GLOSSARY_CACHE_DIR=/srv/cache/glossaries \
     X2LOC_BIND_HOST=0.0.0.0 \
     X2LOC_ALLOW_NON_LOOPBACK_BIND=true
 

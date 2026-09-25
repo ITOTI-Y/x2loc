@@ -19,9 +19,15 @@ services:
       - steam-root-home:/root/Steam
       # Workshop download cache; speeds up repeat submissions of one mod.
       - steam-content:/srv/steam
+      # Local glossary snapshots and queued terms for `x2loc batch`; losing
+      # them only costs one full Weblate read, but queued terms would be lost.
+      - glossary-cache:/srv/cache
+      # Batch run folders (artifacts and summary.json) land on the host.
+      - ./output:/app/output
 
 volumes:
   steamcmd-install:
   steam-home:
   steam-root-home:
   steam-content:
+  glossary-cache:

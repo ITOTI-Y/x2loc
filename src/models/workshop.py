@@ -31,6 +31,7 @@ class WorkshopMetadataSchema(BaseSchema):
     consumer_app_id: int = 0
     title: str = ""
     time_updated: int = 0
+    file_size: int = 0
 
 
 class WorkshopDetailsListSchema(BaseSchema):
@@ -47,6 +48,34 @@ class WorkshopDetailsEnvelopeSchema(BaseSchema):
     response: WorkshopDetailsListSchema = Field(
         default_factory=WorkshopDetailsListSchema
     )
+
+
+class CollectionChildSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    publishedfileid: str
+
+
+class CollectionDetailsSchema(BaseSchema):
+    """One collection from ISteamRemoteStorage/GetCollectionDetails."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    publishedfileid: str
+    result: int = 0
+    children: list[CollectionChildSchema] = Field(default_factory=list)
+
+
+class CollectionListSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    collectiondetails: list[CollectionDetailsSchema] = Field(default_factory=list)
+
+
+class CollectionEnvelopeSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    response: CollectionListSchema = Field(default_factory=CollectionListSchema)
 
 
 class WorkshopItemSchema(BaseSchema):

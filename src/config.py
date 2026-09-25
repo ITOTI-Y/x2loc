@@ -72,6 +72,8 @@ class ServiceConfigSchema(BaseSettings):
 
     service_token: SecretStr
     data_root: Path
+    # Persistent local glossary snapshots used by `x2loc batch`.
+    glossary_cache_dir: Path = Path("data/cache_glossaries")
     bind_host: str = "127.0.0.1"
     bind_port: int = Field(default=8100, ge=1, le=65535)
     # Containers bind 0.0.0.0 inside their private network namespace and
