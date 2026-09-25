@@ -403,3 +403,25 @@ async def test_closed_client_rejects_further_requests(
 
     with pytest.raises(RuntimeError):
         await client.get_component(COMPONENT)
+
+
+async def test_wait_for_translation_units_polls_until_ready(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    path = f"translations/{PROJECT}/{COMPONENT}/{LANG}/"
+    fake.route(
+        "GET", path, Response(200, json={"total": 0}), Response(200, json={"total": 23})
+    )
+    await client.wait_for_translation_units(COMPONENT, LANG, expected=23)
+    assert len(fake.requests) == 2
+
+
+async def test_wait_for_translation_units_times_out(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    path = f"translations/{PROJECT}/{COMPONENT}/{LANG}/"
+    fake.route("GET", path, Response(200, json={"total": 3}))
+    with pytest.raises(WeblateAPIError, match="3/23 units"):
+        await client.wait_for_translation_units(
+            COMPONENT, LANG, expected=23, timeout=0.1
+        )

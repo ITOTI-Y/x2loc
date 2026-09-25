@@ -27,6 +27,7 @@ from src.models.weblate import (
     WeblateRequestParamsSchema,
     WeblateRequestSchema,
     WeblateTaskSchema,
+    WeblateTranslationStatsSchema,
     WeblateUnitDraftSchema,
     WeblateUnitPatchSchema,
     WeblateUnitSchema,
@@ -44,6 +45,12 @@ REQUEST_CONCURRENCY: Final[int] = 16
 # UNIT_PAGE_SIZE for the measurement.
 PAGINATE_CONCURRENCY: Final[int] = 2
 KEEPALIVE_EXPIRY: Final[float] = 300.0
+
+# A new translation's units appear asynchronously after `ensure_translation`
+# (observed ~1.5 s for 23 units); reading before then sees an empty
+# component and the job skips every unit.
+TRANSLATION_READY_TIMEOUT: Final[float] = 120.0
+TRANSLATION_READY_MAX_DELAY: Final[float] = 5.0
 
 RETRY_MAX_ATTEMPTS: Final[int] = 4
 RETRY_BASE_DELAY: Final[float] = 2.0
@@ -251,6 +258,32 @@ class AsyncWeblateClient:
             expected_statuses=frozenset({400, 409}),
         )
 
+    async def wait_for_translation_units(
+        self,
+        component_slug: str,
+        language: str,
+        *,
+        expected: int,
+        timeout: float = TRANSLATION_READY_TIMEOUT,
+    ) -> None:
+        """Return once the translation holds `expected` units, else raise."""
+        path = f"translations/{self.config.project_slug}/{component_slug}/{language}/"
+        deadline = time.monotonic() + timeout
+        delay = 0.5
+        while True:
+            response = await self._request(
+                WeblateRequestSchema(method="GET", path=path)
+            )
+            total = WeblateTranslationStatsSchema.model_validate(response.json()).total
+            if total >= expected:
+                return
+            if time.monotonic() + delay > deadline:
+                raise WeblateAPIError(
+                    504, f"{component_slug}/{language} has {total}/{expected} units"
+                )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, TRANSLATION_READY_MAX_DELAY)
+
     async def upload_file(
         self,
         component_slug: str,
@@ -420,6 +453,11 @@ class AsyncWeblateClient:
             )
 
         await self.ensure_translation(component_slug, language)
+        await self.wait_for_translation_units(
+            component_slug,
+            language,
+            expected=len({unit.context for unit in units if unit.source}),
+        )
         if not has_existing_target:
             return
         await self.upload_targets(component_slug, language, units)
