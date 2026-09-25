@@ -103,7 +103,7 @@ async def test_concurrent_loads_share_reads_and_survive_cancel(
     cache = GlossarySnapshots(client, ttl_seconds=600)
     cancelled = asyncio.create_task(load_glossaries(cache, agent_config))
     survivor = asyncio.create_task(load_glossaries(cache, agent_config))
-    while len(weblate.calls) < 3:  # both loads now wait on the shared reads
+    while len(weblate.calls) < 3:
         await asyncio.sleep(0)
     cancelled.cancel()
     weblate.gate.set()
@@ -145,7 +145,7 @@ async def test_writer_diffs_against_shared_snapshot_then_invalidates(
     assert (added, skipped) == (1, 1)
     assert created == ["Smoke Grenade"]
     assert [u.target for u in uploaded] == ["烟雾榴弹"]
-    assert weblate.calls.count("custom") == 1  # the diff reused the snapshot
+    assert weblate.calls.count("custom") == 1
     await load_glossaries(snapshots, agent_config)
-    assert weblate.calls.count("custom") == 2  # the write invalidated it
+    assert weblate.calls.count("custom") == 2
     assert weblate.calls.count("base") == 1

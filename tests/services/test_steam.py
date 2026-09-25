@@ -180,7 +180,6 @@ async def test_failure_logs_masked_output_tail(
             await downloader(tmp_path).download("42")
     finally:
         logger.remove(sink)
-    # One output tail per attempt: cached-token login, then password login.
     tails = [m for m in messages if "last output:" in m]
     assert len(tails) == 2
     for message in tails:

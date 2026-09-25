@@ -116,7 +116,7 @@ async def test_deferred_terms_survive_restart_and_flush(fake, tmp_path: Path) ->
         ]
     )
     assert (added, skipped) == (1, 1)
-    assert weblate.created == []  # nothing reaches Weblate before flush
+    assert weblate.created == []
     served = await local.units("custom", "zh_Hans")
     assert [u.id for u in served if u.source == "Smoke Grenade"] == [-1]
 

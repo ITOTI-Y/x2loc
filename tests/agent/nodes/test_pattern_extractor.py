@@ -72,8 +72,6 @@ def test_rejects_markup_opening_prefix() -> None:
 
 
 def test_rejects_markup_opening_suffix() -> None:
-    # "Combo {X}" would map to "连击 {X} <br/>": the tag sits in the source
-    # slot but in the target literal, so applying it duplicates the <br/>.
     pairs = {f"Combo {n} <br/>": f"连击 {n} <br/>" for n in (1, 2, 3)}
     assert _detect_patterns(pairs, {}) == {}
 

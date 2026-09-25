@@ -149,4 +149,4 @@ async def test_source_without_other_occurrences_has_empty_context(
 
     client = _context_client(monkeypatch, no_matches)
     assert await collect_context_for_term(client, UNIT) == []
-    assert calls[0]["attempts"] == CONTEXT_SEARCH_ATTEMPTS  # stalls are retried
+    assert calls[0]["attempts"] == CONTEXT_SEARCH_ATTEMPTS
