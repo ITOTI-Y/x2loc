@@ -425,3 +425,14 @@ async def test_wait_for_translation_units_times_out(
         await client.wait_for_translation_units(
             COMPONENT, LANG, expected=23, timeout=0.1
         )
+
+
+async def test_search_units_single_attempt_does_not_retry(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    fake.route(
+        "GET", "units/", Response(502), Response(200, json=page_payload([], count=0))
+    )
+    with pytest.raises(WeblateAPIError):
+        await client.search_units(WeblateRequestParamsSchema(q="x"), attempts=1)
+    assert len(fake.requests) == 1

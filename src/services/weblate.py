@@ -353,7 +353,11 @@ class AsyncWeblateClient:
         return [*first.results, *(unit for page in rest for unit in page)]
 
     async def search_units(
-        self, params: WeblateRequestParamsSchema
+        self,
+        params: WeblateRequestParamsSchema,
+        *,
+        timeout: float = HTTP_TIMEOUT,
+        attempts: int = RETRY_MAX_ATTEMPTS,
     ) -> list[WeblateUnitSchema]:
         """Search across the whole instance; returns the first page only.
 
@@ -361,7 +365,9 @@ class AsyncWeblateClient:
         whole result set only wastes round trips.
         """
         response = await self._request(
-            WeblateRequestSchema(method="GET", path="units/", params=params)
+            WeblateRequestSchema(method="GET", path="units/", params=params),
+            timeout=timeout,
+            attempts=attempts,
         )
         page = WeblatePageSchema[WeblateUnitSchema].model_validate(response.json())
         return list(page.results)
@@ -509,8 +515,9 @@ class AsyncWeblateClient:
         *,
         timeout: float = HTTP_TIMEOUT,
         expected_statuses: frozenset[int] = frozenset(),
+        attempts: int = RETRY_MAX_ATTEMPTS,
     ) -> Response:
-        for attempt in range(1, RETRY_MAX_ATTEMPTS + 1):
+        for attempt in range(1, attempts + 1):
             try:
                 async with self._request_sem:
                     response = await self._client.request(
@@ -523,7 +530,7 @@ class AsyncWeblateClient:
                         timeout=timeout,
                     )
             except TransportError as exc:
-                if attempt == RETRY_MAX_ATTEMPTS:
+                if attempt == attempts:
                     raise
                 delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
@@ -532,7 +539,7 @@ class AsyncWeblateClient:
                     request.path,
                     exc,
                     attempt,
-                    RETRY_MAX_ATTEMPTS,
+                    attempts,
                     delay,
                 )
                 await asyncio.sleep(delay)
@@ -542,7 +549,7 @@ class AsyncWeblateClient:
             ):
                 return response
             delay = self._retry_delay(response, attempt)
-            if delay is None or attempt == RETRY_MAX_ATTEMPTS:
+            if delay is None or attempt == attempts:
                 raise WeblateAPIError(
                     response.status_code, f"{request.method} {request.path}"
                 )
@@ -552,7 +559,7 @@ class AsyncWeblateClient:
                 request.method,
                 request.path,
                 attempt,
-                RETRY_MAX_ATTEMPTS,
+                attempts,
                 delay,
             )
             await asyncio.sleep(delay)

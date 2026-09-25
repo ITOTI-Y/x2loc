@@ -2,6 +2,9 @@ from typing import Final
 
 DEFAULT_NEARBY_RANGE: Final = 2
 CONTEXT_COLLECTOR_CONCURRENCY: Final = 10
+# Measured 2026-09-25: searches take 0.4-1.6 s (median) at any concurrency,
+# with sporadic server stalls of 9-33 s that concurrency does not cause.
+CONTEXT_SEARCH_TIMEOUT: Final = 10.0
 MAX_CONTEXT_COMPONENTS: Final = 6
 
 # Total translate/validate/score rounds a batch may consume before the

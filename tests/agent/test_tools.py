@@ -1,6 +1,15 @@
-from src.agent.tools import lookup_glossary, match_patterns, strip_html
+import pytest
+from httpx2 import ReadTimeout
+
+from src.agent.tools import (
+    collect_context_for_term,
+    lookup_glossary,
+    match_patterns,
+    strip_html,
+)
 from src.models.agent import PatternSchema
-from src.models.weblate import WeblateUnitSchema
+from src.models.weblate import WeblateConfigSchema, WeblateUnitSchema
+from src.services.weblate import AsyncWeblateClient
 
 
 class TestStripHtml:
@@ -103,3 +112,20 @@ class TestMatchPatterns:
     def test_most_specific_first(self):
         hits = match_patterns("Give Alien Rocket", self.patterns)
         assert [p.src_pattern for p in hits] == ["Give {X} Rocket", "Alien {X}"]
+
+
+async def test_context_search_failure_leaves_unit_without_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = AsyncWeblateClient(
+        WeblateConfigSchema(url="http://weblate", token="t", project_slug="p")
+    )
+
+    async def stalled(*_args: object, **_kwargs: object) -> list[WeblateUnitSchema]:
+        raise ReadTimeout("stalled")
+
+    monkeypatch.setattr(client, "search_units", stalled)
+    unit = WeblateUnitSchema(
+        id=1, language_code="zh_Hans", source="Plasma Grenade", target="", context="k"
+    )
+    assert await collect_context_for_term(client, unit) == []
