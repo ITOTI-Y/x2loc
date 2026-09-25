@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from loguru import logger
+from pydantic import ValidationError
 
 from src.models.corpus import BilingualCorpus
 
@@ -11,6 +12,6 @@ def load_corpus(path: Path) -> BilingualCorpus | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return BilingualCorpus.model_validate(data)
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, ValidationError) as e:
         logger.warning(f"Failed to load {path.name}: {e}")
         return None

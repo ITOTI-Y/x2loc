@@ -6,8 +6,8 @@ bind_port = 8100
 url = "http://localhost:8000/api"
 token = ""
 project_slug = ""
-license = ""
-license_url = ""
+license = "CC-BY-SA-4.0"
+license_url = "https://spdx.org/licenses/CC-BY-SA-4.0.html"
 source_language = "en"
 
 [agent]
@@ -18,10 +18,6 @@ scoring_model_name = ""
 base_url = "https://openrouter.ai/api/v1"
 batch_size = 50
 auto_approve_threshold = 95
-base_glossary_slug = "glossary-base-xcom2-wotc"
-mods_glossary_slug = "glossary-mods"
-custom_glossary_slug = "glossary-custom"
-target_lang = "zh_Hans"
 
 [steam]
 steam_username = ""
@@ -30,6 +26,6 @@ executable = "/usr/games/steamcmd"
 root = "data/steam"
 
 [glossary]
-base_slug = "glossary-base-xcom2-wotc"
+base_slug = "glossary-bases"
 mods_slug = "glossary-mods"
 custom_slug = "glossary-custom"

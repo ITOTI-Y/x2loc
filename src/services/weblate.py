@@ -360,7 +360,7 @@ class AsyncWeblateClient:
     ) -> None:
         """Fill existing units' targets in batches with catch-up retries."""
         for batch in _batched(units, TARGET_BATCH_SIZE):
-            payload = units_to_csv(batch, content="target")
+            payload = await asyncio.to_thread(units_to_csv, batch, content="target")
             if payload.count(b"\n") > 1:
                 await self._upload_targets(component_slug, language, payload)
 
@@ -403,7 +403,9 @@ class AsyncWeblateClient:
                 WeblateComponentDraftSchema(
                     name=name,
                     slug=component_slug,
-                    source_csv=units_to_csv(source_batches[0], content="source"),
+                    source_csv=await asyncio.to_thread(
+                        units_to_csv, source_batches[0], content="source"
+                    ),
                 )
             )
             source_batches = source_batches[1:]
@@ -411,7 +413,7 @@ class AsyncWeblateClient:
             await self.upload_file(
                 component_slug,
                 self.config.source_language,
-                units_to_csv(batch, content="source"),
+                await asyncio.to_thread(units_to_csv, batch, content="source"),
                 method="add",
             )
 

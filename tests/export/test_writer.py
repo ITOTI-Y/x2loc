@@ -1,17 +1,17 @@
-"""Unit tests for CorpusWriter."""
+"""Unit tests for the export serializers."""
 
 import csv
 import io
 import json
 from pathlib import Path
 
-import pytest
-
 from src.export.writer import (
     CSV_COLUMNS,
     GLOSSARY_CSV_COLUMNS,
-    CorpusWriter,
-    GlossaryWriter,
+    corpus_to_csv,
+    glossary_to_csv,
+    to_json,
+    write_text,
 )
 from src.models._share import SectionHeaderFormat
 from src.models.corpus import BilingualCorpus, BilingualEntry
@@ -57,19 +57,14 @@ def _corpus(
     )
 
 
-@pytest.fixture
-def writer() -> CorpusWriter:
-    return CorpusWriter()
-
-
 class TestCsvWriter:
-    def test_column_order(self, writer: CorpusWriter) -> None:
+    def test_column_order(self) -> None:
         corpus = _corpus()
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
         header_line = result.splitlines()[0]
         assert header_line == ",".join(CSV_COLUMNS)
 
-    def test_aligned_entry(self, writer: CorpusWriter) -> None:
+    def test_aligned_entry(self) -> None:
         entry = BilingualEntry(
             compound_key="S::K",
             source=_entry("K", "hello", line=3),
@@ -77,7 +72,7 @@ class TestCsvWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry])
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
 
         reader = csv.DictReader(io.StringIO(result))
         rows = list(reader)
@@ -90,7 +85,7 @@ class TestCsvWriter:
         assert row["target_line"] == "5"
         assert row["status"] == "aligned"
 
-    def test_source_only_entry(self, writer: CorpusWriter) -> None:
+    def test_source_only_entry(self) -> None:
         entry = BilingualEntry(
             compound_key="S::Missing",
             source=_entry("Missing", "no target"),
@@ -98,7 +93,7 @@ class TestCsvWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry], source_only=["S::Missing"])
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
@@ -106,7 +101,7 @@ class TestCsvWriter:
         assert row["target_line"] == ""
         assert row["status"] == "source_only"
 
-    def test_target_only_entry(self, writer: CorpusWriter) -> None:
+    def test_target_only_entry(self) -> None:
         src_e = _entry("Extra", "placeholder_src", line=9)
         tgt_e = _entry("Extra", "额外", line=10)
         entry = BilingualEntry(
@@ -116,7 +111,7 @@ class TestCsvWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry], target_only=["S::Extra"])
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
@@ -124,29 +119,27 @@ class TestCsvWriter:
         assert row["target_value"] == "额外"
         assert row["status"] == "target_only"
 
-    def test_empty_corpus(self, writer: CorpusWriter) -> None:
+    def test_empty_corpus(self) -> None:
         corpus = _corpus()
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
         lines = result.strip().splitlines()
         assert len(lines) == 1  # header only
 
-    def test_write_csv_bom(self, writer: CorpusWriter, tmp_path: Path) -> None:
+    def test_write_csv_bom(self, tmp_path: Path) -> None:
         corpus = _corpus()
         out = tmp_path / "test.csv"
-        writer.write_csv(corpus, out)
+        write_text(corpus_to_csv(corpus), out, "csv")
 
         raw = out.read_bytes()
         assert raw.startswith(b"\xef\xbb\xbf")  # UTF-8 BOM
 
-    def test_write_csv_creates_parent_dirs(
-        self, writer: CorpusWriter, tmp_path: Path
-    ) -> None:
+    def test_write_csv_creates_parent_dirs(self, tmp_path: Path) -> None:
         corpus = _corpus()
         out = tmp_path / "sub" / "dir" / "test.csv"
-        writer.write_csv(corpus, out)
+        write_text(corpus_to_csv(corpus), out, "csv")
         assert out.exists()
 
-    def test_multiple_entries_order(self, writer: CorpusWriter) -> None:
+    def test_multiple_entries_order(self) -> None:
         entries = [
             BilingualEntry(
                 compound_key="S::A",
@@ -162,7 +155,7 @@ class TestCsvWriter:
             ),
         ]
         corpus = _corpus(entries=entries, source_only=["S::B"])
-        result = writer.to_csv_string(corpus)
+        result = corpus_to_csv(corpus)
 
         reader = csv.DictReader(io.StringIO(result))
         rows = list(reader)
@@ -174,7 +167,7 @@ class TestCsvWriter:
 
 
 class TestJsonWriter:
-    def test_structure(self, writer: CorpusWriter) -> None:
+    def test_structure(self) -> None:
         entry = BilingualEntry(
             compound_key="S::K",
             source=_entry("K", "hello"),
@@ -182,7 +175,7 @@ class TestJsonWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry])
-        result = writer.to_json_string(corpus)
+        result = to_json(corpus)
         data = json.loads(result)
 
         assert data["source_lang"] == "en"
@@ -193,7 +186,7 @@ class TestJsonWriter:
         assert data["entries"][0]["source"]["value"] == "hello"
         assert data["entries"][0]["target"]["value"] == "你好"
 
-    def test_roundtrip(self, writer: CorpusWriter) -> None:
+    def test_roundtrip(self) -> None:
         entry = BilingualEntry(
             compound_key="S::K",
             source=_entry("K", "val"),
@@ -201,14 +194,14 @@ class TestJsonWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry], source_only=["S::K"])
-        json_str = writer.to_json_string(corpus)
+        json_str = to_json(corpus)
         data = json.loads(json_str)
 
         assert data["source_only"] == ["S::K"]
         assert data["target_only"] == []
         assert data["entries"][0]["target"] is None
 
-    def test_chinese_not_escaped(self, writer: CorpusWriter) -> None:
+    def test_chinese_not_escaped(self) -> None:
         entry = BilingualEntry(
             compound_key="S::K",
             source=_entry("K", "hello"),
@@ -216,22 +209,22 @@ class TestJsonWriter:
             section_header=_header("S"),
         )
         corpus = _corpus(entries=[entry])
-        result = writer.to_json_string(corpus)
+        result = to_json(corpus)
 
         assert "你好世界" in result
         assert "\\u" not in result
 
-    def test_write_json_file(self, writer: CorpusWriter, tmp_path: Path) -> None:
+    def test_write_json_file(self, tmp_path: Path) -> None:
         corpus = _corpus()
         out = tmp_path / "test.json"
-        writer.write_json(corpus, out)
+        write_text(to_json(corpus), out, "json")
 
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["source_lang"] == "en"
 
-    def test_empty_corpus(self, writer: CorpusWriter) -> None:
+    def test_empty_corpus(self) -> None:
         corpus = _corpus()
-        result = writer.to_json_string(corpus)
+        result = to_json(corpus)
         data = json.loads(result)
 
         assert data["entries"] == []
@@ -264,19 +257,14 @@ def _glossary(terms: list[GlossaryTerm] | None = None) -> Glossary:
     )
 
 
-@pytest.fixture
-def glossary_writer() -> GlossaryWriter:
-    return GlossaryWriter()
-
-
 class TestGlossaryCsvWriter:
-    def test_column_order(self, glossary_writer: GlossaryWriter) -> None:
+    def test_column_order(self) -> None:
         glossary = _glossary()
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
         header_line = result.splitlines()[0]
         assert header_line == ",".join(GLOSSARY_CSV_COLUMNS)
 
-    def test_term_with_context(self, glossary_writer: GlossaryWriter) -> None:
+    def test_term_with_context(self) -> None:
         ctx = TermContext(
             compound_key="S::K",
             section_raw="SectionRaw",
@@ -285,7 +273,7 @@ class TestGlossaryCsvWriter:
         )
         term = _term("Rend", "撕裂", category="ability", contexts=[ctx])
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
@@ -297,40 +285,40 @@ class TestGlossaryCsvWriter:
         assert row["context_source_file"] == "/src/file.int"
         assert row["context_count"] == "1"
 
-    def test_do_not_translate_flag(self, glossary_writer: GlossaryWriter) -> None:
+    def test_do_not_translate_flag(self) -> None:
         term = _term(
             "<Bullet/>", "<Bullet/>", category="placeholder", do_not_translate=True
         )
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
         assert row["do_not_translate"] == "true"
 
-    def test_same_as_source_flag(self, glossary_writer: GlossaryWriter) -> None:
+    def test_same_as_source_flag(self) -> None:
         term = _term("HP", "HP", same_as_source=True)
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
         assert row["same_as_source"] == "true"
 
-    def test_empty_flags_when_false(self, glossary_writer: GlossaryWriter) -> None:
+    def test_empty_flags_when_false(self) -> None:
         term = _term("Rend", "撕裂")
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
         assert row["do_not_translate"] == ""
         assert row["same_as_source"] == ""
 
-    def test_no_context_empty_fields(self, glossary_writer: GlossaryWriter) -> None:
+    def test_no_context_empty_fields(self) -> None:
         term = _term("<br/>", "<br/>", category="placeholder", do_not_translate=True)
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
@@ -339,7 +327,7 @@ class TestGlossaryCsvWriter:
         assert row["context_source_file"] == ""
         assert row["context_count"] == "0"
 
-    def test_merged_context_count(self, glossary_writer: GlossaryWriter) -> None:
+    def test_merged_context_count(self) -> None:
         ctxs = [
             TermContext(
                 compound_key=f"S::K{i}",
@@ -351,7 +339,7 @@ class TestGlossaryCsvWriter:
         ]
         term = _term("Aid", "援助", contexts=ctxs)
         glossary = _glossary([term])
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
 
         reader = csv.DictReader(io.StringIO(result))
         row = next(reader)
@@ -359,36 +347,32 @@ class TestGlossaryCsvWriter:
         # First context used for section/key
         assert row["context_key"] == "K0"
 
-    def test_write_csv_bom(
-        self, glossary_writer: GlossaryWriter, tmp_path: Path
-    ) -> None:
+    def test_write_csv_bom(self, tmp_path: Path) -> None:
         glossary = _glossary()
         out = tmp_path / "glossary.csv"
-        glossary_writer.write_csv(glossary, out)
+        write_text(glossary_to_csv(glossary), out, "csv")
 
         raw = out.read_bytes()
         assert raw.startswith(b"\xef\xbb\xbf")
 
-    def test_write_csv_creates_parent_dirs(
-        self, glossary_writer: GlossaryWriter, tmp_path: Path
-    ) -> None:
+    def test_write_csv_creates_parent_dirs(self, tmp_path: Path) -> None:
         glossary = _glossary()
         out = tmp_path / "sub" / "dir" / "glossary.csv"
-        glossary_writer.write_csv(glossary, out)
+        write_text(glossary_to_csv(glossary), out, "csv")
         assert out.exists()
 
-    def test_empty_glossary(self, glossary_writer: GlossaryWriter) -> None:
+    def test_empty_glossary(self) -> None:
         glossary = _glossary()
-        result = glossary_writer.to_csv_string(glossary)
+        result = glossary_to_csv(glossary)
         lines = result.strip().splitlines()
         assert len(lines) == 1  # header only
 
 
 class TestGlossaryJsonWriter:
-    def test_structure(self, glossary_writer: GlossaryWriter) -> None:
+    def test_structure(self) -> None:
         term = _term("Rend", "撕裂", category="ability")
         glossary = _glossary([term])
-        result = glossary_writer.to_json_string(glossary)
+        result = to_json(glossary)
         data = json.loads(result)
 
         assert data["source_lang"] == "en"
@@ -399,7 +383,7 @@ class TestGlossaryJsonWriter:
         assert data["terms"][0]["target"] == "撕裂"
         assert data["terms"][0]["category"] == "ability"
 
-    def test_roundtrip(self, glossary_writer: GlossaryWriter) -> None:
+    def test_roundtrip(self) -> None:
         ctx = TermContext(
             compound_key="S::K",
             section_raw="S",
@@ -408,34 +392,32 @@ class TestGlossaryJsonWriter:
         )
         term = _term("Aid", "援助", contexts=[ctx])
         glossary = _glossary([term])
-        json_str = glossary_writer.to_json_string(glossary)
+        json_str = to_json(glossary)
         data = json.loads(json_str)
 
         restored = Glossary.model_validate(data)
         assert restored.term_count == 1
         assert restored.terms[0].contexts[0].compound_key == "S::K"
 
-    def test_chinese_not_escaped(self, glossary_writer: GlossaryWriter) -> None:
+    def test_chinese_not_escaped(self) -> None:
         term = _term("Rend", "撕裂")
         glossary = _glossary([term])
-        result = glossary_writer.to_json_string(glossary)
+        result = to_json(glossary)
 
         assert "撕裂" in result
         assert "\\u" not in result
 
-    def test_write_json_file(
-        self, glossary_writer: GlossaryWriter, tmp_path: Path
-    ) -> None:
+    def test_write_json_file(self, tmp_path: Path) -> None:
         glossary = _glossary()
         out = tmp_path / "glossary.json"
-        glossary_writer.write_json(glossary, out)
+        write_text(to_json(glossary), out, "json")
 
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["source_lang"] == "en"
 
-    def test_empty_glossary(self, glossary_writer: GlossaryWriter) -> None:
+    def test_empty_glossary(self) -> None:
         glossary = _glossary()
-        result = glossary_writer.to_json_string(glossary)
+        result = to_json(glossary)
         data = json.loads(result)
 
         assert data["terms"] == []

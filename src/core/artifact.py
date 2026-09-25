@@ -2,10 +2,10 @@ import hashlib
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from src.agent.tools import validate_tags
 from src.core.converter import CorpusConverter
 from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
+from src.core.placeholders import validate_tags
 from src.models.file import LocalizationFile
 from src.models.workshop import TARGET_SUFFIX, LocalizationAssetSchema
 

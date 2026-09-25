@@ -10,21 +10,21 @@ from loguru import logger
 from openai import APIStatusError
 from pydantic import ConfigDict
 
-from src.agent.config import ConfigSchema
+from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph, graph_recursion_limit
 from src.agent.review import ThresholdReview, TranslationQualityError
-from src.api.config import ServiceConfigSchema
+from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
 from src.core.artifact import ArtifactBuilder, ArtifactValidationError
 from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
-from src.core.glossary import CustomGlossaryWriter
 from src.core.parser import LocFileParser
 from src.core.workshop import WorkshopInputError, discover_localization_assets
 from src.jobs.manager import JobManager
 from src.models._share import BaseSchema
 from src.models.agent import NewAgentStateSchema
 from src.models.file import LocalizationFile
+from src.models.glossary import Glossary
 from src.models.job import (
     ArtifactSchema,
     JobProgressSchema,
@@ -35,6 +35,7 @@ from src.models.job import (
 )
 from src.models.weblate import CorpusUnitSchema
 from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
+from src.services.glossary import CustomGlossaryWriter
 from src.services.steam import SteamDownloader, SteamDownloadError
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
@@ -80,14 +81,14 @@ class WorkshopPipeline:
         steam: SteamDownloader,
         weblate: AsyncWeblateClient,
         glossary_writer: CustomGlossaryWriter,
-        llm_clients: tuple[httpx.Client, httpx.AsyncClient],
+        llm_client: httpx.AsyncClient,
     ) -> None:
         self._config = config
         self._jobs = jobs
         self._steam = steam
         self._weblate = weblate
         self._glossary_writer = glossary_writer
-        self._llm_sync, self._llm_async = llm_clients
+        self._llm_client = llm_client
         self._parser = LocFileParser()
         self._aligner = BilingualAligner()
         self._converter = CorpusConverter()
@@ -255,8 +256,7 @@ class WorkshopPipeline:
             agent_config,
             review=ThresholdReview(),
             client=self._weblate,
-            http_client=self._llm_sync,
-            http_async_client=self._llm_async,
+            http_async_client=self._llm_client,
         )
         limit = max(1, request.llm_concurrency // agent_config.batch_size)
         semaphore = asyncio.Semaphore(limit)
@@ -347,16 +347,19 @@ class WorkshopPipeline:
         item: WorkshopItemSchema,
         request: WorkshopJobRequestSchema,
     ) -> tuple[int, int]:
-        corpora = [
-            self._aligner.align(
-                work.source_file,
-                target_file,
-                target_lang=request.target_lang,
-                mod_info=item.mod_info,
-            )
-            for work, (_path, target_file) in zip(works, written, strict=True)
-        ]
-        glossary = await asyncio.to_thread(self._extractor.extract, corpora)
+        def align_and_extract() -> Glossary:
+            corpora = [
+                self._aligner.align(
+                    work.source_file,
+                    target_file,
+                    target_lang=request.target_lang,
+                    mod_info=item.mod_info,
+                )
+                for work, (_path, target_file) in zip(works, written, strict=True)
+            ]
+            return self._extractor.extract(corpora)
+
+        glossary = await asyncio.to_thread(align_and_extract)
         return await self._glossary_writer.write(glossary.terms)
 
     def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
@@ -367,36 +370,25 @@ class WorkshopPipeline:
         to routine submissions.
         """
         defaults = self._config.agent
-        api_key = (
-            request.llm_api_key
-            if request.llm_api_key.get_secret_value()
-            else defaults.api_key
+        agent = defaults.model_copy(
+            update={
+                "api_key": request.llm_api_key
+                if request.llm_api_key.get_secret_value()
+                else defaults.api_key,
+                "translation_model_name": request.translation_model
+                or defaults.translation_model_name,
+                "validate_model_name": request.validation_model
+                or defaults.validate_model_name,
+                "scoring_model_name": request.scoring_model
+                or defaults.scoring_model_name,
+                "base_url": str(request.llm_api_base_url)
+                if request.llm_api_base_url
+                else defaults.base_url,
+            }
         )
-        translation_model = request.translation_model or defaults.translation_model_name
-        if not api_key.get_secret_value() or not translation_model:
-            raise ValueError(
-                "no LLM api key or translation model: provide them in the "
-                "request or in the [agent] table of the service TOML"
-            )
-        base_url = (
-            str(request.llm_api_base_url)
-            if request.llm_api_base_url
-            else defaults.base_url
-        )
-        return ConfigSchema(
-            weblate=self._config.weblate,
-            steam=self._config.steam,
-            base_glossary_slug=self._config.glossary.base_slug,
-            mods_glossary_slug=self._config.glossary.mods_slug,
-            custom_glossary_slug=self._config.glossary.custom_slug,
-            translation_model_name=translation_model,
-            validate_model_name=request.validation_model
-            or defaults.validate_model_name,
-            scoring_model_name=request.scoring_model or defaults.scoring_model_name,
-            base_url=base_url,
-            api_key=api_key,
-            batch_size=defaults.batch_size,
-            auto_approve_threshold=defaults.auto_approve_threshold,
+        return build_agent_config(
+            self._config,
+            agent,
             target_lang=request.target_lang,
             max_concurrency=request.llm_concurrency,
         )

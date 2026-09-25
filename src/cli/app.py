@@ -1,22 +1,23 @@
-import csv
-import io
-import json
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Final
+from typing import Annotated
 
 import typer
 from loguru import logger
 
 from src.agent.cli import app as agent_app
 from src.core.aligner import BilingualAligner
-from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
-from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
 from src.export.loader import load_corpus
-from src.export.writer import CorpusWriter, GlossaryWriter
+from src.export.writer import (
+    corpus_to_csv,
+    glossary_to_csv,
+    loc_file_to_csv,
+    to_json,
+    write_text,
+)
 from src.models.corpus import BilingualCorpus
 from src.models.glossary import Glossary
 
@@ -25,13 +26,6 @@ app = typer.Typer(
 )
 
 app.add_typer(agent_app, name="agent")
-
-UPLOAD_CSV_COLUMNS: Final[list[str]] = [
-    "context",
-    "source",
-    "target",
-    "developer_comments",
-]
 
 logger.remove()
 logger.add(
@@ -53,11 +47,6 @@ logger.add(
     encoding="utf-8",
 )
 
-# Base-game corpus JSON is written under this subdirectory so it never
-# collides with a mod namespace. The leading underscore makes it visually
-# distinct in directory listings (base game is special, not a mod).
-BASE_GAME_OUTPUT_DIRNAME: Final[str] = "_base"
-
 
 class OutputFormat(StrEnum):
     CSV = "csv"
@@ -65,15 +54,9 @@ class OutputFormat(StrEnum):
 
 
 def _emit_output(text: str, output: Path | None, output_format: OutputFormat) -> None:
-    """Write serialized command output to a file (or stdout when no path).
-
-    CSV goes out with a UTF-8 BOM for Excel/Weblate compatibility, matching
-    the writers in src/export.
-    """
+    """Write serialized command output to a file, or stdout when no path."""
     if output:
-        enc = "utf-8-sig" if output_format == OutputFormat.CSV else "utf-8"
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(text, encoding=enc)
+        write_text(text, output, output_format.value)
         logger.info(f"Written to {output}")
     else:
         sys.stdout.write(text)
@@ -81,11 +64,7 @@ def _emit_output(text: str, output: Path | None, output_format: OutputFormat) ->
 
 parser = LocFileParser()
 aligner = BilingualAligner()
-writer = CorpusWriter()
 extractor = TermExtractor()
-glossary_writer = GlossaryWriter()
-converter = CorpusConverter()
-loc_writer = LocFileWriter()
 
 
 @app.command()
@@ -102,38 +81,9 @@ def parse(
     loc_file = parser.parse(path)
 
     if output_format == OutputFormat.JSON:
-        text = json.dumps(
-            loc_file.model_dump(mode="json"),
-            indent=4,
-            ensure_ascii=False,
-        )
+        text = to_json(loc_file)
     else:
-        buf = io.StringIO()
-        columns = [
-            "section",
-            "key",
-            "value",
-            "is_array",
-            "is_append",
-            "line_number",
-            "has_placeholders",
-        ]
-        w = csv.DictWriter(buf, fieldnames=columns)
-        w.writeheader()
-        for section in loc_file.sections:
-            for entry in section.entries:
-                w.writerow(
-                    {
-                        "section": section.header.raw,
-                        "key": entry.key,
-                        "value": entry.value,
-                        "is_array": entry.is_array,
-                        "is_append": entry.is_append,
-                        "line_number": entry.line_number,
-                        "has_placeholders": bool(entry.placeholders),
-                    }
-                )
-        text = buf.getvalue()
+        text = loc_file_to_csv(loc_file)
 
     _emit_output(text, output, output_format)
 
@@ -156,9 +106,9 @@ def align(
     corpus = aligner.align(src_file, tgt_file)
 
     if output_format == OutputFormat.CSV:
-        text = writer.to_csv_string(corpus)
+        text = corpus_to_csv(corpus)
     else:
-        text = writer.to_json_string(corpus)
+        text = to_json(corpus)
 
     _emit_output(text, output, output_format)
 
@@ -217,9 +167,9 @@ def extract(
     logger.info(f"Extracted {glossary.term_count} terms")
 
     if output_format == OutputFormat.CSV:
-        text = glossary_writer.to_csv_string(glossary)
+        text = glossary_to_csv(glossary)
     else:
-        text = glossary_writer.to_json_string(glossary)
+        text = to_json(glossary)
 
     _emit_output(text, output, output_format)
 

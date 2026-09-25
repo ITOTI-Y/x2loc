@@ -1,6 +1,12 @@
 from enum import StrEnum
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict
+
+# Agent run defaults, shared by the job request model and both config loaders.
+DEFAULT_BATCH_SIZE: Final = 10
+DEFAULT_LLM_CONCURRENCY: Final = 10
+MAX_LLM_CONCURRENCY: Final = 50
 
 
 class BaseSchema(BaseModel):

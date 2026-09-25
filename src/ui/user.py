@@ -8,25 +8,21 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from src.agent.config import load_config
-from src.agent.tools import validate_tags
+from src.core.placeholders import validate_tags
 from src.models.agent import (
     ReviewDecisionSchema,
     ScoreResultSchema,
     TranslationUnitSchema,
 )
 
-config = load_config()
-
-_SCORE_GOOD: Final = config.auto_approve_threshold
 _SCORE_WARN: Final = 80
 _CONSOLE: Final = Console()
 
 
-def _score_text(score_result: ScoreResultSchema | None) -> Text:
+def _score_text(score_result: ScoreResultSchema | None, good: int) -> Text:
     if score_result is None:
         return Text("No score", style="dim")
-    if score_result.score >= _SCORE_GOOD:
+    if score_result.score >= good:
         style = "bold green"
     elif score_result.score >= _SCORE_WARN:
         style = "yellow"
@@ -44,7 +40,7 @@ def _format_tag_problems(missing: dict[str, int], extra: dict[str, int]) -> str:
     return "; ".join(parts)
 
 
-def _render_overview(scores: list[TranslationUnitSchema]) -> Table:
+def _render_overview(scores: list[TranslationUnitSchema], good: int) -> Table:
     table = Table(
         title=f"Pending manual review ({len(scores)})",
         title_justify="left",
@@ -61,7 +57,7 @@ def _render_overview(scores: list[TranslationUnitSchema]) -> Table:
         )
         table.add_row(
             str(i),
-            _score_text(unit.score_result),
+            _score_text(unit.score_result, good),
             tag_mark,
             Text(unit.source),
             Text(unit.translated),
@@ -69,7 +65,9 @@ def _render_overview(scores: list[TranslationUnitSchema]) -> Table:
     return table
 
 
-def _render_unit_panel(unit: TranslationUnitSchema, index: int, total: int) -> Panel:
+def _render_unit_panel(
+    unit: TranslationUnitSchema, index: int, total: int, good: int
+) -> Panel:
     body = Table.grid(padding=(0, 3, 1, 0))
     body.add_column(style="bold cyan", no_wrap=True)
     body.add_column(overflow="fold")
@@ -119,7 +117,7 @@ def _render_unit_panel(unit: TranslationUnitSchema, index: int, total: int) -> P
 
     title = Text.assemble(
         f"[{index}/{total}] #{unit.id} · {unit.key} · {unit.category} · ",
-        _score_text(unit.score_result),
+        _score_text(unit.score_result, good),
     )
     return Panel(
         body, title=title, title_align="left", border_style="blue", padding=(1, 1, 0, 1)
@@ -171,9 +169,9 @@ def _prompt_translation_edit(source: str, initial: str) -> str | None:
 
 
 def _prompt_unit_decision(
-    unit: TranslationUnitSchema, index: int, total: int
+    unit: TranslationUnitSchema, index: int, total: int, good: int
 ) -> ReviewDecisionSchema | Literal["approve_rest", "skip_rest"]:
-    _CONSOLE.print(_render_unit_panel(unit, index, total))
+    _CONSOLE.print(_render_unit_panel(unit, index, total, good))
     suggestion = unit.suggested_translation
 
     choices = [
@@ -238,8 +236,8 @@ def _prompt_unit_decision(
 
 def prompt_user_review(
     scores: list[TranslationUnitSchema],
+    accept_threshold: int,
     auto_accept: bool = False,
-    accept_threshold: int = _SCORE_GOOD,
 ) -> list[ReviewDecisionSchema]:
     if not scores:
         return []
@@ -264,13 +262,15 @@ def prompt_user_review(
         )
         return decisions
 
-    _CONSOLE.print(_render_overview(scores))
+    _CONSOLE.print(_render_overview(scores, accept_threshold))
 
     batch_action: Literal["approve", "skip"] | None = None
 
     for index, unit in enumerate(manual_scores, 1):
         if batch_action is None:
-            result = _prompt_unit_decision(unit, index, len(manual_scores))
+            result = _prompt_unit_decision(
+                unit, index, len(manual_scores), accept_threshold
+            )
             if isinstance(result, ReviewDecisionSchema):
                 decisions.append(result)
                 continue

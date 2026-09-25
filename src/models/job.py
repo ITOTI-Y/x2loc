@@ -6,9 +6,12 @@ from pathlib import Path
 
 from pydantic import Field, HttpUrl, SecretStr, field_validator
 
-from src.agent._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.core.workshop import WorkshopInputError, parse_workshop_url
-from src.models._share import BaseSchema
+from src.models._share import (
+    DEFAULT_LLM_CONCURRENCY,
+    MAX_LLM_CONCURRENCY,
+    BaseSchema,
+)
 from src.models.workshop import TARGET_LANGUAGE
 
 

@@ -13,8 +13,7 @@ from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
-from src.api.config import GlossaryConfigSchema, ServiceConfigSchema
-from src.core.glossary import CustomGlossaryWriter
+from src.config import GlossaryConfigSchema, ServiceConfigSchema
 from src.core.workshop import WorkshopInputError
 from src.jobs._share import SSE_PING_SECONDS
 from src.jobs.manager import JobManager
@@ -27,6 +26,7 @@ from src.models.job import (
     WorkshopJobRequestSchema,
 )
 from src.models.workshop import TARGET_LANGUAGE
+from src.services.glossary import CustomGlossaryWriter
 from src.services.steam import (
     SteamDownloader,
     SteamDownloadError,
@@ -169,18 +169,18 @@ def create_app(
     return app
 
 
-def _llm_http_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
-    """Shared LLM transports for every job's ChatOpenAI instances.
+def _llm_http_client() -> httpx.AsyncClient:
+    """Shared LLM transport for every job's ChatOpenAI instances.
+
+    Every LLM call goes through `abatch`, so only the async transport is
+    wired; the SDK's implicit sync client is never used.
 
     `trust_env=False` ignores proxy environment variables and
     `follow_redirects=False` refuses 30x, so neither can steer an outbound
     call away from the caller-supplied LLM endpoint.
     """
     timeout = httpx.Timeout(60.0, connect=10.0)
-    return (
-        httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False),
-        httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False),
-    )
+    return httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False)
 
 
 async def validate_weblate_components(
@@ -219,7 +219,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
     async def factory() -> AsyncIterator[ServiceResources]:
         _reset_directory(config.work_root)
         _reset_directory(config.artifact_root)
-        llm_sync, llm_async = _llm_http_clients()
+        llm_client = _llm_http_client()
         steam_web = AsyncClient(timeout=30.0, trust_env=False)
         try:
             async with AsyncWeblateClient(config.weblate) as weblate:
@@ -241,15 +241,14 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                         component_slug=config.glossary.custom_slug,
                         target_lang=TARGET_LANGUAGE,
                     ),
-                    llm_clients=(llm_sync, llm_async),
+                    llm_client=llm_client,
                 )
                 yield ServiceResources(
                     manager=manager, pipeline=pipeline, steam_web=steam_web
                 )
         finally:
             await steam_web.aclose()
-            await llm_async.aclose()
-            llm_sync.close()
+            await llm_client.aclose()
 
     return factory
 

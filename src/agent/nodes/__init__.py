@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient
 from loguru import logger
 
 from src.agent.config import ConfigSchema
@@ -46,7 +46,6 @@ class WorkflowNodes:
         *,
         review: ReviewPolicy,
         owns_client: bool = True,
-        http_client: Client | None = None,
         http_async_client: AsyncClient | None = None,
     ) -> None:
         self._client = client
@@ -55,14 +54,12 @@ class WorkflowNodes:
         self._owns_client = owns_client
         self._unit_iterator = UnitIterator(client)
         self._translator_agent = build_translator_llm(
-            config, http_client=http_client, http_async_client=http_async_client
+            config, http_async_client=http_async_client
         )
         self._tag_validator_llm = build_tag_validator_llm(
-            config, http_client=http_client, http_async_client=http_async_client
+            config, http_async_client=http_async_client
         )
-        self._scorer_llm = build_scorer_llm(
-            config, http_client=http_client, http_async_client=http_async_client
-        )
+        self._scorer_llm = build_scorer_llm(config, http_async_client=http_async_client)
         self._glossaries: asyncio.Task[GlossaryLoaderOutputSchema] | None = None
         self._prefetch: dict[
             str, asyncio.Task[dict[int, list[ComponentInfoSchema]]]

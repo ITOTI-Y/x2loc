@@ -8,11 +8,14 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from src.agent._share import GRAPH_RECURSION_LIMIT
-from src.agent.config import ConfigSchema, load_config
+from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph
 from src.agent.nodes.pattern_extractor import load_cached_patterns
 from src.agent.review import InterruptReview
+from src.config import ServiceConfigSchema
+from src.models._share import DEFAULT_LLM_CONCURRENCY
 from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
+from src.models.workshop import TARGET_LANGUAGE
 from src.ui.user import prompt_user_review
 
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
@@ -48,7 +51,10 @@ async def _run_async(config: ConfigSchema, auto_accept: bool) -> None:
             scores: list[TranslationUnitSchema] = interrupt[0].value
 
             decisions = await asyncio.to_thread(
-                prompt_user_review, scores, auto_accept=auto_accept
+                prompt_user_review,
+                scores,
+                accept_threshold=config.auto_approve_threshold,
+                auto_accept=auto_accept,
             )
             state = Command(resume=decisions)
     finally:
@@ -68,10 +74,11 @@ def run(
     """Run the glossary translation agent."""
     if batch_size <= 0:
         raise typer.BadParameter("--batch-size must be a positive integer")
-    config = load_config(str(config_path))
-    config = config.model_copy(update={"batch_size": batch_size})
+    service = ServiceConfigSchema.from_toml(config_path)
+    config = build_agent_config(
+        service,
+        service.agent.model_copy(update={"batch_size": batch_size}),
+        target_lang=TARGET_LANGUAGE,
+        max_concurrency=DEFAULT_LLM_CONCURRENCY,
+    )
     asyncio.run(_run_async(config, auto_accept=auto_accept))
-
-
-if __name__ == "__main__":
-    app()

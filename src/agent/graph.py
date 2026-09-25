@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
@@ -52,7 +52,6 @@ def build_graph(
     *,
     review: ReviewPolicy,
     client: AsyncWeblateClient | None = None,
-    http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> tuple[CompiledStateGraph, WorkflowNodes]:
     """Compile the translation graph around one review policy.
@@ -68,7 +67,6 @@ def build_graph(
         config,
         review=review,
         owns_client=owns_client,
-        http_client=http_client,
         http_async_client=http_async_client,
     )
 

@@ -3,8 +3,6 @@ from typing import Final
 
 PATTERN_CACHE_PATH: Final = Path("data/cache_translation_patterns.json")
 
-MAX_TAG_RETRIES: Final = 2
-DEFAULT_BATCH_SIZE: Final = 10
 DEFAULT_NEARBY_RANGE: Final = 2
 CONTEXT_COLLECTOR_CONCURRENCY: Final = 10
 MAX_CONTEXT_COMPONENTS: Final = 6
@@ -12,8 +10,6 @@ MAX_CONTEXT_COMPONENTS: Final = 6
 # Total translate/validate/score rounds a batch may consume before the
 # automatic path gives up and fails the job.
 MAX_TRANSLATION_ATTEMPTS: Final = 3
-DEFAULT_LLM_CONCURRENCY: Final = 10
-MAX_LLM_CONCURRENCY: Final = 50
 
 # Interactive sessions run one batch per astream segment (each interrupt
 # starts a new invocation), so this fixed cap only has to cover a single

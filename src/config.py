@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 from pathlib import Path
+from typing import Self, cast
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import (
@@ -11,8 +12,7 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
-from src.agent._share import DEFAULT_BATCH_SIZE
-from src.models._share import BaseSchema
+from src.models._share import DEFAULT_BATCH_SIZE, BaseSchema
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
 
@@ -52,8 +52,8 @@ def _default_limits() -> WorkshopLimitsSchema:
 class ServiceConfigSchema(BaseSettings):
     """Layered service configuration: env > TOML > defaults.
 
-    The TOML source is `configs/weblate.local.toml` — the same file the
-    interactive CLI reads, so one gitignored file holds every credential.
+    The TOML source is `configs/weblate.local.toml` — shared by the service
+    and the interactive CLI, so one gitignored file holds every credential.
     Top-level keys (`service_token`, `data_root`, `bind_port`) sit above
     the first table; `[weblate]`, `[steam]` and `[glossary]` map to the
     nested models. `X2LOC_`-prefixed environment variables override any
@@ -98,6 +98,19 @@ class ServiceConfigSchema(BaseSettings):
             env_settings,
             TomlConfigSettingsSource(settings_cls),
         )
+
+    @classmethod
+    def from_toml(cls, toml_file: Path) -> Self:
+        """Load with a TOML path other than the default (CLI `--config`)."""
+        scoped = cast(
+            "type[Self]",
+            type(
+                cls.__name__,
+                (cls,),
+                {"model_config": cls.model_config | {"toml_file": toml_file}},
+            ),
+        )
+        return scoped()
 
     @model_validator(mode="after")
     def validate_loopback(self) -> ServiceConfigSchema:

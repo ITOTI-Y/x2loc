@@ -7,7 +7,7 @@ from loguru import logger
 from src.agent.config import ConfigSchema
 from src.agent.llm import TranslationAgent, raise_if_fatal_llm_error
 from src.agent.prompts import format_tag_fix_prompt
-from src.agent.tools import validate_tags
+from src.core.placeholders import validate_tags
 from src.models.agent import (
     AgentInputSchema,
     NewAgentStateSchema,

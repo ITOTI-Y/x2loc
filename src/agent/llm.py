@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import SystemMessage
@@ -52,7 +52,6 @@ def _chat_model(
     model: str,
     config: ConfigSchema,
     temperature: float,
-    http_client: Client | None,
     http_async_client: AsyncClient | None,
 ) -> ChatOpenAI:
     return ChatOpenAI(
@@ -63,7 +62,6 @@ def _chat_model(
         max_completion_tokens=4096,
         timeout=60.0,
         max_retries=0,
-        http_client=http_client,
         http_async_client=http_async_client,
     )
 
@@ -71,14 +69,12 @@ def _chat_model(
 def build_translator_llm(
     config: ConfigSchema,
     *,
-    http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> TranslationAgent:
     llm = _chat_model(
         model=config.translation_model_name,
         config=config,
         temperature=config.translation_temperature,
-        http_client=http_client,
         http_async_client=http_async_client,
     )
     system_blocks = translation_system_blocks(config.target_lang)
@@ -93,14 +89,12 @@ def build_translator_llm(
 def build_tag_validator_llm(
     config: ConfigSchema,
     *,
-    http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> TranslationAgent:
     llm = _chat_model(
         model=config.effective_validate_model,
         config=config,
         temperature=config.validate_temperature,
-        http_client=http_client,
         http_async_client=http_async_client,
     )
     system_blocks = tag_fix_system_blocks(config.target_lang)
@@ -115,14 +109,12 @@ def build_tag_validator_llm(
 def build_scorer_llm(
     config: ConfigSchema,
     *,
-    http_client: Client | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> ScoringAgent:
     llm = _chat_model(
         model=config.effective_scoring_model,
         config=config,
         temperature=config.scoring_temperature,
-        http_client=http_client,
         http_async_client=http_async_client,
     )
     system_blocks = scoring_system_blocks(config.target_lang)
