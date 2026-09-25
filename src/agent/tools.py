@@ -5,12 +5,11 @@ from collections.abc import Mapping, Sequence
 from functools import cache
 from typing import Final
 
-from httpx2 import TransportError
-from loguru import logger
 from rapidfuzz import process
 from rapidfuzz.fuzz import WRatio
 
 from src.agent._share import (
+    CONTEXT_SEARCH_ATTEMPTS,
     CONTEXT_SEARCH_TIMEOUT,
     DEFAULT_NEARBY_RANGE,
     MAX_CONTEXT_COMPONENTS,
@@ -18,7 +17,7 @@ from src.agent._share import (
 )
 from src.models.agent import ComponentInfoSchema, PatternSchema
 from src.models.weblate import WeblateRequestParamsSchema, WeblateUnitSchema
-from src.services.weblate import AsyncWeblateClient, WeblateAPIError
+from src.services.weblate import AsyncWeblateClient
 
 _HTML_TAG_RE: Final = re.compile(r"<[^>]+>")
 
@@ -153,25 +152,22 @@ async def collect_context_for_term(
         return component
 
     search_query = strip_html(input_unit.source) or input_unit.source
-    try:
-        units = await client.search_units(
-            WeblateRequestParamsSchema(
-                page_size=20,
-                q=(
-                    f'source:="{search_query}"'
-                    f" AND language:{input_unit.language_code}"
-                    f" AND project:{client.config.project_slug}"
-                ),
+    # Translating without context defeats the agent, so a failed search
+    # must fail the job rather than degrade. Short attempts with backoff
+    # detect Weblate's sporadic stalls (up to ~33 s observed) quickly and
+    # outlast them.
+    units = await client.search_units(
+        WeblateRequestParamsSchema(
+            page_size=20,
+            q=(
+                f'source:="{search_query}"'
+                f" AND language:{input_unit.language_code}"
+                f" AND project:{client.config.project_slug}"
             ),
-            timeout=CONTEXT_SEARCH_TIMEOUT,
-            attempts=1,
-        )
-    except (TransportError, WeblateAPIError) as exc:
-        # Context is optional input. Weblate stalls for up to ~30 s at
-        # random; waiting out retries cost minutes per batch, so a slow
-        # search leaves this unit without cross-component context.
-        logger.warning("Context search skipped for unit {}: {!r}", input_unit.id, exc)
-        return []
+        ),
+        timeout=CONTEXT_SEARCH_TIMEOUT,
+        attempts=CONTEXT_SEARCH_ATTEMPTS,
+    )
 
     components: list[ComponentInfoSchema] = []
     for u in units:

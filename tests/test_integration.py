@@ -317,3 +317,11 @@ class TestRealData:
         ui = next(s for s in reparsed.sections if s.header.name == "UIUtilities_Text")
         ok = next(e for e in ui.entries if e.key == "m_strGenericOK")
         assert ok.value != "OK"
+
+
+def test_weblate_transport_failure_maps_to_weblate_error_code() -> None:
+    from httpx2 import ReadTimeout
+
+    from src.jobs.pipeline import error_code
+
+    assert error_code(ReadTimeout("stalled")) == "weblate_failed"

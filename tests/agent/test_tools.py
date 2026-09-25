@@ -1,6 +1,7 @@
 import pytest
 from httpx2 import ReadTimeout
 
+from src.agent._share import CONTEXT_SEARCH_ATTEMPTS
 from src.agent.tools import (
     collect_context_for_term,
     lookup_glossary,
@@ -114,18 +115,38 @@ class TestMatchPatterns:
         assert [p.src_pattern for p in hits] == ["Give {X} Rocket", "Alien {X}"]
 
 
-async def test_context_search_failure_leaves_unit_without_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def _context_client(monkeypatch: pytest.MonkeyPatch, search) -> AsyncWeblateClient:
     client = AsyncWeblateClient(
         WeblateConfigSchema(url="http://weblate", token="t", project_slug="p")
     )
+    monkeypatch.setattr(client, "search_units", search)
+    return client
 
+
+UNIT = WeblateUnitSchema(
+    id=1, language_code="zh_Hans", source="Plasma Grenade", target="", context="k"
+)
+
+
+async def test_failed_context_search_fails_instead_of_translating_blind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def stalled(*_args: object, **_kwargs: object) -> list[WeblateUnitSchema]:
         raise ReadTimeout("stalled")
 
-    monkeypatch.setattr(client, "search_units", stalled)
-    unit = WeblateUnitSchema(
-        id=1, language_code="zh_Hans", source="Plasma Grenade", target="", context="k"
-    )
-    assert await collect_context_for_term(client, unit) == []
+    with pytest.raises(ReadTimeout):
+        await collect_context_for_term(_context_client(monkeypatch, stalled), UNIT)
+
+
+async def test_source_without_other_occurrences_has_empty_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    async def no_matches(*_args: object, **kwargs: object) -> list[WeblateUnitSchema]:
+        calls.append(kwargs)
+        return []
+
+    client = _context_client(monkeypatch, no_matches)
+    assert await collect_context_for_term(client, UNIT) == []
+    assert calls[0]["attempts"] == CONTEXT_SEARCH_ATTEMPTS  # stalls are retried

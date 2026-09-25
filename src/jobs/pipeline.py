@@ -7,6 +7,7 @@ from typing import Final
 from uuid import uuid4
 
 import httpx
+from httpx2 import TransportError
 from loguru import logger
 from openai import APIStatusError
 from pydantic import ConfigDict
@@ -48,6 +49,9 @@ ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
     (TranslationQualityError, "translation_quality_failed"),
     (ArtifactValidationError, "artifact_failed"),
     (WeblateAPIError, "weblate_failed"),
+    # Only the Weblate client uses httpx2 inside a job (LLM calls go through
+    # httpx via the OpenAI SDK), so a transport failure is Weblate's.
+    (TransportError, "weblate_failed"),
     (APIStatusError, "llm_failed"),
     (ValueError, "invalid_request"),
 )

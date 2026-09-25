@@ -5,6 +5,9 @@ CONTEXT_COLLECTOR_CONCURRENCY: Final = 10
 # Measured 2026-09-25: searches take 0.4-1.6 s (median) at any concurrency,
 # with sporadic server stalls of 9-33 s that concurrency does not cause.
 CONTEXT_SEARCH_TIMEOUT: Final = 10.0
+# 10 s attempts with 2/4/8/16 s backoff: about 80 s before giving up, which
+# outlasts the longest stall seen.
+CONTEXT_SEARCH_ATTEMPTS: Final = 5
 MAX_CONTEXT_COMPONENTS: Final = 6
 
 # Total translate/validate/score rounds a batch may consume before the
