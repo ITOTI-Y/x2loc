@@ -1,10 +1,7 @@
 import httpx
-from pydantic import SecretStr
 
 from src.agent.config import ConfigSchema
 from src.agent.llm import _chat_model
-from src.models.weblate import WeblateConfigSchema
-from src.models.workshop import SteamConfigSchema
 
 COMPLETION = {
     "id": "chatcmpl-1",
@@ -22,26 +19,9 @@ COMPLETION = {
 }
 
 
-def _config() -> ConfigSchema:
-    return ConfigSchema(
-        weblate=WeblateConfigSchema(url="http://weblate", token="t", project_slug="p"),
-        steam=SteamConfigSchema(steam_username="u", steam_password=SecretStr("p")),
-        translation_model_name="test-model",
-        validate_model_name="",
-        scoring_model_name="",
-        base_url="http://llm.test/v1",
-        api_key=SecretStr("k"),
-        batch_size=10,
-        auto_approve_threshold=95,
-        max_concurrency=1,
-        base_glossary_slug="b",
-        mods_glossary_slug="m",
-        custom_glossary_slug="c",
-        target_lang="zh_Hans",
-    )
-
-
-async def test_transient_status_is_retried_at_request_level() -> None:
+async def test_transient_status_is_retried_at_request_level(
+    agent_config: ConfigSchema,
+) -> None:
     statuses = iter([520, 429, 200])
     calls: list[int] = []
 
@@ -55,7 +35,7 @@ async def test_transient_status_is_retried_at_request_level() -> None:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     model = _chat_model(
         model="test-model",
-        config=_config(),
+        config=agent_config,
         temperature=0.0,
         http_async_client=client,
     )

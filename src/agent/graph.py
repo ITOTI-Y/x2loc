@@ -11,6 +11,7 @@ from loguru import logger
 
 from src.agent.config import ConfigSchema
 from src.agent.nodes import WorkflowNodes
+from src.agent.nodes.glossary_loader import GlossaryCache
 from src.agent.review import ReviewPolicy
 from src.models.agent import NewAgentStateSchema
 from src.services.weblate import AsyncWeblateClient
@@ -52,20 +53,30 @@ def build_graph(
     *,
     review: ReviewPolicy,
     client: AsyncWeblateClient | None = None,
+    glossaries: GlossaryCache | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> tuple[CompiledStateGraph, WorkflowNodes]:
     """Compile the translation graph around one review policy.
 
-    Passing `client` lets a long-lived service share one Weblate connection
-    pool across every component, and the two `httpx` clients do the same for
-    LLM traffic; the interactive CLI omits them and the graph owns its
-    resources for its lifetime.
+    A long-lived service passes `client` and `glossaries` to share one
+    Weblate connection pool and one glossary cache across jobs, and
+    `http_async_client` to share the LLM transport. The interactive CLI
+    passes none; the graph then owns a client and a session-long glossary
+    cache and closes both with the nodes.
     """
-    owns_client = client is None
+    if client is None:
+        client = AsyncWeblateClient(config.weblate)
+        glossaries = GlossaryCache(client, ttl_seconds=math.inf)
+        owns_client = True
+    elif glossaries is None:
+        raise ValueError("a shared Weblate client needs a shared glossary cache")
+    else:
+        owns_client = False
     nodes = WorkflowNodes(
-        client or AsyncWeblateClient(config.weblate),
+        client,
         config,
         review=review,
+        glossaries=glossaries,
         owns_client=owns_client,
         http_async_client=http_async_client,
     )

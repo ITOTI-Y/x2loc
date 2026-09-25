@@ -4,12 +4,16 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pydantic import SecretStr
 
+from src.agent.config import ConfigSchema
 from src.core.aligner import BilingualAligner
 from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
 from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
+from src.models.weblate import WeblateConfigSchema
+from src.models.workshop import SteamConfigSchema
 
 BOM_MAP: dict[str, bytes] = {
     "utf-16-le": b"\xff\xfe",
@@ -206,6 +210,26 @@ def fixtures_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     directory = tmp_path_factory.mktemp("fixtures")
     _generate_fixtures(directory)
     return directory
+
+
+@pytest.fixture
+def agent_config() -> ConfigSchema:
+    return ConfigSchema(
+        weblate=WeblateConfigSchema(url="http://weblate", token="t", project_slug="p"),
+        steam=SteamConfigSchema(steam_username="u", steam_password=SecretStr("p")),
+        translation_model_name="test-model",
+        validate_model_name="",
+        scoring_model_name="",
+        base_url="http://llm.test/v1",
+        api_key=SecretStr("k"),
+        batch_size=10,
+        auto_approve_threshold=95,
+        max_concurrency=1,
+        base_glossary_slug="base",
+        mods_glossary_slug="mods",
+        custom_glossary_slug="custom",
+        target_lang="zh_Hans",
+    )
 
 
 @pytest.fixture

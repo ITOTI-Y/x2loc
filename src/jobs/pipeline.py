@@ -12,6 +12,7 @@ from pydantic import ConfigDict
 
 from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph, graph_recursion_limit
+from src.agent.nodes.glossary_loader import GlossaryCache
 from src.agent.review import ThresholdReview, TranslationQualityError
 from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
@@ -81,6 +82,7 @@ class WorkshopPipeline:
         steam: SteamDownloader,
         weblate: AsyncWeblateClient,
         glossary_writer: CustomGlossaryWriter,
+        glossaries: GlossaryCache,
         llm_client: httpx.AsyncClient,
     ) -> None:
         self._config = config
@@ -88,6 +90,7 @@ class WorkshopPipeline:
         self._steam = steam
         self._weblate = weblate
         self._glossary_writer = glossary_writer
+        self._glossaries = glossaries
         self._llm_client = llm_client
         self._parser = LocFileParser()
         self._aligner = BilingualAligner()
@@ -256,6 +259,7 @@ class WorkshopPipeline:
             agent_config,
             review=ThresholdReview(),
             client=self._weblate,
+            glossaries=self._glossaries,
             http_async_client=self._llm_client,
         )
         limit = max(1, request.llm_concurrency // agent_config.batch_size)
@@ -360,7 +364,16 @@ class WorkshopPipeline:
             return self._extractor.extract(corpora)
 
         glossary = await asyncio.to_thread(align_and_extract)
-        return await self._glossary_writer.write(glossary.terms)
+        custom_slug = self._config.glossary.custom_slug
+        try:
+            added, skipped = await self._glossary_writer.write(glossary.terms)
+        except BaseException:
+            # A partial write may have created terms before failing.
+            self._glossaries.invalidate(custom_slug)
+            raise
+        if added:
+            self._glossaries.invalidate(custom_slug)
+        return added, skipped
 
     def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
         """Merge the request over the service's `[agent]` defaults.

@@ -19,7 +19,7 @@ from src.agent.nodes.fetch_empty import (
     UnitIterator,
     fetch_empty,
 )
-from src.agent.nodes.glossary_loader import GlossaryLoaderOutputSchema, glossary_loader
+from src.agent.nodes.glossary_loader import GlossaryCache, GlossaryLoaderOutputSchema
 from src.agent.nodes.pattern_extractor import pattern_extractor
 from src.agent.nodes.scorer import ScorerOutputSchema, scorer
 from src.agent.nodes.tag_validator import TagValidatorOutputSchema, tag_validator
@@ -45,6 +45,7 @@ class WorkflowNodes:
         config: ConfigSchema,
         *,
         review: ReviewPolicy,
+        glossaries: GlossaryCache,
         owns_client: bool = True,
         http_async_client: AsyncClient | None = None,
     ) -> None:
@@ -52,6 +53,7 @@ class WorkflowNodes:
         self._config = config
         self._review = review
         self._owns_client = owns_client
+        self._glossary_cache = glossaries
         self._unit_iterator = UnitIterator(client)
         self._translator_agent = build_translator_llm(
             config, http_async_client=http_async_client
@@ -78,7 +80,7 @@ class WorkflowNodes:
         """
         if self._glossaries is None:
             self._glossaries = asyncio.create_task(
-                glossary_loader(client=self._client, agent_config=self._config)
+                self._glossary_cache.load(self._config)
             )
         return await self._glossaries
 
@@ -168,4 +170,5 @@ class WorkflowNodes:
         except BaseExceptionGroup:
             logger.exception("Background uploads failed during close")
         if self._owns_client:
+            await self._glossary_cache.aclose()
             await self._client.close()

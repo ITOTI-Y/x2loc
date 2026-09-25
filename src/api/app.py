@@ -13,9 +13,10 @@ from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
+from src.agent.nodes.glossary_loader import GlossaryCache
 from src.config import GlossaryConfigSchema, ServiceConfigSchema
 from src.core.workshop import WorkshopInputError
-from src.jobs._share import SSE_PING_SECONDS
+from src.jobs._share import GLOSSARY_TTL_SECONDS, SSE_PING_SECONDS
 from src.jobs.manager import JobManager
 from src.jobs.pipeline import WorkshopPipeline
 from src.models.job import (
@@ -225,6 +226,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
             async with AsyncWeblateClient(config.weblate) as weblate:
                 await validate_weblate_components(weblate, config.glossary)
                 manager = JobManager()
+                glossaries = GlossaryCache(weblate, ttl_seconds=GLOSSARY_TTL_SECONDS)
                 pipeline = WorkshopPipeline(
                     config=config,
                     jobs=manager,
@@ -241,11 +243,15 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                         component_slug=config.glossary.custom_slug,
                         target_lang=TARGET_LANGUAGE,
                     ),
+                    glossaries=glossaries,
                     llm_client=llm_client,
                 )
-                yield ServiceResources(
-                    manager=manager, pipeline=pipeline, steam_web=steam_web
-                )
+                try:
+                    yield ServiceResources(
+                        manager=manager, pipeline=pipeline, steam_web=steam_web
+                    )
+                finally:
+                    await glossaries.aclose()
         finally:
             await steam_web.aclose()
             await llm_client.aclose()
