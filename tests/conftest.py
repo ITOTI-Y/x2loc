@@ -11,8 +11,6 @@ from src.core.extractor import TermExtractor
 from src.core.loc_writer import LocFileWriter
 from src.core.parser import LocFileParser
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
-
 BOM_MAP: dict[str, bytes] = {
     "utf-16-le": b"\xff\xfe",
     "utf-16-be": b"\xfe\xff",
@@ -204,10 +202,10 @@ def _generate_fixtures(d: Path) -> None:
 
 
 @pytest.fixture(scope="session")
-def fixtures_dir() -> Path:
-    FIXTURES_DIR.mkdir(exist_ok=True)
-    _generate_fixtures(FIXTURES_DIR)
-    return FIXTURES_DIR
+def fixtures_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    directory = tmp_path_factory.mktemp("fixtures")
+    _generate_fixtures(directory)
+    return directory
 
 
 @pytest.fixture

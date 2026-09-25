@@ -572,3 +572,47 @@ class TestScanLines:
         sections, _ = parser._scan_lines(lines, Path("/fake"))
         assert len(sections) == 1
         assert len(sections[0].entries) == 1
+
+
+class TestParseWithDynamicFiles:
+    def test_utf8sig_file(self, parser: LocFileParser, make_loc_file) -> None:
+        p = make_loc_file(
+            '[Section]\nKey="Value"',
+            filename="test.int",
+            encoding="utf-8-sig",
+        )
+        result = parser.parse(p)
+        assert result.encoding == "utf-8-sig"
+        assert result.sections[0].entries[0].value == "Value"
+
+    def test_utf8_plain_file(self, parser: LocFileParser, make_loc_file) -> None:
+        p = make_loc_file(
+            '[Section]\nKey="Value"',
+            filename="test.int",
+            encoding="utf-8",
+        )
+        result = parser.parse(p)
+        assert result.encoding == "utf-8"
+
+    def test_utf16be_file(self, parser: LocFileParser, make_loc_file) -> None:
+        p = make_loc_file(
+            '[Section]\nKey="Value"',
+            filename="test.int",
+            encoding="utf-16-be",
+        )
+        result = parser.parse(p)
+        assert result.encoding == "utf-16-be"
+
+    def test_unknown_extension_raises(
+        self, parser: LocFileParser, make_loc_file
+    ) -> None:
+        p = make_loc_file('[Section]\nKey="Value"', filename="test.xyz")
+        with pytest.raises(ValueError, match="Unsupported file extension"):
+            parser.parse(p)
+
+    def test_unicode_values_preserved(
+        self, parser: LocFileParser, make_loc_file
+    ) -> None:
+        p = make_loc_file('[Section]\nKey="确定取消"')
+        result = parser.parse(p)
+        assert result.sections[0].entries[0].value == "确定取消"
