@@ -23,6 +23,7 @@ from src.core.workshop import parse_workshop_url
 from src.jobs._share import GLOSSARY_TTL_SECONDS
 from src.jobs.manager import JobManager
 from src.jobs.pipeline import WorkshopPipeline, reset_work_dirs
+from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.models.job import JobRecordSchema, JobStatus, WorkshopJobRequestSchema
 from src.models.workshop import TARGET_LANGUAGE, XCOM2_APP_ID, WorkshopMetadataSchema
 from src.services.glossary import validate_weblate_components
@@ -52,6 +53,15 @@ def batch(
     limit: Annotated[
         int | None, typer.Option("--limit", help="Translate at most N items.")
     ] = None,
+    llm_concurrency: Annotated[
+        int,
+        typer.Option(
+            "--llm-concurrency",
+            min=1,
+            max=MAX_LLM_CONCURRENCY,
+            help="LLM requests in flight per job.",
+        ),
+    ] = DEFAULT_LLM_CONCURRENCY,
 ) -> None:
     """Translate a Workshop collection; publish new glossary terms at the end."""
     config = ServiceConfigSchema.from_toml(config_path)
@@ -65,6 +75,7 @@ def batch(
             run_dir=run_dir,
             max_bytes=None if max_size_mb is None else int(max_size_mb * 1_000_000),
             limit=limit,
+            llm_concurrency=llm_concurrency,
         )
     )
 
@@ -76,6 +87,7 @@ async def _run(
     run_dir: Path,
     max_bytes: int | None,
     limit: int | None,
+    llm_concurrency: int,
 ) -> None:
     async with AsyncClient(timeout=60.0, trust_env=False) as steam_web:
         items = await fetch_collection_items(collection_id, client=steam_web)
@@ -116,7 +128,7 @@ async def _run(
             )
             try:
                 results = [
-                    await _translate(manager, pipeline, item, run_dir)
+                    await _translate(manager, pipeline, item, run_dir, llm_concurrency)
                     for item in selected
                 ]
             finally:
@@ -159,11 +171,13 @@ async def _translate(
     pipeline: WorkshopPipeline,
     item: WorkshopMetadataSchema,
     run_dir: Path,
+    llm_concurrency: int,
 ) -> dict[str, object]:
     request = WorkshopJobRequestSchema.model_validate(
         {
             "workshop_url": "https://steamcommunity.com/sharedfiles/filedetails/"
-            f"?id={item.publishedfileid}"
+            f"?id={item.publishedfileid}",
+            "llm_concurrency": llm_concurrency,
         }
     )
     submitted = manager.submit(request, title=item.title, runner=pipeline.run)
