@@ -31,7 +31,6 @@ ENV X2LOC_STEAM__EXECUTABLE=/opt/steamcmd/steamcmd.sh \
     X2LOC_BIND_HOST=0.0.0.0 \
     X2LOC_ALLOW_NON_LOOPBACK_BIND=true
 
-# Put the project scripts (x2loc, x2loc-api) on PATH for `docker compose exec`.
 ENV PATH="/app/.venv/bin:$PATH"
 
 CMD ["/app/.venv/bin/x2loc-api"]
