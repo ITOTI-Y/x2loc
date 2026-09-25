@@ -9,7 +9,7 @@ def test_detects_shared_affix_template() -> None:
         "Gain 3 Armor": "获得 3 点护甲",
         "Gain 12 Armor": "获得 12 点护甲",
     }
-    found = _detect_patterns(pairs)
+    found = _detect_patterns(pairs, {})
     assert "Gain {X} Armor" in found
     pattern = found["Gain {X} Armor"]
     assert pattern.tgt_pattern == "获得 {X} 点护甲"
@@ -23,7 +23,7 @@ def test_closure_drops_less_specific_variants() -> None:
         "Gain 3 Armor": "获得 3 点护甲",
         "Gain 12 Armor": "获得 12 点护甲",
     }
-    assert set(_detect_patterns(pairs)) == {"Gain {X} Armor"}
+    assert set(_detect_patterns(pairs, {})) == {"Gain {X} Armor"}
 
 
 def test_requires_min_examples() -> None:
@@ -31,7 +31,7 @@ def test_requires_min_examples() -> None:
         "Gain 5 Armor": "获得 5 点护甲",
         "Gain 3 Armor": "获得 3 点护甲",
     }
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_rejects_constant_target() -> None:
@@ -40,7 +40,7 @@ def test_rejects_constant_target() -> None:
         "Reload 2": "装填",
         "Reload 3": "装填",
     }
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_rejects_targets_without_shared_affix() -> None:
@@ -49,18 +49,18 @@ def test_rejects_targets_without_shared_affix() -> None:
         "Equip 2": "乙",
         "Equip 3": "丙",
     }
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_ignores_single_word_sources() -> None:
     pairs = {"Armor": "护甲", "Shield": "护盾", "Ammo": "弹药"}
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_ignores_overlong_sources() -> None:
     padding = " ".join(["pad"] * PATTERN_MAX_SOURCE_WORDS)
     pairs = {f"Prefix {padding} {n}": f"译文 {n}" for n in (1, 2, 3)}
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_rejects_markup_opening_prefix() -> None:
@@ -68,19 +68,19 @@ def test_rejects_markup_opening_prefix() -> None:
         f"<font color='#c9440c'>{en}</font>": f"<font color='#c9440c'>{cn}</font>"
         for en, cn in (("Alpha", "阿尔法"), ("Beta", "贝塔"), ("Gamma", "伽马"))
     }
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_rejects_markup_opening_suffix() -> None:
     # "Combo {X}" would map to "连击 {X} <br/>": the tag sits in the source
     # slot but in the target literal, so applying it duplicates the <br/>.
     pairs = {f"Combo {n} <br/>": f"连击 {n} <br/>" for n in (1, 2, 3)}
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def test_examples_capped_at_max() -> None:
     pairs = {f"Gain {n} Armor": f"获得 {n} 点护甲" for n in range(1, 8)}
-    pattern = _detect_patterns(pairs)["Gain {X} Armor"]
+    pattern = _detect_patterns(pairs, {})["Gain {X} Armor"]
     assert pattern.example_count == 7
     assert len(pattern.examples) == PATTERN_MAX_EXAMPLES
 
@@ -91,7 +91,7 @@ def test_rejects_template_cutting_through_markup() -> None:
         "<font color='#18FF2E'>Resistance to Acid</font>": "<font color='#18FF2E'>酸液抗性</font>",
         "<font color='#DF07B7'>Vulnerability to Acid</font>": "<font color='#DF07B7'>酸液弱点</font>",
     }
-    assert _detect_patterns(pairs) == {}
+    assert _detect_patterns(pairs, {}) == {}
 
 
 def _glossary(pairs: dict[str, str]) -> dict[str, tuple[WeblateUnitSchema, ...]]:
@@ -126,3 +126,39 @@ def test_glossary_mining_combines_sparse_glossaries() -> None:
     found = mine_glossary_patterns(base, mods)
     assert found["{X} Grenade"][0].tgt_pattern == "{X}榴弹"
     assert found["{X} Grenade"][0].example_count == 4
+
+
+def _confirm_pairs() -> dict[str, str]:
+    pairs: dict[str, str] = {
+        f"CONFIRM {w}": f"确认{t}"
+        for w, t in (
+            ("LOADOUT", "装备"),
+            ("SQUAD", "小队"),
+            ("MISSION", "任务"),
+            ("TARGET", "目标"),
+        )
+    }
+    pairs["CONFIRM EXIT"] = "确定退出"
+    return pairs
+
+
+def test_completes_literal_cut_inside_a_word() -> None:
+    found = _detect_patterns(_confirm_pairs(), {"confirm": "确认"})
+    pattern = found["CONFIRM {X}"]
+    assert pattern.tgt_pattern == "确认{X}"
+    assert pattern.example_count == 4
+
+
+def test_keeps_cut_literal_without_glossary_evidence() -> None:
+    assert _detect_patterns(_confirm_pairs(), {})["CONFIRM {X}"].tgt_pattern == "确{X}"
+
+
+def test_keeps_literal_when_glossary_form_is_a_minority() -> None:
+    pairs = {
+        "Heavy Cannon": "重炮",
+        "Heavy Armor": "重甲",
+        "Heavy Rifle": "重型步枪",
+        "Heavy Shield": "重盾",
+    }
+    found = _detect_patterns(pairs, {"heavy": "重型"})
+    assert found["Heavy {X}"].tgt_pattern == "重{X}"

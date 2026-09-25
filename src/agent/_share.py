@@ -19,6 +19,10 @@ GRAPH_RECURSION_LIMIT: Final = 500
 
 # Pattern extraction
 PATTERN_MIN_EXAMPLES: Final = 3
+# Share of a template's examples that must carry the full glossary word
+# before a character-cut literal is completed (validated 2026-09-25: 9 of
+# 1560 templates changed, all correct).
+PATTERN_LITERAL_MAJORITY: Final = 0.8
 PATTERN_MAX_EXAMPLES: Final = 5
 PATTERN_MAX_SOURCE_WORDS: Final = 24
 MAX_MATCHES_PER_COMPONENT: Final = 3

@@ -7,6 +7,7 @@ from typing import TypedDict
 from loguru import logger
 
 from src.agent._share import (
+    PATTERN_LITERAL_MAJORITY,
     PATTERN_MAX_EXAMPLES,
     PATTERN_MAX_SOURCE_WORDS,
     PATTERN_MIN_EXAMPLES,
@@ -42,10 +43,23 @@ def mine_glossary_patterns(
     combined run, then mods.
     """
     base_pairs, mod_pairs = _first_targets(base), _first_targets(mods)
+    translations = literal_translations(base, mods)
     patterns: dict[str, tuple[PatternSchema, ...]] = {}
     for pairs in (mod_pairs, mod_pairs | base_pairs, base_pairs):
-        patterns |= {key: (p,) for key, p in _detect_patterns(pairs).items()}
+        found = _detect_patterns(pairs, translations)
+        patterns |= {key: (p,) for key, p in found.items()}
     return patterns
+
+
+def literal_translations(
+    base: Mapping[str, Sequence[WeblateUnitSchema]],
+    mods: Mapping[str, Sequence[WeblateUnitSchema]],
+) -> dict[str, str]:
+    """Case-folded source -> target lookup for template literals; base wins."""
+    return {
+        source.casefold(): target
+        for source, target in (_first_targets(mods) | _first_targets(base)).items()
+    }
 
 
 def _first_targets(
@@ -67,7 +81,8 @@ def pattern_extractor(state: NewAgentStateSchema) -> PatternExtractorOutputSchem
     patterns = dict(state.patterns)
 
     if len(pairs) >= PATTERN_MIN_EXAMPLES:
-        for src_pattern, mined in _detect_patterns(pairs).items():
+        translations = literal_translations(state.base_glossary, state.mods_glossary)
+        for src_pattern, mined in _detect_patterns(pairs, translations).items():
             current = patterns.get(src_pattern)
             if current is not None and current[0].example_count >= mined.example_count:
                 continue
@@ -94,7 +109,9 @@ def _collect_pairs(state: NewAgentStateSchema) -> dict[str, str]:
     return pairs
 
 
-def _detect_patterns(pairs: dict[str, str]) -> dict[str, PatternSchema]:
+def _detect_patterns(
+    pairs: dict[str, str], translations: Mapping[str, str]
+) -> dict[str, PatternSchema]:
     groups: dict[_TemplateKey, dict[tuple[str, ...], PatternExampleSchema]] = (
         defaultdict(dict)
     )
@@ -147,6 +164,12 @@ def _detect_patterns(pairs: dict[str, str]) -> dict[str, PatternSchema]:
             continue
         prefix_words, suffix_words = key
         src_literals = (" ".join(prefix_words), " ".join(suffix_words))
+        tgt_pre, examples = _complete_literal(
+            src_literals[0], tgt_pre, tgt_suf, examples, translations, at_start=True
+        )
+        tgt_suf, examples = _complete_literal(
+            src_literals[1], tgt_suf, tgt_pre, examples, translations, at_start=False
+        )
         if not _tags_intact(src_literals, (tgt_pre, tgt_suf)):
             continue
         src_pattern = " ".join([*prefix_words, "{X}", *suffix_words])
@@ -157,6 +180,43 @@ def _detect_patterns(pairs: dict[str, str]) -> dict[str, PatternSchema]:
             examples=examples[:PATTERN_MAX_EXAMPLES],
         )
     return found
+
+
+def _complete_literal(
+    src_literal: str,
+    literal: str,
+    other: str,
+    examples: list[PatternExampleSchema],
+    translations: Mapping[str, str],
+    *,
+    at_start: bool,
+) -> tuple[str, list[PatternExampleSchema]]:
+    """Extend a literal that the character-level affix cut inside a word.
+
+    A common prefix of 确认X and 确定X is 确, which teaches the translator a
+    half word. When the source literal's own glossary translation extends
+    the literal and most examples carry that full translation, the literal
+    becomes the translation and only those examples back the template.
+    Either signal alone misfires: glossary entries often differ from the
+    compound form (Heavy -> 重型 vs 重X), and sibling terms share characters.
+    """
+    translation = translations.get(src_literal.casefold())
+    if not literal or not translation or translation == literal:
+        return literal, examples
+    extends = translation.startswith if at_start else translation.endswith
+    if not extends(literal):
+        return literal, examples
+
+    def carries(target: str) -> bool:
+        has_affix = target.startswith if at_start else target.endswith
+        return has_affix(translation) and len(target) > len(translation) + len(other)
+
+    kept = [e for e in examples if carries(e["target"])]
+    if len(kept) < PATTERN_MIN_EXAMPLES or len(kept) < PATTERN_LITERAL_MAJORITY * len(
+        examples
+    ):
+        return literal, examples
+    return translation, kept
 
 
 def _tags_intact(src_literals: tuple[str, str], tgt_literals: tuple[str, str]) -> bool:
