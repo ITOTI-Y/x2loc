@@ -33,6 +33,10 @@ type ScoringAgent = Runnable[
 ]
 
 FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
+# Per-request retries inside the OpenAI SDK: 408/409/429/5xx, timeouts and
+# connection errors, with exponential backoff (0.5 s doubling to 8 s,
+# jittered) or the server's Retry-After when it is at most 60 s.
+LLM_MAX_RETRIES: Final = 4
 
 
 def raise_if_fatal_llm_error(exc: BaseException) -> None:
@@ -40,8 +44,8 @@ def raise_if_fatal_llm_error(exc: BaseException) -> None:
 
     Auth, permission, unknown-model and malformed-request errors fail every
     retry identically, so retrying them only burns quality-gate rounds.
-    Timeouts, rate limits and 5xx are per-request weather that the nodes
-    absorb as empty results for the quality gate to retry.
+    Timeouts, rate limits and 5xx are retried by the SDK first; the ones
+    that outlast LLM_MAX_RETRIES become empty results for the quality gate.
     """
     if isinstance(exc, APIStatusError) and exc.status_code in FATAL_LLM_STATUS:
         raise exc
@@ -61,7 +65,7 @@ def _chat_model(
         temperature=temperature,
         max_completion_tokens=4096,
         timeout=60.0,
-        max_retries=0,
+        max_retries=LLM_MAX_RETRIES,
         http_async_client=http_async_client,
     )
 
