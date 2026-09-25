@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
+from src.agent.llm import LLM_TIMEOUT_SECONDS
 from src.config import GlossaryConfigSchema, ServiceConfigSchema
 from src.core.workshop import WorkshopInputError
 from src.jobs._share import GLOSSARY_TTL_SECONDS, SSE_PING_SECONDS
@@ -179,7 +180,7 @@ def _llm_http_client() -> httpx.AsyncClient:
     `follow_redirects=False` refuses 30x, so neither can steer an outbound
     call away from the caller-supplied LLM endpoint.
     """
-    timeout = httpx.Timeout(60.0, connect=10.0)
+    timeout = httpx.Timeout(LLM_TIMEOUT_SECONDS, connect=10.0)
     return httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False)
 
 

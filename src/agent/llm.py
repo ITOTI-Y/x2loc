@@ -37,6 +37,10 @@ FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
 # connection errors, with exponential backoff (0.5 s doubling to 8 s,
 # jittered) or the server's Retry-After when it is at most 60 s.
 LLM_MAX_RETRIES: Final = 4
+# Measured on the production endpoint (2026-09-25, 40 translator calls):
+# median 2.6-4.2 s, p90 16 s, max 26 s; 45 s cuts hung requests short
+# while leaving headroom for the longer scoring prompts.
+LLM_TIMEOUT_SECONDS: Final = 45.0
 
 
 def raise_if_fatal_llm_error(exc: BaseException) -> None:
@@ -64,7 +68,7 @@ def _chat_model(
         api_key=config.api_key,
         temperature=temperature,
         max_completion_tokens=4096,
-        timeout=60.0,
+        timeout=LLM_TIMEOUT_SECONDS,
         max_retries=LLM_MAX_RETRIES,
         http_async_client=http_async_client,
     )
