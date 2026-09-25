@@ -4,7 +4,10 @@ from pydantic import BeforeValidator, ConfigDict, Field, SecretStr
 
 from src.models._share import BaseSchema
 
-UNIT_PAGE_SIZE: Final[int] = 100
+# Measured 2026-09-25 reading a 10.6k-unit glossary: 106 pages of 100 took
+# 123 s at concurrency 8, 11 pages of 1000 took 24 s at concurrency 2. The
+# cost is per request, not per unit; 1000 is Weblate's accepted maximum here.
+UNIT_PAGE_SIZE: Final[int] = 1000
 
 
 def _list_to_str(value: list[str] | str) -> str:

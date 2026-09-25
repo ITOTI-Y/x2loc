@@ -16,6 +16,7 @@ import pytest
 from httpx2 import ConnectError, MockTransport, Request, Response
 
 from src.models.weblate import (
+    UNIT_PAGE_SIZE,
     WeblateComponentDraftSchema,
     WeblateConfigSchema,
     WeblateRequestParamsSchema,
@@ -192,15 +193,19 @@ async def test_base_url_tolerates_missing_trailing_slash(fake: FakeWeblate) -> N
 async def test_list_units_aggregates_all_pages(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
+    total = UNIT_PAGE_SIZE + UNIT_PAGE_SIZE // 2
     pages = [
-        page_payload([unit_payload(start + i) for i in range(size)], count=150)
-        for start, size in ((0, 100), (100, 50))
+        page_payload([unit_payload(start + i) for i in range(size)], count=total)
+        for start, size in (
+            (0, UNIT_PAGE_SIZE),
+            (UNIT_PAGE_SIZE, total - UNIT_PAGE_SIZE),
+        )
     ]
     fake.paginate(UNITS_PATH, pages)
 
     units = await client.list_units(COMPONENT, LANG)
 
-    assert [u.id for u in units] == list(range(150))
+    assert [u.id for u in units] == list(range(total))
     assert sorted(int(r.url.params["page"]) for r in fake.requests) == [1, 2]
 
 

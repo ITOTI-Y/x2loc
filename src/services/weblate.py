@@ -40,7 +40,9 @@ WEBLATE_STATE_TRANSLATED: Final[int] = 20
 HTTP_TIMEOUT: Final[float] = 30.0
 HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
 REQUEST_CONCURRENCY: Final[int] = 16
-PAGINATE_CONCURRENCY: Final[int] = 8
+# Two large pages in flight matched eight small ones without retries; see
+# UNIT_PAGE_SIZE for the measurement.
+PAGINATE_CONCURRENCY: Final[int] = 2
 KEEPALIVE_EXPIRY: Final[float] = 300.0
 
 RETRY_MAX_ATTEMPTS: Final[int] = 4
