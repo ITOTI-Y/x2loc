@@ -152,10 +152,6 @@ async def collect_context_for_term(
         return component
 
     search_query = strip_html(input_unit.source) or input_unit.source
-    # Translating without context defeats the agent, so a failed search
-    # must fail the job rather than degrade. Short attempts with backoff
-    # detect Weblate's sporadic stalls (up to ~33 s observed) quickly and
-    # outlast them.
     units = await client.search_units(
         WeblateRequestParamsSchema(
             page_size=20,

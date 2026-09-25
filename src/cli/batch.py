@@ -65,7 +65,6 @@ def batch(
 ) -> None:
     """Translate a Workshop collection; publish new glossary terms at the end."""
     config = ServiceConfigSchema.from_toml(config_path)
-    # A private work tree: the service in the same container resets its own.
     config = config.model_copy(update={"data_root": config.data_root / "batch"})
     run_dir = output / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     asyncio.run(

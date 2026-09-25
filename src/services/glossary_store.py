@@ -28,11 +28,7 @@ from src.services.glossary import existing_pairs, publish_pairs, term_pairs
 from src.services.weblate import AsyncWeblateClient
 
 WEBLATE_STATE_TRANSLATED: Final = 20
-# Weblate evaluates `changed:` in the server's time zone, which the API does
-# not report. Looking back a full day from the last sync makes the
-# incremental query a superset for any server offset.
 CHANGED_LOOKBACK: Final = timedelta(days=1)
-# Incremental sync cannot see deleted units; a periodic full read drops them.
 FULL_SYNC_INTERVAL: Final = timedelta(days=1)
 
 
@@ -115,7 +111,6 @@ class LocalGlossaryStore:
     def clear_pending(self, slug: str, language: str) -> None:
         self._pending_path(slug, language).unlink(missing_ok=True)
         self._pending[(slug, language)] = []
-        # The published terms come back through the next incremental sync.
         self._refreshed_at.pop((slug, language), None)
 
     async def aclose(self) -> None:

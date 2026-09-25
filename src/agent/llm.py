@@ -34,13 +34,7 @@ type ScoringAgent = Runnable[
 ]
 
 FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
-# Per-request retries inside the OpenAI SDK: 408/409/429/5xx, timeouts and
-# connection errors, with exponential backoff (0.5 s doubling to 8 s,
-# jittered) or the server's Retry-After when it is at most 60 s.
 LLM_MAX_RETRIES: Final = 4
-# Measured on the production endpoint (2026-09-25, 40 translator calls):
-# median 2.6-4.2 s, p90 16 s, max 26 s; 45 s cuts hung requests short
-# while leaving headroom for the longer scoring prompts.
 LLM_TIMEOUT_SECONDS: Final = 45.0
 
 

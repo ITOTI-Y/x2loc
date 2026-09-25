@@ -41,14 +41,9 @@ WEBLATE_STATE_TRANSLATED: Final[int] = 20
 HTTP_TIMEOUT: Final[float] = 30.0
 HTTP_UPLOAD_TIMEOUT: Final[float] = 300.0
 REQUEST_CONCURRENCY: Final[int] = 16
-# Two large pages in flight matched eight small ones without retries; see
-# UNIT_PAGE_SIZE for the measurement.
 PAGINATE_CONCURRENCY: Final[int] = 2
 KEEPALIVE_EXPIRY: Final[float] = 300.0
 
-# A new translation's units appear asynchronously after `ensure_translation`
-# (observed ~1.5 s for 23 units); reading before then sees an empty
-# component and the job skips every unit.
 TRANSLATION_READY_TIMEOUT: Final[float] = 120.0
 TRANSLATION_READY_MAX_DELAY: Final[float] = 5.0
 

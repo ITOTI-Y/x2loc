@@ -29,8 +29,6 @@ STEAM_COLLECTION_URL: Final[str] = (
     "https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/"
 )
 STEAM_RESULT_OK: Final[int] = 1
-# SteamCMD prints login and download errors last; this many lines diagnose
-# a failure without flooding the log with progress output.
 STEAMCMD_LOG_TAIL_LINES: Final[int] = 20
 
 

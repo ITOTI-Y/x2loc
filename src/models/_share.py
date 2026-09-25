@@ -3,11 +3,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
-# Agent run defaults, shared by the job request model and both config loaders.
 DEFAULT_BATCH_SIZE: Final = 10
-# Measured 2026-09-25 on the production endpoint (60 calls per level):
-# median latency flat at 4.8-6.0 s from 10 to 35 in flight, timeouts jump
-# at 50 (8/60). 30 keeps headroom below that.
 DEFAULT_LLM_CONCURRENCY: Final = 30
 MAX_LLM_CONCURRENCY: Final = 50
 
