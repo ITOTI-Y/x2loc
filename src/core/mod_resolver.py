@@ -73,8 +73,8 @@ def resolve_mod(
             ancestor of `start` after lexical normalization; raises
             `ModResolveError` otherwise.
         steam_id_override: If the caller already knows the Steam Workshop
-            ID (e.g. extracted from an uploaded zip filename or a
-            `--steam-id` CLI flag), pass it here to bypass filesystem
+            ID (e.g. from the Workshop URL of the job), pass it here to
+            bypass filesystem
             inference — filesystem inference can't distinguish a zip
             extracted into a random temp dir from an unpublished local
             mod.
@@ -97,7 +97,7 @@ def resolve_mod(
     if not steam_id:
         logger.warning(
             f"No Steam Workshop ID for mod '{title}' at {mod_root}; "
-            f"falling back to namespace '{namespace}'. Pass --steam-id "
+            f"falling back to namespace '{namespace}'. Pass steam_id_override "
             "to anchor this mod to its Workshop entry."
         )
 
@@ -304,7 +304,7 @@ def _derive_steam_id(mod_root: Path, xcommod_path: Path) -> str | None:
            a placeholder in ~25% of real-world mods).
 
     Returns None when all three fail. The caller is responsible for
-    degrading to `local-{slug}` or requiring `--steam-id`.
+    degrading to `local-{slug}` or supplying `steam_id_override`.
     """
     sidecar = _read_published_file_id_sidecar(mod_root)
     if sidecar:

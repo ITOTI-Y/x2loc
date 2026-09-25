@@ -55,8 +55,8 @@ def make_struct_field_key(compound_key: str, field_key: str) -> str:
     """Build the per-struct-field unit context from a compound key.
 
     Single source of truth for the `{compound_key}::{field_key}` shape used
-    by converter's to_units (producer), _rebuild_struct_entry (writeback
-    consumer), and the CLI translation counter — the three must never drift.
+    by converter's to_units (producer) and _rebuild_struct_entry (writeback
+    consumer) — the two must never drift.
     """
     return f"{compound_key}::{field_key}"
 
@@ -124,7 +124,7 @@ def iter_compound_keys(
 
     Thin wrapper over `iter_compound_keys_in_section` that flattens across
     sections. Use this when the caller does not need the section boundary
-    (e.g. aligner index, writeback translation counter). Empty sections
+    (e.g. aligner index). Empty sections
     contribute no elements.
     """
     for section in file.sections:

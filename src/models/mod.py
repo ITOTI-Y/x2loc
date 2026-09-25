@@ -60,8 +60,8 @@ class ModInfoSchema(BaseSchema):
     def base_game(cls) -> "ModInfoSchema":
         """Return the canonical base-game ModInfoSchema.
 
-        Used by `align-dir --base-game` to bypass mod_resolver and produce
-        a corpus tagged with the fixed base-game namespace.
+        The aligner's default when no mod_info is given: tags the corpus
+        with the fixed base-game namespace without running mod_resolver.
         """
         return cls(
             namespace=BASE_GAME_NAMESPACE,

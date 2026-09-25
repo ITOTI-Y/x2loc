@@ -12,7 +12,13 @@ wheels/
 _dev/
 logs/
 .claude/
+.vscode/
 tests/fixtures/
 output/
 temp/
+
+# Local credentials
 configs/weblate.local.toml
+
+# Runtime data: game/mod assets, steam cache, service work dirs
+data/*
