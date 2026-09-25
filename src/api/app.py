@@ -1,24 +1,21 @@
 import hmac
-import shutil
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Annotated
 
-import httpx
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
-from src.agent.llm import LLM_TIMEOUT_SECONDS
-from src.config import GlossaryConfigSchema, ServiceConfigSchema
+from src.agent.llm import build_llm_http_client
+from src.config import ServiceConfigSchema
 from src.core.workshop import WorkshopInputError
 from src.jobs._share import GLOSSARY_TTL_SECONDS, SSE_PING_SECONDS
 from src.jobs.manager import JobManager
-from src.jobs.pipeline import WorkshopPipeline
+from src.jobs.pipeline import WorkshopPipeline, reset_work_dirs
 from src.models.job import (
     JobCreateResponseSchema,
     JobRecordSchema,
@@ -27,7 +24,11 @@ from src.models.job import (
     WorkshopJobRequestSchema,
 )
 from src.models.workshop import TARGET_LANGUAGE
-from src.services.glossary import CustomGlossaryWriter, GlossarySnapshots
+from src.services.glossary import (
+    CustomGlossaryWriter,
+    GlossarySnapshots,
+    validate_weblate_components,
+)
 from src.services.steam import (
     SteamDownloader,
     SteamDownloadError,
@@ -170,57 +171,11 @@ def create_app(
     return app
 
 
-def _llm_http_client() -> httpx.AsyncClient:
-    """Shared LLM transport for every job's ChatOpenAI instances.
-
-    Every LLM call goes through `abatch`, so only the async transport is
-    wired; the SDK's implicit sync client is never used.
-
-    `trust_env=False` ignores proxy environment variables and
-    `follow_redirects=False` refuses 30x, so neither can steer an outbound
-    call away from the caller-supplied LLM endpoint.
-    """
-    timeout = httpx.Timeout(LLM_TIMEOUT_SECONDS, connect=10.0)
-    return httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False)
-
-
-async def validate_weblate_components(
-    client: AsyncWeblateClient, glossary: GlossaryConfigSchema
-) -> None:
-    """Assert the three pre-provisioned glossary components are usable.
-
-    They are operational assets; this implementation never creates or
-    migrates them, so a missing one must stop startup rather than surface
-    as a confusing mid-job failure.
-    """
-    for slug in (glossary.base_slug, glossary.mods_slug, glossary.custom_slug):
-        component = await client.get_component(slug)
-        if component is None:
-            raise RuntimeError(f"required Weblate component is missing: {slug}")
-        if component.file_format != "csv":
-            raise RuntimeError(f"Weblate component must use CSV: {slug}")
-        if slug == glossary.custom_slug and not (
-            component.manage_units and component.edit_template
-        ):
-            raise RuntimeError(
-                "custom glossary must enable manage units and edit template"
-            )
-
-
-def _reset_directory(path: Path) -> None:
-    """Failing to wipe must stop startup: booting on a half-cleared
-    directory would serve stale artifacts from a forgotten process."""
-    if path.exists():
-        shutil.rmtree(path)
-    path.mkdir(parents=True)
-
-
 def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
     @asynccontextmanager
     async def factory() -> AsyncIterator[ServiceResources]:
-        _reset_directory(config.work_root)
-        _reset_directory(config.artifact_root)
-        llm_client = _llm_http_client()
+        reset_work_dirs(config)
+        llm_client = build_llm_http_client()
         steam_web = AsyncClient(timeout=30.0, trust_env=False)
         try:
             async with AsyncWeblateClient(config.weblate) as weblate:

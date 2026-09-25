@@ -27,7 +27,7 @@ from src.agent.nodes.translator import TranslateOutputSchema, translator
 from src.agent.nodes.uploader import BackgroundUploader, UploaderOutputSchema, uploader
 from src.agent.review import ReviewOutputSchema, ReviewPolicy
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
-from src.services.glossary import GlossarySnapshots
+from src.services.glossary import GlossarySource
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -46,7 +46,7 @@ class WorkflowNodes:
         config: ConfigSchema,
         *,
         review: ReviewPolicy,
-        glossaries: GlossarySnapshots,
+        glossaries: GlossarySource,
         owns_client: bool = True,
         http_async_client: AsyncClient | None = None,
     ) -> None:

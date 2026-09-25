@@ -8,7 +8,7 @@ from src.agent.nodes.pattern_extractor import mine_glossary_patterns
 from src.core.glossary import group_units
 from src.models.agent import PatternSchema
 from src.models.weblate import WeblateUnitSchema
-from src.services.glossary import GlossarySnapshots
+from src.services.glossary import GlossarySource
 
 
 class GlossaryLoaderOutputSchema(TypedDict):
@@ -18,7 +18,7 @@ class GlossaryLoaderOutputSchema(TypedDict):
 
 
 async def load_glossaries(
-    snapshots: GlossarySnapshots, config: ConfigSchema
+    snapshots: GlossarySource, config: ConfigSchema
 ) -> GlossaryLoaderOutputSchema:
     """Index the three glossaries and mine translation patterns from them.
 

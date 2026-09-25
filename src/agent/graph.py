@@ -13,7 +13,7 @@ from src.agent.config import ConfigSchema
 from src.agent.nodes import WorkflowNodes
 from src.agent.review import ReviewPolicy
 from src.models.agent import NewAgentStateSchema
-from src.services.glossary import GlossarySnapshots
+from src.services.glossary import GlossarySnapshots, GlossarySource
 from src.services.weblate import AsyncWeblateClient
 
 serde = JsonPlusSerializer(
@@ -53,7 +53,7 @@ def build_graph(
     *,
     review: ReviewPolicy,
     client: AsyncWeblateClient | None = None,
-    glossaries: GlossarySnapshots | None = None,
+    glossaries: GlossarySource | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> tuple[CompiledStateGraph, WorkflowNodes]:
     """Compile the translation graph around one review policy.

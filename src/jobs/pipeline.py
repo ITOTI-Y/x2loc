@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 from pathlib import Path
 from typing import Final
 from uuid import uuid4
@@ -35,7 +36,7 @@ from src.models.job import (
 )
 from src.models.weblate import CorpusUnitSchema
 from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
-from src.services.glossary import CustomGlossaryWriter, GlossarySnapshots
+from src.services.glossary import GlossarySource, GlossaryWriter
 from src.services.steam import SteamDownloader, SteamDownloadError
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
@@ -80,8 +81,8 @@ class WorkshopPipeline:
         jobs: JobManager,
         steam: SteamDownloader,
         weblate: AsyncWeblateClient,
-        glossary_writer: CustomGlossaryWriter,
-        glossaries: GlossarySnapshots,
+        glossary_writer: GlossaryWriter,
+        glossaries: GlossarySource,
         llm_client: httpx.AsyncClient,
     ) -> None:
         self._config = config
@@ -395,3 +396,15 @@ class WorkshopPipeline:
             target_lang=request.target_lang,
             max_concurrency=request.llm_concurrency,
         )
+
+
+def reset_work_dirs(config: ServiceConfigSchema) -> None:
+    """Wipe the work and artifact roots at startup.
+
+    Failing to wipe must stop startup: booting on a half-cleared directory
+    would serve stale artifacts from a forgotten process.
+    """
+    for path in (config.work_root, config.artifact_root):
+        if path.exists():
+            shutil.rmtree(path)
+        path.mkdir(parents=True)
