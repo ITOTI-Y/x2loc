@@ -19,7 +19,7 @@ from src.agent.nodes.fetch_empty import (
     UnitIterator,
     fetch_empty,
 )
-from src.agent.nodes.glossary_loader import GlossaryCache, GlossaryLoaderOutputSchema
+from src.agent.nodes.glossary_loader import GlossaryLoaderOutputSchema, load_glossaries
 from src.agent.nodes.pattern_extractor import pattern_extractor
 from src.agent.nodes.scorer import ScorerOutputSchema, scorer
 from src.agent.nodes.tag_validator import TagValidatorOutputSchema, tag_validator
@@ -27,6 +27,7 @@ from src.agent.nodes.translator import TranslateOutputSchema, translator
 from src.agent.nodes.uploader import BackgroundUploader, UploaderOutputSchema, uploader
 from src.agent.review import ReviewOutputSchema, ReviewPolicy
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
+from src.services.glossary import GlossarySnapshots
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -45,7 +46,7 @@ class WorkflowNodes:
         config: ConfigSchema,
         *,
         review: ReviewPolicy,
-        glossaries: GlossaryCache,
+        glossaries: GlossarySnapshots,
         owns_client: bool = True,
         http_async_client: AsyncClient | None = None,
     ) -> None:
@@ -53,7 +54,7 @@ class WorkflowNodes:
         self._config = config
         self._review = review
         self._owns_client = owns_client
-        self._glossary_cache = glossaries
+        self._glossary_snapshots = glossaries
         self._unit_iterator = UnitIterator(client)
         self._translator_agent = build_translator_llm(
             config, http_async_client=http_async_client
@@ -80,7 +81,7 @@ class WorkflowNodes:
         """
         if self._glossaries is None:
             self._glossaries = asyncio.create_task(
-                self._glossary_cache.load(self._config)
+                load_glossaries(self._glossary_snapshots, self._config)
             )
         return await self._glossaries
 
@@ -170,5 +171,5 @@ class WorkflowNodes:
         except BaseExceptionGroup:
             logger.exception("Background uploads failed during close")
         if self._owns_client:
-            await self._glossary_cache.aclose()
+            await self._glossary_snapshots.aclose()
             await self._client.close()

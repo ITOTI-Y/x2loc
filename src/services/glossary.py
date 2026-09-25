@@ -1,9 +1,71 @@
 import asyncio
+import time
+from dataclasses import dataclass
 
 from src.core.glossary import normalize_term, term_context, term_pair
 from src.models.glossary import GlossaryTerm
-from src.models.weblate import CorpusUnitSchema, WeblateUnitDraftSchema
+from src.models.weblate import (
+    CorpusUnitSchema,
+    WeblateUnitDraftSchema,
+    WeblateUnitSchema,
+)
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
+
+
+@dataclass(frozen=True)
+class _Snapshot:
+    started_at: float
+    units: asyncio.Task[list[WeblateUnitSchema]]
+
+
+class GlossarySnapshots:
+    """Translated glossary units shared by every job of one process.
+
+    A full glossary read takes minutes on a slow Weblate, so each glossary
+    is fetched once and reused until `ttl_seconds` pass or `invalidate`
+    marks it stale; `CustomGlossaryWriter` invalidates its glossary right
+    after writing, so the next reader sees the new terms. Reads are
+    single-flight and shielded: a cancelled caller never aborts a read that
+    others are waiting on, and a failed read is not reused.
+    """
+
+    def __init__(self, client: AsyncWeblateClient, *, ttl_seconds: float) -> None:
+        self._client = client
+        self._ttl_seconds = ttl_seconds
+        self._snapshots: dict[tuple[str, str], _Snapshot] = {}
+
+    async def units(self, slug: str, language: str) -> list[WeblateUnitSchema]:
+        key = (slug, language)
+        snapshot = self._snapshots.get(key)
+        if snapshot is None or not self._reusable(snapshot):
+            snapshot = _Snapshot(
+                started_at=time.monotonic(),
+                units=asyncio.create_task(
+                    self._client.list_units(slug, language, q="state:translated")
+                ),
+            )
+            self._snapshots[key] = snapshot
+        return await asyncio.shield(snapshot.units)
+
+    def invalidate(self, slug: str) -> None:
+        self._snapshots = {
+            key: snapshot for key, snapshot in self._snapshots.items() if key[0] != slug
+        }
+
+    async def aclose(self) -> None:
+        """Cancel reads still in flight; the owner calls this before closing
+        the Weblate client."""
+        pending = [s.units for s in self._snapshots.values() if not s.units.done()]
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+        self._snapshots.clear()
+
+    def _reusable(self, snapshot: _Snapshot) -> bool:
+        if time.monotonic() - snapshot.started_at > self._ttl_seconds:
+            return False
+        task = snapshot.units
+        return not task.done() or (not task.cancelled() and task.exception() is None)
 
 
 class CustomGlossaryWriter:
@@ -12,11 +74,13 @@ class CustomGlossaryWriter:
     def __init__(
         self,
         client: AsyncWeblateClient,
+        snapshots: GlossarySnapshots,
         *,
         component_slug: str,
         target_lang: str,
     ) -> None:
         self._client = client
+        self._snapshots = snapshots
         self._component_slug = component_slug
         self._target_lang = target_lang
         self._lock = asyncio.Lock()
@@ -29,6 +93,11 @@ class CustomGlossaryWriter:
         is allowed), then the targets are filled through one translate
         upload. The lock covers only the read-and-diff; creation runs
         concurrently under the client's own semaphore.
+
+        The diff reads the shared snapshot instead of the whole component. A
+        stale snapshot only makes a pair look new, and re-creating an
+        existing pair is already tolerated below; the snapshot is invalidated
+        once anything may have been written.
         """
         pairs = sorted(
             {
@@ -43,7 +112,7 @@ class CustomGlossaryWriter:
             return 0, 0
 
         async with self._lock:
-            current = await self._client.list_units(
+            current = await self._snapshots.units(
                 self._component_slug, self._target_lang
             )
             existing = {
@@ -73,18 +142,23 @@ class CustomGlossaryWriter:
                 if exc.status_code != 400:
                     raise
 
-        await asyncio.gather(*(_create(source, target) for source, target in new_pairs))
-        await self._client.upload_targets(
-            self._component_slug,
-            self._target_lang,
-            [
-                CorpusUnitSchema(
-                    context=term_context(source, target),
-                    source=source,
-                    target=target,
-                    note="",
-                )
-                for source, target in new_pairs
-            ],
-        )
+        try:
+            await asyncio.gather(
+                *(_create(source, target) for source, target in new_pairs)
+            )
+            await self._client.upload_targets(
+                self._component_slug,
+                self._target_lang,
+                [
+                    CorpusUnitSchema(
+                        context=term_context(source, target),
+                        source=source,
+                        target=target,
+                        note="",
+                    )
+                    for source, target in new_pairs
+                ],
+            )
+        finally:
+            self._snapshots.invalidate(self._component_slug)
         return len(new_pairs), len(pairs) - len(new_pairs)

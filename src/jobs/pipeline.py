@@ -12,7 +12,6 @@ from pydantic import ConfigDict
 
 from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph, graph_recursion_limit
-from src.agent.nodes.glossary_loader import GlossaryCache
 from src.agent.review import ThresholdReview, TranslationQualityError
 from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
@@ -36,7 +35,7 @@ from src.models.job import (
 )
 from src.models.weblate import CorpusUnitSchema
 from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
-from src.services.glossary import CustomGlossaryWriter
+from src.services.glossary import CustomGlossaryWriter, GlossarySnapshots
 from src.services.steam import SteamDownloader, SteamDownloadError
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
 
@@ -82,7 +81,7 @@ class WorkshopPipeline:
         steam: SteamDownloader,
         weblate: AsyncWeblateClient,
         glossary_writer: CustomGlossaryWriter,
-        glossaries: GlossaryCache,
+        glossaries: GlossarySnapshots,
         llm_client: httpx.AsyncClient,
     ) -> None:
         self._config = config
@@ -364,16 +363,7 @@ class WorkshopPipeline:
             return self._extractor.extract(corpora)
 
         glossary = await asyncio.to_thread(align_and_extract)
-        custom_slug = self._config.glossary.custom_slug
-        try:
-            added, skipped = await self._glossary_writer.write(glossary.terms)
-        except BaseException:
-            # A partial write may have created terms before failing.
-            self._glossaries.invalidate(custom_slug)
-            raise
-        if added:
-            self._glossaries.invalidate(custom_slug)
-        return added, skipped
+        return await self._glossary_writer.write(glossary.terms)
 
     def _agent_config(self, request: WorkshopJobRequestSchema) -> ConfigSchema:
         """Merge the request over the service's `[agent]` defaults.
