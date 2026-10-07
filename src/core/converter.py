@@ -146,12 +146,24 @@ class CorpusConverter:
         Returns:
             New LocalizationFile carrying translated values. Missing
             translations fall back to source values.
+
+        A section header repeated in one file yields the same context twice,
+        while the corpus holds one unit per context: the last occurrence,
+        which is also the one UE3 keeps. Only that occurrence is translated;
+        earlier ones keep their source text, which the game overrides anyway.
         """
+        last_section = {
+            compound_key: index
+            for index, section in enumerate(source.sections)
+            for compound_key, _entry in iter_compound_keys_in_section(section)
+        }
         new_sections: list[SectionSchema] = []
 
-        for section in source.sections:
+        for index, section in enumerate(source.sections):
             new_entries: list[EntrySchema] = [
                 self._rebuild_entry(entry, compound_key, translations)
+                if last_section[compound_key] == index
+                else entry.model_copy()
                 for compound_key, entry in iter_compound_keys_in_section(section)
             ]
             new_sections.append(

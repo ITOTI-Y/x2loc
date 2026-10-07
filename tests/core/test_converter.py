@@ -15,6 +15,7 @@ from src.models.corpus import BilingualCorpus, BilingualEntry
 from src.models.entry import EntrySchema, StructFieldSchema
 from src.models.file import LocalizationFile
 from src.models.section import SectionHeader, SectionSchema
+from tests.conftest import _write_loc_file
 
 
 def _entry(
@@ -651,3 +652,25 @@ class TestCompoundKeyParity:
             else:
                 parent = context
             assert parent in entry_keys, f"orphan context: {context}"
+
+
+def test_build_target_translates_only_last_repeated_section(tmp_path: Path) -> None:
+    source_path = tmp_path / "XComGame.int"
+    _write_loc_file(
+        source_path,
+        '[Gun X2WeaponTemplate]\nTacticalText="<Bullet/> Old"\n\n'
+        '[Gun X2WeaponTemplate]\nTacticalText="<Bullet/> New<br/><Bullet/> More"\n',
+    )
+    source = LocFileParser().parse(source_path)
+    context = "Gun X2WeaponTemplate::TacticalText"
+
+    target = CorpusConverter().build_target_file(
+        source=source,
+        translations={context: "<Bullet/> 新<br/><Bullet/> 更多"},
+        target_lang="zh_Hans",
+        target_path=tmp_path / "XComGame.chn",
+    )
+
+    first, last = (section.entries[0].value for section in target.sections)
+    assert first == "<Bullet/> Old"
+    assert last == "<Bullet/> 新<br/><Bullet/> 更多"
