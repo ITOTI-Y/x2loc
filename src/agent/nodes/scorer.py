@@ -94,5 +94,10 @@ async def scorer(
                 }
             )
         )
-    logger.success("Scored {} units", len(scores))
+    logger.success(
+        "Scored {} units (attempt {}): {}",
+        len(scores),
+        state.attempts + 1,
+        [unit.score_result.score for unit in scores if unit.score_result],
+    )
     return {"scores": scores}

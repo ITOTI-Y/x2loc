@@ -2,7 +2,7 @@ from pydantic import SecretStr
 
 from src.agent._share import MAX_TRANSLATION_ATTEMPTS
 from src.config import AgentDefaultsSchema, ServiceConfigSchema
-from src.models._share import BaseSchema
+from src.models._share import DEFAULT_LLM_TIMEOUT_SECONDS, BaseSchema
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema
 
@@ -16,6 +16,7 @@ class ConfigSchema(BaseSchema):
     weblate: WeblateConfigSchema
     steam: SteamConfigSchema
     translation_model_name: str
+    retry_translation_model_name: str = ""
     validate_model_name: str
     scoring_model_name: str
     base_url: str
@@ -23,6 +24,7 @@ class ConfigSchema(BaseSchema):
     translation_temperature: float = 0.0
     validate_temperature: float = 0.0
     scoring_temperature: float = 0.0
+    llm_timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS
     batch_size: int
     auto_approve_threshold: int
     max_translation_attempts: int = MAX_TRANSLATION_ATTEMPTS
@@ -31,6 +33,10 @@ class ConfigSchema(BaseSchema):
     mods_glossary_slug: str
     custom_glossary_slug: str
     target_lang: str
+
+    @property
+    def effective_retry_translation_model(self) -> str:
+        return self.retry_translation_model_name or self.translation_model_name
 
     @property
     def effective_validate_model(self) -> str:
@@ -61,12 +67,14 @@ def build_agent_config(
         mods_glossary_slug=service.glossary.mods_slug,
         custom_glossary_slug=service.glossary.custom_slug,
         translation_model_name=agent.translation_model_name,
+        retry_translation_model_name=agent.retry_translation_model_name,
         validate_model_name=agent.validate_model_name,
         scoring_model_name=agent.scoring_model_name,
         base_url=agent.base_url,
         api_key=agent.api_key,
         batch_size=agent.batch_size,
         auto_approve_threshold=agent.auto_approve_threshold,
+        llm_timeout_seconds=agent.llm_timeout_seconds,
         target_lang=target_lang,
         max_concurrency=max_concurrency,
     )

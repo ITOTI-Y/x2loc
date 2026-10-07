@@ -43,3 +43,11 @@ async def test_transient_status_is_retried_at_request_level(
     await client.aclose()
     assert reply.content == "译文"
     assert calls == [520, 429, 200]
+
+
+def test_chat_model_uses_configured_timeout(agent_config: ConfigSchema) -> None:
+    config = agent_config.model_copy(update={"llm_timeout_seconds": 180.0})
+    model = _chat_model(
+        model="m", config=config, temperature=0.0, http_async_client=None
+    )
+    assert model.request_timeout == 180.0

@@ -12,7 +12,11 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
-from src.models._share import DEFAULT_BATCH_SIZE, BaseSchema
+from src.models._share import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_LLM_TIMEOUT_SECONDS,
+    BaseSchema,
+)
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
 
@@ -40,10 +44,14 @@ class AgentDefaultsSchema(BaseSchema):
     api_key: SecretStr = SecretStr("")
     base_url: str = "https://openrouter.ai/api/v1"
     translation_model_name: str = ""
+    # Used for quality-gate retries; empty keeps `translation_model_name`.
+    retry_translation_model_name: str = ""
     validate_model_name: str = ""
     scoring_model_name: str = ""
     batch_size: int = DEFAULT_BATCH_SIZE
     auto_approve_threshold: int = 95
+    # Per LLM request; flex-tier endpoints queue for minutes and need more.
+    llm_timeout_seconds: float = Field(default=DEFAULT_LLM_TIMEOUT_SECONDS, gt=0)
 
 
 def _default_limits() -> WorkshopLimitsSchema:

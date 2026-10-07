@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict
 
 DEFAULT_BATCH_SIZE: Final = 10
 DEFAULT_LLM_CONCURRENCY: Final = 30
-MAX_LLM_CONCURRENCY: Final = 50
+MAX_LLM_CONCURRENCY: Final = 100
+DEFAULT_LLM_TIMEOUT_SECONDS: Final = 45.0
 
 
 class BaseSchema(BaseModel):

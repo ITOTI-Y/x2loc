@@ -175,7 +175,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
     @asynccontextmanager
     async def factory() -> AsyncIterator[ServiceResources]:
         reset_work_dirs(config)
-        llm_client = build_llm_http_client()
+        llm_client = build_llm_http_client(config.agent.llm_timeout_seconds)
         steam_web = AsyncClient(timeout=30.0, trust_env=False)
         try:
             async with AsyncWeblateClient(config.weblate) as weblate:

@@ -135,7 +135,7 @@ async def open_pipeline(
     without an exception; otherwise they stay on disk for the next run.
     """
     reset_work_dirs(config)
-    llm_client = build_llm_http_client()
+    llm_client = build_llm_http_client(config.agent.llm_timeout_seconds)
     try:
         async with AsyncWeblateClient(config.weblate) as weblate:
             await validate_weblate_components(weblate, config.glossary)

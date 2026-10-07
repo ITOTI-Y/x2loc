@@ -35,7 +35,6 @@ type ScoringAgent = Runnable[
 
 FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
 LLM_MAX_RETRIES: Final = 4
-LLM_TIMEOUT_SECONDS: Final = 45.0
 
 
 def raise_if_fatal_llm_error(exc: BaseException) -> None:
@@ -63,7 +62,7 @@ def _chat_model(
         api_key=config.api_key,
         temperature=temperature,
         max_completion_tokens=4096,
-        timeout=LLM_TIMEOUT_SECONDS,
+        timeout=config.llm_timeout_seconds,
         max_retries=LLM_MAX_RETRIES,
         http_async_client=http_async_client,
     )
@@ -72,10 +71,11 @@ def _chat_model(
 def build_translator_llm(
     config: ConfigSchema,
     *,
+    model: str,
     http_async_client: AsyncClient | None = None,
 ) -> TranslationAgent:
     llm = _chat_model(
-        model=config.translation_model_name,
+        model=model,
         config=config,
         temperature=config.translation_temperature,
         http_async_client=http_async_client,
@@ -129,7 +129,7 @@ def build_scorer_llm(
     )
 
 
-def build_llm_http_client() -> httpx.AsyncClient:
+def build_llm_http_client(timeout_seconds: float) -> httpx.AsyncClient:
     """Shared LLM transport for every job's ChatOpenAI instances.
 
     Every LLM call goes through `abatch`, so only the async transport is
@@ -139,5 +139,5 @@ def build_llm_http_client() -> httpx.AsyncClient:
     `follow_redirects=False` refuses 30x, so neither can steer an outbound
     call away from the caller-supplied LLM endpoint.
     """
-    timeout = httpx.Timeout(LLM_TIMEOUT_SECONDS, connect=10.0)
+    timeout = httpx.Timeout(timeout_seconds, connect=10.0)
     return httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False)

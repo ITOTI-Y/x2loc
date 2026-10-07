@@ -57,7 +57,18 @@ class WorkflowNodes:
         self._glossary_snapshots = glossaries
         self._unit_iterator = UnitIterator(client)
         self._translator_agent = build_translator_llm(
-            config, http_async_client=http_async_client
+            config,
+            model=config.translation_model_name,
+            http_async_client=http_async_client,
+        )
+        self._retry_translator_agent = (
+            self._translator_agent
+            if config.effective_retry_translation_model == config.translation_model_name
+            else build_translator_llm(
+                config,
+                model=config.effective_retry_translation_model,
+                http_async_client=http_async_client,
+            )
         )
         self._tag_validator_llm = build_tag_validator_llm(
             config, http_async_client=http_async_client
@@ -105,9 +116,13 @@ class WorkflowNodes:
         }
 
     async def translator(self, state: NewAgentStateSchema) -> TranslateOutputSchema:
-        return await translator(
-            state, agent_config=self._config, agent=self._translator_agent
+        # attempts > 0 only on a quality-gate retry round of the same batch.
+        agent = (
+            self._retry_translator_agent
+            if state.attempts > 0
+            else self._translator_agent
         )
+        return await translator(state, agent_config=self._config, agent=agent)
 
     async def tag_validator(
         self, state: NewAgentStateSchema
