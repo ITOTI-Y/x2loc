@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 from pathlib import Path
-from typing import Final
+from typing import Final, Protocol
 from uuid import uuid4
 
 import httpx
@@ -14,13 +14,14 @@ from pydantic import ConfigDict
 
 from src.agent.config import ConfigSchema, build_agent_config
 from src.agent.graph import build_graph, graph_recursion_limit
-from src.agent.review import ThresholdReview, TranslationQualityError
+from src.agent.review import ThresholdReview
 from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
 from src.core.artifact import ArtifactBuilder, ArtifactValidationError
 from src.core.converter import CorpusConverter
 from src.core.extractor import TermExtractor
 from src.core.parser import LocFileParser
+from src.core.placeholders import validate_tags
 from src.core.workshop import WorkshopInputError, discover_localization_assets
 from src.jobs.manager import JobManager
 from src.models._share import BaseSchema
@@ -35,24 +36,30 @@ from src.models.job import (
     JobUpdateSchema,
     WorkshopJobRequestSchema,
 )
-from src.models.weblate import CorpusUnitSchema
+from src.models.weblate import CorpusUnitSchema, WeblateUnitPatchSchema
 from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
 from src.services.glossary import GlossarySource, GlossaryWriter
-from src.services.steam import SteamDownloader, SteamDownloadError
-from src.services.weblate import AsyncWeblateClient, WeblateAPIError
+from src.services.steam import SteamDownloadError
+from src.services.weblate import (
+    WEBLATE_STATE_EMPTY,
+    AsyncWeblateClient,
+    WeblateAPIError,
+)
 
 # Ordered by specificity: WorkshopInputError is a ValueError subclass and must
 # be matched before the ValueError catch-all.
 ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
     (SteamDownloadError, "steam_download_failed"),
     (WorkshopInputError, "mod_content_invalid"),
-    (TranslationQualityError, "translation_quality_failed"),
     (ArtifactValidationError, "artifact_failed"),
     (WeblateAPIError, "weblate_failed"),
     (TransportError, "weblate_failed"),
     (APIStatusError, "llm_failed"),
     (ValueError, "invalid_request"),
 )
+
+
+COMPONENT_NAME_MAX_LENGTH: Final[int] = 100
 
 
 def error_code(exc: BaseException) -> str:
@@ -62,6 +69,12 @@ def error_code(exc: BaseException) -> str:
         if isinstance(exc, kind):
             return code
     return "internal_error"
+
+
+class WorkshopSource(Protocol):
+    """Where a job obtains the Workshop item it translates."""
+
+    async def download(self, workshop_id: str) -> WorkshopItemSchema: ...
 
 
 class AssetWorkSchema(BaseSchema):
@@ -75,13 +88,72 @@ class AssetWorkSchema(BaseSchema):
     expected: dict[str, str]
 
 
+def component_name(asset: LocalizationAssetSchema, namespace: str) -> str:
+    """Weblate display name: `namespace/path`, or `slug:...path-tail` if too long.
+
+    The fallback stays unique because the slug is, and keeps the end of the
+    path, where the file name is.
+    """
+    path = asset.relative_source_path.as_posix()
+    name = f"{namespace}/{path}"
+    if len(name) <= COMPONENT_NAME_MAX_LENGTH:
+        return name
+    prefix = f"{asset.component_slug}:..."
+    return prefix + path[-(COMPONENT_NAME_MAX_LENGTH - len(prefix)) :]
+
+
+def prepare_works(item: WorkshopItemSchema, target_lang: str) -> list[AssetWorkSchema]:
+    """Parse and align every source file once, up front.
+
+    Everything downstream reads from the returned objects; nothing
+    re-reads `asset.source_path`.
+
+    Raises:
+        WorkshopInputError: If no file yields a translatable unit.
+    """
+    parser = LocFileParser()
+    aligner = BilingualAligner()
+    converter = CorpusConverter()
+    works: list[AssetWorkSchema] = []
+    for asset in discover_localization_assets(item):
+        source_file = parser.parse(asset.source_path)
+        target_file = (
+            parser.parse(asset.existing_target_path)
+            if asset.existing_target_path
+            else None
+        )
+        corpus = aligner.align(
+            source_file,
+            target_file,
+            target_lang=target_lang,
+            mod_info=item.mod_info,
+        )
+        units = [CorpusUnitSchema.from_row(row) for row in converter.to_units(corpus)]
+        if not units:
+            logger.info(
+                "Skipping {}: no translatable units", asset.relative_source_path
+            )
+            continue
+        works.append(
+            AssetWorkSchema(
+                asset=asset,
+                source_file=source_file,
+                units=units,
+                expected={unit.context: unit.source for unit in units},
+            )
+        )
+    if not works:
+        raise WorkshopInputError("mod contains no translatable localization units")
+    return works
+
+
 class WorkshopPipeline:
     def __init__(
         self,
         *,
         config: ServiceConfigSchema,
         jobs: JobManager,
-        steam: SteamDownloader,
+        source: WorkshopSource,
         weblate: AsyncWeblateClient,
         glossary_writer: GlossaryWriter,
         glossaries: GlossarySource,
@@ -89,14 +161,12 @@ class WorkshopPipeline:
     ) -> None:
         self._config = config
         self._jobs = jobs
-        self._steam = steam
+        self._source = source
         self._weblate = weblate
         self._glossary_writer = glossary_writer
         self._glossaries = glossaries
         self._llm_client = llm_client
-        self._parser = LocFileParser()
         self._aligner = BilingualAligner()
-        self._converter = CorpusConverter()
         self._extractor = TermExtractor()
         self._artifact = ArtifactBuilder()
 
@@ -123,10 +193,10 @@ class WorkshopPipeline:
             job_id,
             JobUpdateSchema(status=JobStatus.RUNNING, stage=JobStage.DOWNLOADING),
         )
-        item = await self._steam.download(request.workshop_id)
+        item = await self._source.download(request.workshop_id)
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.DISCOVERING))
-        works = await asyncio.to_thread(self._prepare, item, request.target_lang)
+        works = await asyncio.to_thread(prepare_works, item, request.target_lang)
         progress = JobProgressSchema(
             files_total=len(works),
             units_total=sum(len(work.units) for work in works),
@@ -155,6 +225,14 @@ class WorkshopPipeline:
                 for work in works
             ]
         authoritative = [task.result() for task in readback]
+        progress = progress.model_copy(
+            update={
+                "units_untranslated": sum(
+                    len(work.expected) - len(translations)
+                    for work, translations in zip(works, authoritative, strict=True)
+                )
+            }
+        )
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.WRITING))
         overlay = self._config.work_root / job_id / "overlay"
@@ -188,50 +266,6 @@ class WorkshopPipeline:
             ),
         )
 
-    def _prepare(
-        self, item: WorkshopItemSchema, target_lang: str
-    ) -> list[AssetWorkSchema]:
-        """Parse and align every source file once, up front.
-
-        Everything downstream reads from the returned objects; nothing
-        re-reads `asset.source_path`.
-        """
-        works: list[AssetWorkSchema] = []
-        for asset in discover_localization_assets(item):
-            source_file = self._parser.parse(asset.source_path)
-            target_file = (
-                self._parser.parse(asset.existing_target_path)
-                if asset.existing_target_path
-                else None
-            )
-            corpus = self._aligner.align(
-                source_file,
-                target_file,
-                target_lang=target_lang,
-                mod_info=item.mod_info,
-            )
-            units = [
-                CorpusUnitSchema.from_row(row)
-                for row in self._converter.to_units(corpus)
-            ]
-            if not units:
-                logger.info(
-                    "Skipping {}: no translatable units",
-                    asset.relative_source_path,
-                )
-                continue
-            works.append(
-                AssetWorkSchema(
-                    asset=asset,
-                    source_file=source_file,
-                    units=units,
-                    expected={unit.context: unit.source for unit in units},
-                )
-            )
-        if not works:
-            raise WorkshopInputError("mod contains no translatable localization units")
-        return works
-
     async def _sync(
         self, work: AssetWorkSchema, target_lang: str, namespace: str
     ) -> None:
@@ -241,11 +275,40 @@ class WorkshopPipeline:
         # Weblate rejects duplicate component names within one project.
         await self._weblate.sync_corpus(
             work.asset.component_slug,
-            name=f"{namespace}/{work.asset.relative_source_path.as_posix()}",
+            name=component_name(work.asset, namespace),
             language=target_lang,
             units=work.units,
             has_existing_target=work.asset.existing_target_path is not None,
         )
+        await self._clear_tag_mismatches(work, target_lang)
+
+    async def _clear_tag_mismatches(
+        self, work: AssetWorkSchema, target_lang: str
+    ) -> None:
+        """Empty held translations whose tags disagree with their source.
+
+        Such a translation, typically shipped in the mod's own `.chn`, would
+        fail the overlay check; emptied, it is retranslated like any
+        untranslated unit.
+        """
+        units = await self._weblate.list_units(work.asset.component_slug, target_lang)
+        broken = [
+            unit
+            for unit in units
+            if unit.context in work.expected
+            and unit.target.strip()
+            and not validate_tags(unit.source, unit.target)[0]
+        ]
+        for unit in broken:
+            await self._weblate.patch_unit(
+                unit.id, WeblateUnitPatchSchema(target=[""], state=WEBLATE_STATE_EMPTY)
+            )
+        if broken:
+            logger.warning(
+                "Cleared {} translations with mismatched tags in {}",
+                len(broken),
+                work.asset.component_slug,
+            )
 
     async def _translate(
         self, request: WorkshopJobRequestSchema, works: list[AssetWorkSchema]
@@ -298,7 +361,8 @@ class WorkshopPipeline:
 
         Weblate is the authority: whatever it holds wins over the local
         `.chn`, so the overlay is built from this read, not from what the
-        translator produced.
+        translator produced. Units still empty here (skipped by the quality
+        gate) are absent from the result, and the overlay keeps their source.
         """
         units = await self._weblate.list_units(work.asset.component_slug, target_lang)
         result: dict[str, str] = {}
@@ -316,10 +380,12 @@ class WorkshopPipeline:
                 )
             if unit.target.strip():
                 result[unit.context] = unit.target
-        missing = work.expected.keys() - result.keys()
+        missing = len(work.expected) - len(result)
         if missing:
-            raise ArtifactValidationError(
-                f"{work.asset.component_slug} has {len(missing)} untranslated units"
+            logger.warning(
+                "{} has {} untranslated units; the overlay keeps their source",
+                work.asset.component_slug,
+                missing,
             )
         return result
 

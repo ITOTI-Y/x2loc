@@ -62,7 +62,7 @@ All routes require `Authorization: Bearer <service_token>`.
 | `POST /v1/jobs/{id}/cancel` | Cancel a running job |
 | `GET /v1/jobs/{id}/artifact` | Download the translated overlay zip (`X-Artifact-SHA256` header) |
 
-A job downloads the mod with SteamCMD, syncs its localization into Weblate components, translates missing units with automatic threshold review, writes Chinese overlay files, adds newly mined terms to the custom glossary, and packages the result. Jobs and artifacts live in memory and under `data_root`, which is reset on every start.
+A job downloads the mod with SteamCMD, syncs its localization into Weblate components, translates missing units with automatic threshold review, writes Chinese overlay files, adds newly mined terms to the custom glossary, and packages the result. Units that still fail the quality gate after the last attempt stay empty in Weblate and keep their source text in the overlay (`units_untranslated` in the job progress); held translations whose tags disagree with the source, such as a mod's own broken `.chn`, are cleared and retranslated. Jobs and artifacts live in memory and under `data_root`, which is reset on every start.
 
 ### Batch translation of a collection
 
@@ -78,6 +78,17 @@ docker compose exec x2loc x2loc batch \
 - New custom-glossary terms are queued locally and published once the run ends; later jobs of the same run already use them. If a run stops early, the queue stays on disk and the next run publishes it.
 
 Run it inside the container, where SteamCMD and its login cache live, and do not submit service jobs meanwhile: both would drive the same SteamCMD install.
+
+### Translating the mods installed on this machine
+
+```bash
+uv run x2loc local                 # every mod in [local] workshop_dir
+uv run x2loc local 1122974240 667104300
+```
+
+`x2loc local` reads mods straight from the local Workshop content directory and runs the same pipeline as `batch`, so it needs Weblate and the LLM endpoint but neither SteamCMD, a Steam account nor `service_token`. Set the two paths once in the `[local]` table (or pass `--workshop-dir` and `--mods-dir`). Mods without `.int` files under `Localization` are skipped.
+
+Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_zh_<workshop id>/`, holding the generated `.chn` files and its own `.XComMod`, so a Steam update of the original mod cannot overwrite the translation; re-running replaces it. Enable the overlay mods in the mod launcher. Overlay zips and `summary.json` also go to `output/local/<UTC timestamp>/`. Run it on the host that has the game installed, not in the container.
 
 ### Docker
 

@@ -9,14 +9,17 @@ here inspect.
 
 import asyncio
 import json
+import ssl
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
 import pytest
 from httpx2 import ConnectError, MockTransport, Request, Response
+from loguru import logger
 
 from src.models.weblate import (
     UNIT_PAGE_SIZE,
+    CorpusUnitSchema,
     WeblateComponentDraftSchema,
     WeblateConfigSchema,
     WeblateRequestParamsSchema,
@@ -436,3 +439,154 @@ async def test_search_units_single_attempt_does_not_retry(
     with pytest.raises(WeblateAPIError):
         await client.search_units(WeblateRequestParamsSchema(q="x"), attempts=1)
     assert len(fake.requests) == 1
+
+
+SOURCE_UNITS_PATH = f"translations/{PROJECT}/{COMPONENT}/en/units/"
+SOURCE_FILE_PATH = f"translations/{PROJECT}/{COMPONENT}/en/file/"
+
+
+def corpus_units(*contexts: str) -> list[CorpusUnitSchema]:
+    return [
+        CorpusUnitSchema(context=context, source=f"S {context}", target="", note="")
+        for context in contexts
+    ]
+
+
+def route_translation_ready(fake: FakeWeblate, total: int) -> None:
+    fake.route(
+        "POST",
+        f"components/{PROJECT}/{COMPONENT}/translations/",
+        Response(201, json={}),
+    )
+    fake.route(
+        "GET",
+        f"translations/{PROJECT}/{COMPONENT}/{LANG}/",
+        Response(200, json={"total": total}),
+    )
+
+
+async def test_ssl_error_is_retried(
+    client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
+) -> None:
+    fake.route(
+        "GET",
+        COMPONENT_PATH,
+        ssl.SSLError(1, "bad record mac"),
+        Response(200, json=component_payload(COMPONENT)),
+    )
+
+    component = await client.get_component(COMPONENT)
+
+    assert component is not None
+    assert len(sleeps) == 1
+
+
+async def test_sync_recreates_component_without_source_units(
+    client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
+) -> None:
+    fake.route(
+        "GET",
+        COMPONENT_PATH,
+        Response(200, json=component_payload(COMPONENT)),
+        Response(404),
+    )
+    fake.route("GET", SOURCE_UNITS_PATH, Response(200, json=page_payload([], 0)))
+    fake.route("DELETE", COMPONENT_PATH, Response(204))
+    fake.route("POST", COMPONENTS_PATH, Response(201, json={}))
+    fake.route("PATCH", COMPONENT_PATH, Response(200, json={}))
+    route_translation_ready(fake, total=2)
+
+    await client.sync_corpus(
+        COMPONENT,
+        name="n",
+        language=LANG,
+        units=corpus_units("a", "b"),
+        has_existing_target=False,
+    )
+
+    sent = [(r.method, r.url.path) for r in fake.requests]
+    assert ("DELETE", API_PREFIX + COMPONENT_PATH) in sent
+    assert ("POST", API_PREFIX + COMPONENTS_PATH) in sent
+
+
+async def test_sync_adds_only_missing_source_units(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
+    fake.route(
+        "GET",
+        SOURCE_UNITS_PATH,
+        Response(200, json=page_payload([unit_payload(1, context="a")], 1)),
+    )
+    fake.route("POST", SOURCE_FILE_PATH, Response(200, json={"accepted": 1}))
+    route_translation_ready(fake, total=2)
+
+    await client.sync_corpus(
+        COMPONENT,
+        name="n",
+        language=LANG,
+        units=corpus_units("a", "b"),
+        has_existing_target=False,
+    )
+
+    uploads = [r for r in fake.requests if r.url.path == API_PREFIX + SOURCE_FILE_PATH]
+    assert len(uploads) == 1
+    body = uploads[0].content.decode()
+    assert '"b","S b"' in body
+    assert '"a","S a"' not in body
+
+
+async def test_rejection_body_is_logged_with_token_masked(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    fake.route("GET", COMPONENT_PATH, Response(400, text=f"bad field; echoed {TOKEN}"))
+    messages: list[str] = []
+    sink = logger.add(lambda message: messages.append(str(message)), level="WARNING")
+    try:
+        with pytest.raises(WeblateAPIError):
+            await client.get_component(COMPONENT)
+    finally:
+        logger.remove(sink)
+
+    logged = "".join(messages)
+    assert "bad field" in logged
+    assert TOKEN not in logged
+
+
+async def test_sync_recreates_translation_that_never_got_units(
+    client: AsyncWeblateClient, fake: FakeWeblate, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    translation_path = f"translations/{PROJECT}/{COMPONENT}/{LANG}/"
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
+    fake.route(
+        "GET",
+        SOURCE_UNITS_PATH,
+        Response(200, json=page_payload([unit_payload(1, context="a")], 1)),
+    )
+    fake.route(
+        "POST",
+        f"components/{PROJECT}/{COMPONENT}/translations/",
+        Response(201, json={}),
+    )
+    fake.route("GET", translation_path, Response(200, json={"total": 0}))
+    fake.route("DELETE", translation_path, Response(204))
+    waits: list[int] = []
+
+    async def wait_once_then_ready(*_args: object, expected: int) -> None:
+        waits.append(expected)
+        if len(waits) == 1:
+            raise WeblateAPIError(504, "not ready")
+
+    monkeypatch.setattr(client, "wait_for_translation_units", wait_once_then_ready)
+
+    await client.sync_corpus(
+        COMPONENT,
+        name="n",
+        language=LANG,
+        units=corpus_units("a"),
+        has_existing_target=False,
+    )
+
+    sent = [(r.method, r.url.path) for r in fake.requests]
+    assert ("DELETE", API_PREFIX + translation_path) in sent
+    assert waits == [1, 1]

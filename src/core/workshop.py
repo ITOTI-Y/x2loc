@@ -3,6 +3,7 @@ from pathlib import Path, PurePosixPath
 from typing import Final
 from urllib.parse import parse_qs, urlparse
 
+from src.core.mod_resolver import resolve_mod
 from src.models.workshop import (
     SOURCE_SUFFIX,
     TARGET_SUFFIX,
@@ -70,6 +71,25 @@ def scan_mod_tree(mod_root: Path, limits: WorkshopLimitsSchema) -> list[Path]:
         if total_bytes > limits.max_total_bytes:
             raise WorkshopInputError("Workshop content exceeds the total size limit")
     return files
+
+
+def load_workshop_item(
+    mod_root: Path, workshop_id: str, limits: WorkshopLimitsSchema
+) -> WorkshopItemSchema:
+    """Scan a Workshop item directory and resolve its mod identity.
+
+    Raises:
+        WorkshopInputError: If the tree violates `limits`.
+        ModResolveError: If the directory holds no usable `.XComMod`.
+    """
+    files = scan_mod_tree(mod_root, limits)
+    mod_info = resolve_mod(mod_root, mod_root, workshop_id)
+    return WorkshopItemSchema(
+        workshop_id=workshop_id,
+        mod_root=mod_root.resolve(strict=True),
+        mod_info=mod_info,
+        files=files,
+    )
 
 
 def discover_localization_assets(

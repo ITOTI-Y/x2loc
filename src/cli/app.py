@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.agent.cli import app as agent_app
 from src.cli.batch import batch
+from src.cli.local import local
 from src.core.aligner import BilingualAligner
 from src.core.extractor import TermExtractor
 from src.core.parser import LocFileParser
@@ -28,6 +29,7 @@ app = typer.Typer(
 
 app.add_typer(agent_app, name="agent")
 app.command("batch")(batch)
+app.command("local")(local)
 
 logger.remove()
 logger.add(

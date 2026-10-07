@@ -29,3 +29,8 @@ root = "data/steam"
 base_slug = "glossary-bases"
 mods_slug = "glossary-mods"
 custom_slug = "glossary-custom"
+
+# Only `x2loc local` reads this table; leave it out on service hosts.
+[local]
+workshop_dir = "C:/Program Files (x86)/Steam/steamapps/workshop/content/268500"
+mods_dir = "C:/Program Files (x86)/Steam/steamapps/common/XCOM 2/XCom2-WarOfTheChosen/XComGame/Mods"

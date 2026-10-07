@@ -6,8 +6,8 @@ from httpx2 import AsyncClient
 from loguru import logger
 from pydantic import SecretStr
 
-from src.core.mod_resolver import ModResolveError, resolve_mod
-from src.core.workshop import WorkshopInputError, scan_mod_tree
+from src.core.mod_resolver import ModResolveError
+from src.core.workshop import WorkshopInputError, load_workshop_item
 from src.models.workshop import (
     XCOM2_APP_ID,
     CollectionEnvelopeSchema,
@@ -135,20 +135,16 @@ class SteamDownloader:
         )
         if not mod_root.is_dir():
             raise SteamDownloadError("SteamCMD produced no content directory")
-        files = await asyncio.to_thread(scan_mod_tree, mod_root, self._limits)
         try:
-            mod_info = await asyncio.to_thread(
-                resolve_mod, mod_root, mod_root, workshop_id
+            item = await asyncio.to_thread(
+                load_workshop_item, mod_root, workshop_id, self._limits
             )
         except ModResolveError as exc:
             raise SteamDownloadError("Workshop item is not a resolvable mod") from exc
-        logger.info("Downloaded Workshop item {} ({} files)", workshop_id, len(files))
-        return WorkshopItemSchema(
-            workshop_id=workshop_id,
-            mod_root=mod_root.resolve(strict=True),
-            mod_info=mod_info,
-            files=files,
+        logger.info(
+            "Downloaded Workshop item {} ({} files)", workshop_id, len(item.files)
         )
+        return item
 
     async def _run_steamcmd(self, workshop_id: str, *, with_password: bool) -> bool:
         login = ["+login", self._username]

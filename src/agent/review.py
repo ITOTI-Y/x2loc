@@ -39,12 +39,6 @@ class ReviewPolicy(Protocol):
     ) -> ReviewOutputSchema: ...
 
 
-class TranslationQualityError(RuntimeError):
-    def __init__(self, failed: list[TranslationUnitSchema]) -> None:
-        self.failed = failed
-        super().__init__(f"{len(failed)} units failed the quality gate")
-
-
 class InterruptReview:
     """Hand the scored batch to a human through LangGraph's interrupt."""
 
@@ -68,8 +62,9 @@ class ThresholdReview:
     """Accept on a valid tag set and a score at or above the threshold.
 
     Failures are fed back into the next translation round. Once
-    `max_translation_attempts` rounds are spent the job fails rather than
-    shipping a translation that never passed the gate.
+    `max_translation_attempts` rounds are spent the remaining failures are
+    skipped: they stay empty in Weblate for a human to fill, and the overlay
+    keeps their source text.
     """
 
     extracts_patterns = False
@@ -109,8 +104,8 @@ class ThresholdReview:
             for unit in failed:
                 score = unit.score_result.score if unit.score_result else 0
                 notes = unit.score_result.notes if unit.score_result else ""
-                logger.error(
-                    "Quality gate exhausted for unit {} [{}]: score={} "
+                logger.warning(
+                    "Quality gate exhausted, leaving unit {} [{}] empty: score={} "
                     "tag_valid={} notes={!r} source={!r} last_translation={!r}",
                     unit.id,
                     unit.key,
@@ -120,7 +115,18 @@ class ThresholdReview:
                     unit.source[:120],
                     unit.translated[:120],
                 )
-            raise TranslationQualityError(failed)
+            skipped = [
+                ReviewDecisionSchema(unit_id=unit.id, action="skip", translation="")
+                for unit in failed
+            ]
+            return {
+                "decisions": accepted + skipped,
+                "accepted_decisions": [],
+                "to_translate": [],
+                "quality_feedback": {},
+                "attempts": 0,
+                "retry_pending": False,
+            }
 
         logger.warning(
             "Quality gate rejected {} units; retry {}/{}",

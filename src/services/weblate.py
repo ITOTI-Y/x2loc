@@ -4,6 +4,7 @@ import asyncio
 import csv
 import io
 import math
+import ssl
 import time
 from typing import Final, Literal, Self
 
@@ -34,6 +35,7 @@ from src.models.weblate import (
     WeblateUploadResultSchema,
 )
 
+WEBLATE_STATE_EMPTY: Final[int] = 0
 WEBLATE_STATE_TRANSLATED: Final[int] = 20
 
 # Ordinary calls must fail fast; only file uploads legitimately run for
@@ -52,6 +54,7 @@ RETRY_BASE_DELAY: Final[float] = 2.0
 LOCK_BUSY_BASE_DELAY: Final[float] = 30.0
 TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 900.0
+ERROR_BODY_LOG_CHARS: Final[int] = 500
 
 UPLOAD_CSV_COLUMNS: Final[tuple[str, ...]] = (
     "context",
@@ -239,6 +242,18 @@ class AsyncWeblateClient:
         )
         logger.success(f"Created component {draft.slug}")
 
+    async def delete_component(
+        self, slug: str, *, timeout: float = TRANSLATION_READY_TIMEOUT
+    ) -> None:
+        """Delete a component and return once Weblate no longer serves it."""
+        path = f"components/{self.config.project_slug}/{slug}/"
+        await self._request(WeblateRequestSchema(method="DELETE", path=path))
+        deadline = time.monotonic() + timeout
+        while await self.get_component(slug) is not None:
+            if time.monotonic() > deadline:
+                raise WeblateAPIError(504, f"delete component {slug}")
+            await asyncio.sleep(TRANSLATION_READY_MAX_DELAY)
+
     async def ensure_translation(self, component_slug: str, language: str) -> None:
         """Create the target translation, tolerating an existing one."""
         await self._request(
@@ -253,6 +268,29 @@ class AsyncWeblateClient:
             expected_statuses=frozenset({400, 409}),
         )
 
+    async def translation_total(self, component_slug: str, language: str) -> int:
+        response = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path=(
+                    f"translations/{self.config.project_slug}/{component_slug}"
+                    f"/{language}/"
+                ),
+            )
+        )
+        return WeblateTranslationStatsSchema.model_validate(response.json()).total
+
+    async def delete_translation(self, component_slug: str, language: str) -> None:
+        await self._request(
+            WeblateRequestSchema(
+                method="DELETE",
+                path=(
+                    f"translations/{self.config.project_slug}/{component_slug}"
+                    f"/{language}/"
+                ),
+            )
+        )
+
     async def wait_for_translation_units(
         self,
         component_slug: str,
@@ -262,14 +300,10 @@ class AsyncWeblateClient:
         timeout: float = TRANSLATION_READY_TIMEOUT,
     ) -> None:
         """Return once the translation holds `expected` units, else raise."""
-        path = f"translations/{self.config.project_slug}/{component_slug}/{language}/"
         deadline = time.monotonic() + timeout
         delay = 0.5
         while True:
-            response = await self._request(
-                WeblateRequestSchema(method="GET", path=path)
-            )
-            total = WeblateTranslationStatsSchema.model_validate(response.json()).total
+            total = await self.translation_total(component_slug, language)
             if total >= expected:
                 return
             if time.monotonic() + delay > deadline:
@@ -423,7 +457,9 @@ class AsyncWeblateClient:
         """Bring one component's source strings and existing targets up to date.
 
         Creates the component from a source docfile when it is missing,
-        otherwise appends new source strings with `method="add"`. Existing
+        otherwise appends only the source strings it lacks with
+        `method="add"`. A component left with no source units (its docfile
+        import never materialized) holds no data and is recreated. Existing
         targets are filled with `method="translate", conflicts="ignore"` so
         Weblate keeps whatever it already holds — Weblate is the authority.
 
@@ -433,8 +469,25 @@ class AsyncWeblateClient:
         """
         if not units:
             raise ValueError(f"sync_corpus received no units for {component_slug}")
-        source_batches = _batched(units, SOURCE_BATCH_SIZE)
-        if await self.get_component(component_slug) is None:
+        pending = units
+        exists = await self.get_component(component_slug) is not None
+        if exists:
+            present = {
+                unit.context
+                for unit in await self.list_units(
+                    component_slug, self.config.source_language
+                )
+            }
+            if present:
+                pending = [unit for unit in units if unit.context not in present]
+            else:
+                logger.warning(
+                    "Component {} has no source units; recreating it", component_slug
+                )
+                await self.delete_component(component_slug)
+                exists = False
+        source_batches = _batched(pending, SOURCE_BATCH_SIZE)
+        if not exists:
             await self.create_component(
                 WeblateComponentDraftSchema(
                     name=name,
@@ -454,11 +507,26 @@ class AsyncWeblateClient:
             )
 
         await self.ensure_translation(component_slug, language)
-        await self.wait_for_translation_units(
-            component_slug,
-            language,
-            expected=len({unit.context for unit in units if unit.source}),
-        )
+        expected = len({unit.context for unit in units if unit.source})
+        try:
+            await self.wait_for_translation_units(
+                component_slug, language, expected=expected
+            )
+        except WeblateAPIError:
+            # A translation whose unit materialization was lost stays empty
+            # forever; holding nothing, it is safe to recreate once.
+            if await self.translation_total(component_slug, language) > 0:
+                raise
+            logger.warning(
+                "Translation {}/{} has no units; recreating it",
+                component_slug,
+                language,
+            )
+            await self.delete_translation(component_slug, language)
+            await self.ensure_translation(component_slug, language)
+            await self.wait_for_translation_units(
+                component_slug, language, expected=expected
+            )
         if not has_existing_target:
             return
         await self.upload_targets(component_slug, language, units)
@@ -524,7 +592,9 @@ class AsyncWeblateClient:
                         files=request.files,
                         timeout=timeout,
                     )
-            except TransportError as exc:
+            # httpx2 surfaces some TLS failures on a reused connection (seen:
+            # "bad record mac") as a raw SSLError instead of a TransportError.
+            except (TransportError, ssl.SSLError) as exc:
                 if attempt == attempts:
                     raise
                 delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
@@ -545,6 +615,18 @@ class AsyncWeblateClient:
                 return response
             delay = self._retry_delay(response, attempt)
             if delay is None or attempt == attempts:
+                # The body explains the rejection; it goes to the log only,
+                # truncated and with the token masked, never into the message.
+                body = response.text.replace(
+                    self.config.token.get_secret_value(), "***"
+                )[:ERROR_BODY_LOG_CHARS]
+                logger.warning(
+                    "Weblate {} on {} {}: {}",
+                    response.status_code,
+                    request.method,
+                    request.path,
+                    body,
+                )
                 raise WeblateAPIError(
                     response.status_code, f"{request.method} {request.path}"
                 )

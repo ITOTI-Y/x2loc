@@ -91,6 +91,8 @@ class JobProgressSchema(BaseSchema):
     files_completed: int = 0
     units_total: int = 0
     units_translated: int = 0
+    # Still empty in Weblate after translating; the overlay keeps their source.
+    units_untranslated: int = 0
     terms_added: int = 0
     terms_skipped: int = 0
 

@@ -187,7 +187,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                 pipeline = WorkshopPipeline(
                     config=config,
                     jobs=manager,
-                    steam=SteamDownloader(
+                    source=SteamDownloader(
                         executable=config.steam.executable,
                         steam_root=config.steam.root,
                         username=config.steam.steam_username,

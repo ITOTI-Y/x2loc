@@ -23,6 +23,13 @@ class GlossaryConfigSchema(BaseSchema):
     custom_slug: str = "glossary-custom"
 
 
+class LocalConfigSchema(BaseSchema):
+    """Paths of a local XCOM 2 install, read only by `x2loc local`."""
+
+    workshop_dir: Path
+    mods_dir: Path
+
+
 class AgentDefaultsSchema(BaseSchema):
     """Job LLM defaults from the `[agent]` TOML table.
 
@@ -84,6 +91,8 @@ class ServiceConfigSchema(BaseSettings):
     agent: AgentDefaultsSchema = Field(default_factory=AgentDefaultsSchema)
     limits: WorkshopLimitsSchema = Field(default_factory=_default_limits)
     glossary: GlossaryConfigSchema = Field(default_factory=GlossaryConfigSchema)
+    # Absent on service hosts, which have no game install.
+    local: LocalConfigSchema | None = None
 
     @classmethod
     def settings_customise_sources(
