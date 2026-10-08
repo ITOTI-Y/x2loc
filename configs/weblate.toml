@@ -18,7 +18,7 @@ retry_translation_model_name = "google/gemini-3.8-flash"
 validate_model_name = "google/gemini-3.8-flash"
 scoring_model_name = "google/gemini-3.8-flash"
 base_url = "https://openrouter.ai/api/v1"
-batch_size = 50
+batch_size = 200
 # Units translated, validated and scored per LLM request.
 units_per_request = 5
 auto_approve_threshold = 90
