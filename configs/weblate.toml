@@ -3,25 +3,25 @@ data_root = "data/service"
 bind_port = 8100
 
 [weblate]
-url = "http://localhost:8000/api"
+url = "https://weblate.example.com/api"
 token = ""
-project_slug = ""
+project_slug = "x2loc"
 license = "CC-BY-SA-4.0"
 license_url = "https://spdx.org/licenses/CC-BY-SA-4.0.html"
 source_language = "en"
 
 [agent]
 api_key = ""
-translation_model_name = "gemini-3.1-flash-lite-preview"
+translation_model_name = "google/gemini-3.5-flash-lite"
 # Quality-gate retries; empty uses translation_model_name.
-retry_translation_model_name = ""
-validate_model_name = ""
-scoring_model_name = ""
+retry_translation_model_name = "google/gemini-3.8-flash"
+validate_model_name = "google/gemini-3.5-flash-lite"
+scoring_model_name = "google/gemini-3.8-flash"
 base_url = "https://openrouter.ai/api/v1"
 batch_size = 50
-auto_approve_threshold = 95
+auto_approve_threshold = 90
 # Seconds per LLM request; raise to 120-300 for flex-tier endpoints.
-llm_timeout_seconds = 45
+llm_timeout_seconds = 180
 
 [steam]
 steam_username = ""
