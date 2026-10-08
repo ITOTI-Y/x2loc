@@ -5,10 +5,10 @@ from typing import TypedDict
 from loguru import logger
 
 from src.agent.config import ConfigSchema
-from src.agent.llm import ScoringAgent, raise_if_fatal_llm_error
+from src.agent.llm import ScoringAgent
+from src.agent.nodes._batched import invoke_batched
 from src.agent.prompts import format_scoring_prompt
 from src.models.agent import (
-    AgentInputSchema,
     NewAgentStateSchema,
     ScoreResultSchema,
     TranslationUnitSchema,
@@ -25,23 +25,16 @@ async def scorer(
     agent_config: ConfigSchema,
     llm: ScoringAgent,
 ) -> ScorerOutputSchema:
-    def build_input(unit: TranslationUnitSchema) -> AgentInputSchema:
-        return {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": format_scoring_prompt(
-                        source=unit.source,
-                        translated=unit.translated,
-                        category=unit.category,
-                        base_matches=unit.glossary_base,
-                        mods_matches=unit.glossary_mods,
-                        context_results=unit.context,
-                        patterns=unit.patterns,
-                    ),
-                }
-            ]
-        }
+    def build_prompt(unit: TranslationUnitSchema) -> tuple[int, str]:
+        return unit.id, format_scoring_prompt(
+            source=unit.source,
+            translated=unit.translated,
+            category=unit.category,
+            base_matches=unit.glossary_base,
+            mods_matches=unit.glossary_mods,
+            context_results=unit.context,
+            patterns=unit.patterns,
+        )
 
     scores: list[TranslationUnitSchema] = []
     pending: list[TranslationUnitSchema] = []
@@ -62,23 +55,18 @@ async def scorer(
                 )
             )
 
-    responses = await llm.abatch(
-        [build_input(candidate) for candidate in pending],
-        config={"max_concurrency": agent_config.max_concurrency},
-        return_exceptions=True,
+    results = await invoke_batched(
+        llm,
+        [build_prompt(candidate) for candidate in pending],
+        units_per_request=agent_config.units_per_request,
+        max_concurrency=agent_config.max_concurrency,
+        label="Scoring",
     )
-    for response, candidate in zip(responses, pending, strict=True):
-        if isinstance(response, BaseException):
-            raise_if_fatal_llm_error(response)
-            logger.warning(
-                f"Scoring request failed for unit {candidate.id}: {response!r}"
-            )
-            structured = None
-        else:
-            structured = response.get("structured_response") if response else None
+    for candidate in pending:
+        item = results.get(candidate.id)
         result = (
-            structured
-            if isinstance(structured, ScoreResultSchema)
+            ScoreResultSchema.model_validate(item.model_dump(exclude={"id"}))
+            if item is not None
             else ScoreResultSchema(
                 score=0,
                 deductions=[],

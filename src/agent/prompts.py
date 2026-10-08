@@ -11,7 +11,7 @@ from src.models.agent import (
 def translation_system_blocks(target_lang: str) -> SystemBlockSchema:
     return SystemBlockSchema(
         type="text",
-        text=TRANSLATION_SYSTEM.format(target_lang=target_lang),
+        text=TRANSLATION_SYSTEM.format(target_lang=target_lang) + BATCH_INPUT,
         cache_control={"type": "ephemeral"},
     )
 
@@ -19,7 +19,7 @@ def translation_system_blocks(target_lang: str) -> SystemBlockSchema:
 def scoring_system_blocks(target_lang: str) -> SystemBlockSchema:
     return SystemBlockSchema(
         type="text",
-        text=SCORING_SYSTEM.format(target_lang=target_lang),
+        text=SCORING_SYSTEM.format(target_lang=target_lang) + BATCH_INPUT,
         cache_control={"type": "ephemeral"},
     )
 
@@ -27,9 +27,25 @@ def scoring_system_blocks(target_lang: str) -> SystemBlockSchema:
 def tag_fix_system_blocks(target_lang: str) -> SystemBlockSchema:
     return SystemBlockSchema(
         type="text",
-        text=TAG_FIX_SYSTEM.format(target_lang=target_lang),
+        text=TAG_FIX_SYSTEM.format(target_lang=target_lang) + BATCH_INPUT,
         cache_control={"type": "ephemeral"},
     )
+
+
+def format_batch(items: list[tuple[int, str]]) -> str:
+    """Join per-item prompts under `## Item <id>` headers for one request."""
+    return "\n\n".join(f"## Item {item_id}\n{prompt}" for item_id, prompt in items)
+
+
+BATCH_INPUT = """
+
+# Batch Input
+
+The user message holds one or more items, each under a `## Item <id>` header.
+Treat every item on its own, exactly as if it were the only one: its glossary,
+context and feedback apply to it alone, and its output must not borrow wording
+from another item. Return exactly one result per item, carrying the id from its
+header; each result follows the rules above for a single item."""
 
 
 TRANSLATION_SYSTEM = """\

@@ -6,14 +6,13 @@ from typing import TypedDict
 from loguru import logger
 
 from src.agent.config import ConfigSchema
-from src.agent.llm import TranslationAgent, raise_if_fatal_llm_error
+from src.agent.llm import TranslationAgent
+from src.agent.nodes._batched import invoke_batched
 from src.agent.prompts import format_translation_prompt
 from src.agent.tools import lookup_glossary, match_patterns
 from src.models.agent import (
-    AgentInputSchema,
     NewAgentStateSchema,
     PatternSchema,
-    TranslationOutputSchema,
     TranslationUnitSchema,
 )
 from src.models.weblate import WeblateUnitSchema
@@ -47,7 +46,7 @@ async def translator(
             )
         return hit
 
-    def _build_translate_input(unit: WeblateUnitSchema) -> AgentInputSchema:
+    def _build_prompt(unit: WeblateUnitSchema) -> tuple[int, str]:
         base_matches, mods_matches, match_patterns = _matches(unit.source)
         prompt = format_translation_prompt(
             unit.source,
@@ -59,8 +58,8 @@ async def translator(
         )
         feedback = state.quality_feedback.get(unit.id)
         if feedback:
-            prompt = f"{prompt}\n\n## Previous attempt was rejected\n{feedback}"
-        return {"messages": [{"role": "user", "content": prompt}]}
+            prompt = f"{prompt}\n\nPrevious attempt was rejected:\n{feedback}"
+        return unit.id, prompt
 
     def _candidate(unit: WeblateUnitSchema, translated: str) -> TranslationUnitSchema:
         base_matches, mods_matches, match_patterns = _matches(unit.source)
@@ -79,29 +78,19 @@ async def translator(
             patterns=match_patterns,
         )
 
-    inputs = await asyncio.to_thread(
-        lambda: [_build_translate_input(unit) for unit in state.to_translate]
+    prompts = await asyncio.to_thread(
+        lambda: [_build_prompt(unit) for unit in state.to_translate]
     )
-    responses = await agent.abatch(
-        inputs,
-        config={"max_concurrency": agent_config.max_concurrency},
-        return_exceptions=True,
+    results = await invoke_batched(
+        agent,
+        prompts,
+        units_per_request=agent_config.units_per_request,
+        max_concurrency=agent_config.max_concurrency,
+        label="Translation",
     )
-
-    candidates: list[TranslationUnitSchema] = []
-    for unit, response in zip(state.to_translate, responses, strict=True):
-        if isinstance(response, BaseException):
-            raise_if_fatal_llm_error(response)
-            logger.warning(
-                f"Translation request failed for unit {unit.id}: {response!r}"
-            )
-            candidates.append(_candidate(unit, ""))
-            continue
-        structured = response.get("structured_response") if response else None
-        if isinstance(structured, TranslationOutputSchema):
-            candidates.append(_candidate(unit, structured.result))
-        else:
-            logger.warning(f"No structured translation for unit {unit.id}")
-            candidates.append(_candidate(unit, ""))
+    candidates = [
+        _candidate(unit, results[unit.id].result if unit.id in results else "")
+        for unit in state.to_translate
+    ]
     logger.success(f"Translated {len(candidates)} units")
     return {"candidates": candidates}

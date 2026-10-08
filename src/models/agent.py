@@ -56,9 +56,16 @@ class SystemBlockSchema(TypedDict):
     cache_control: dict[str, str]
 
 
-class TranslationOutputSchema(BaseSchema):
+class TranslationItemSchema(BaseSchema):
+    id: int = Field(description="The id from the item's `## Item <id>` header")
     result: str = Field(
         description="The translated result in the target language only; if the source contains no human-readable text, return the source unchanged"
+    )
+
+
+class TranslationBatchOutputSchema(BaseSchema):
+    results: list[TranslationItemSchema] = Field(
+        description="Exactly one entry per item in the user message"
     )
 
 
@@ -83,6 +90,16 @@ class ScoreResultSchema(BaseSchema):
     notes: str = Field(
         "",
         description='The notes for the score in the target language; return an empty string "" if not needed',
+    )
+
+
+class ScoreItemSchema(ScoreResultSchema):
+    id: int = Field(description="The id from the item's `## Item <id>` header")
+
+
+class ScoreBatchOutputSchema(BaseSchema):
+    results: list[ScoreItemSchema] = Field(
+        description="Exactly one entry per item in the user message"
     )
 
 

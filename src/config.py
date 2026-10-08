@@ -49,6 +49,8 @@ class AgentDefaultsSchema(BaseSchema):
     validate_model_name: str = ""
     scoring_model_name: str = ""
     batch_size: int = DEFAULT_BATCH_SIZE
+    # Units packed into one translate/validate/score request.
+    units_per_request: int = Field(default=1, ge=1)
     auto_approve_threshold: int = 95
     # Per LLM request; flex-tier endpoints queue for minutes and need more.
     llm_timeout_seconds: float = Field(default=DEFAULT_LLM_TIMEOUT_SECONDS, gt=0)

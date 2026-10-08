@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import shutil
 from pathlib import Path
 from typing import Final, Protocol
@@ -315,9 +316,9 @@ class WorkshopPipeline:
     ) -> int:
         """Translate every component through one graph and one node instance.
 
-        Component concurrency is `llm_concurrency // batch_size` so that the
-        in-flight LLM request ceiling stays at `llm_concurrency`: each
-        component's own batch runs at most `batch_size` calls at a time.
+        A component's batch sends `batch_size / units_per_request` requests at
+        once, so component concurrency is their quotient into
+        `llm_concurrency`, keeping the in-flight request ceiling there.
         """
         agent_config = self._agent_config(request)
         graph, nodes = build_graph(
@@ -327,7 +328,10 @@ class WorkshopPipeline:
             glossaries=self._glossaries,
             http_async_client=self._llm_client,
         )
-        limit = max(1, request.llm_concurrency // agent_config.batch_size)
+        requests_per_batch = math.ceil(
+            agent_config.batch_size / agent_config.units_per_request
+        )
+        limit = max(1, request.llm_concurrency // requests_per_batch)
         semaphore = asyncio.Semaphore(limit)
 
         async def translate_one(work: AssetWorkSchema) -> int:

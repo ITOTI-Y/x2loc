@@ -26,6 +26,7 @@ class ConfigSchema(BaseSchema):
     scoring_temperature: float = 0.0
     llm_timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS
     batch_size: int
+    units_per_request: int = 1
     auto_approve_threshold: int
     max_translation_attempts: int = MAX_TRANSLATION_ATTEMPTS
     max_concurrency: int
@@ -73,6 +74,7 @@ def build_agent_config(
         base_url=agent.base_url,
         api_key=agent.api_key,
         batch_size=agent.batch_size,
+        units_per_request=agent.units_per_request,
         auto_approve_threshold=agent.auto_approve_threshold,
         llm_timeout_seconds=agent.llm_timeout_seconds,
         target_lang=target_lang,

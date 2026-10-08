@@ -22,7 +22,7 @@ cp configs/weblate.toml configs/weblate.local.toml   # gitignored; fill in crede
 |---|---|
 | top level | `service_token` (API bearer token), `data_root`, `bind_port` |
 | `[weblate]` | API URL, token, project slug, source language |
-| `[agent]` | LLM API key, base URL, model names (`retry_translation_model_name` translates quality-gate retries; empty reuses the translation model), batch size, auto-approve threshold, `llm_timeout_seconds` per request (default 45; raise it for flex-tier endpoints, which queue for minutes) |
+| `[agent]` | LLM API key, base URL, model names (`retry_translation_model_name` translates quality-gate retries; empty reuses the translation model), batch size, `units_per_request` (units packed into one LLM request), auto-approve threshold, `llm_timeout_seconds` per request (default 45; raise it for flex-tier endpoints, which queue for minutes) |
 | `[steam]` | SteamCMD executable, download root, Steam credentials |
 | `[glossary]` | slugs of the base, mods and custom glossary components |
 

@@ -19,18 +19,18 @@ from src.agent.prompts import (
 )
 from src.models.agent import (
     AgentInputSchema,
-    ScoreResultSchema,
+    ScoreBatchOutputSchema,
     StructuredAgentResponseSchema,
-    TranslationOutputSchema,
+    TranslationBatchOutputSchema,
 )
 
 type TranslationAgent = Runnable[
     AgentInputSchema,
-    StructuredAgentResponseSchema[TranslationOutputSchema],
+    StructuredAgentResponseSchema[TranslationBatchOutputSchema],
 ]
 type ScoringAgent = Runnable[
     AgentInputSchema,
-    StructuredAgentResponseSchema[ScoreResultSchema],
+    StructuredAgentResponseSchema[ScoreBatchOutputSchema],
 ]
 
 FATAL_LLM_STATUS: Final = frozenset({400, 401, 403, 404})
@@ -85,7 +85,7 @@ def build_translator_llm(
         model=llm,
         tools=[],
         system_prompt=SystemMessage(content=[dict(system_blocks)]),
-        response_format=ToolStrategy(TranslationOutputSchema, handle_errors=False),
+        response_format=ToolStrategy(TranslationBatchOutputSchema, handle_errors=False),
     )
 
 
@@ -105,7 +105,7 @@ def build_tag_validator_llm(
         model=llm,
         tools=[],
         system_prompt=SystemMessage(content=[dict(system_blocks)]),
-        response_format=ToolStrategy(TranslationOutputSchema, handle_errors=False),
+        response_format=ToolStrategy(TranslationBatchOutputSchema, handle_errors=False),
     )
 
 
@@ -125,7 +125,7 @@ def build_scorer_llm(
         model=llm,
         tools=[],
         system_prompt=SystemMessage(content=[dict(system_blocks)]),
-        response_format=ToolStrategy(ScoreResultSchema, handle_errors=False),
+        response_format=ToolStrategy(ScoreBatchOutputSchema, handle_errors=False),
     )
 
 
