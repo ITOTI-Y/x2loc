@@ -115,13 +115,21 @@ class BilingualAligner:
 
         Delegates the iteration contract (ordinal counters, key shape) to
         `iter_compound_keys`. Duplicate non-append keys within the same
-        section: last wins + warn.
+        section: last wins, one INFO summary per file.
         """
         index: dict[str, tuple[EntrySchema, SectionHeader]] = {}
+        duplicates = 0
 
         for compound_key, entry, section in iter_compound_keys(file):
             if not entry.is_append and compound_key in index:
-                logger.warning(f"Duplicate non-append key: {compound_key}, last wins")
+                logger.debug(f"Duplicate non-append key: {compound_key}, last wins")
+                duplicates += 1
             index[compound_key] = (entry, section.header)
 
+        if duplicates:
+            logger.info(
+                "{}: {} duplicate keys, last wins (details at DEBUG level)",
+                file.path.name,
+                duplicates,
+            )
         return index

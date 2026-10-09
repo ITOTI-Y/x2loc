@@ -10,6 +10,7 @@ from src.agent.llm import TranslationAgent
 from src.agent.nodes._batched import invoke_batched
 from src.agent.prompts import format_translation_prompt
 from src.agent.tools import lookup_glossary, match_patterns
+from src.core.placeholders import repair_markup
 from src.models.agent import (
     NewAgentStateSchema,
     PatternSchema,
@@ -49,7 +50,7 @@ async def translator(
     def _build_prompt(unit: WeblateUnitSchema) -> tuple[int, str]:
         base_matches, mods_matches, match_patterns = _matches(unit.source)
         prompt = format_translation_prompt(
-            unit.source,
+            repair_markup(unit.source),
             unit.note,
             base_matches,
             mods_matches,
@@ -65,7 +66,9 @@ async def translator(
         base_matches, mods_matches, match_patterns = _matches(unit.source)
         return TranslationUnitSchema(
             id=unit.id,
-            source=unit.source,
+            # The validator and scorer judge against the repaired markup the
+            # translator was shown.
+            source=repair_markup(unit.source),
             translated=translated,
             key=unit.context,
             context=state.context_results[unit.id],
