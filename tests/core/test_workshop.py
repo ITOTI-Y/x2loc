@@ -117,6 +117,10 @@ def test_discover_rejects_windows_case_collision(tmp_path: Path) -> None:
     root = tmp_path / "mod"
     _write_loc_file(root / "Localization" / "Foo.int", '[S]\nK="V"')
     _write_loc_file(root / "Localization" / "FOO.int", '[S]\nK="V"')
+    if len(list((root / "Localization").iterdir())) == 1:
+        # Windows and default macOS volumes fold case: the second write
+        # replaced the first, so the colliding tree cannot be built here.
+        pytest.skip("case-insensitive filesystem cannot hold both names")
     files = scan_mod_tree(root, limits())
     with pytest.raises(WorkshopInputError, match="collision"):
         discover_localization_assets(make_item(root.resolve(), files))
