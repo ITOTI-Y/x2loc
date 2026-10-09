@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 from loguru import logger
@@ -17,11 +18,28 @@ from src.models.section import SectionHeader, SectionSchema
 
 
 class LocFileParser:
+    """Parse UE3 localization files, correcting the malformations real mods
+    ship with.
+
+    Each correction is logged at DEBUG; a file that needed any gets one INFO
+    summary instead of a warning per line. The count is per thread, because
+    one parser instance may serve concurrent jobs.
+    """
+
+    def __init__(self) -> None:
+        self._local = threading.local()
+
+    def _corrected(self, message: str) -> None:
+        logger.debug(message)
+        self._local.corrected = getattr(self._local, "corrected", 0) + 1
+
     def parse(self, path: Path, lang_override: str | None = None) -> LocalizationFile:
         path = path.resolve()
 
         if not path.exists():
             raise FileNotFoundError(path)
+
+        self._local.corrected = 0
 
         encoding = self._infer_encoding(path)
 
@@ -30,6 +48,12 @@ class LocFileParser:
         lines = self._read_file(path, encoding)
 
         sections, header_comments = self._scan_lines(lines, path)
+        if self._local.corrected:
+            logger.info(
+                "{}: auto-corrected {} malformed lines (details at DEBUG level)",
+                path.name,
+                self._local.corrected,
+            )
 
         return LocalizationFile(
             path=path,
@@ -54,7 +78,7 @@ class LocFileParser:
                     raw.decode("utf-8")
                     return "utf-8"
                 except UnicodeDecodeError:
-                    logger.warning(
+                    self._corrected(
                         f"{path.name}: not valid UTF-8, falling back to latin1"
                     )
                     return "latin1"
@@ -119,7 +143,7 @@ class LocFileParser:
             if m_entry:
                 if current_section is None:
                     # UE3 engine silently discards entries before any section
-                    logger.warning(
+                    self._corrected(
                         f"{path.name}:{line_number}: "
                         "Entry before any section header (discarded)"
                     )
@@ -134,7 +158,7 @@ class LocFileParser:
                 current_section.entries.append(entry)
                 continue
 
-            logger.warning(f"Unrecognized line {line_number}: {line[:80]}")
+            self._corrected(f"Unrecognized line {line_number}: {line[:80]}")
 
         if current_section is not None:
             sections.append(current_section)
@@ -197,7 +221,7 @@ class LocFileParser:
 
             case _:
                 # Defensive fallback — should not happen
-                logger.warning(
+                self._corrected(
                     f"Could not classify section header '{content}', "
                     "defaulting to CLASS_ONLY"
                 )
@@ -253,13 +277,13 @@ class LocFileParser:
             # here, but respect `\"` — a legitimate escape ends with `"`
             # and the preceding `\` must not be mis-stripped.
             if value.startswith('"'):
-                logger.warning(
+                self._corrected(
                     f'Extra leading `"` after outer strip at line {line_number}: '
                     f"{raw_value_stripped[:80]}"
                 )
                 value = value[1:]
             if value.endswith('"') and not value.endswith('\\"'):
-                logger.warning(
+                self._corrected(
                     f'Extra trailing `"` after outer strip at line {line_number}: '
                     f"{raw_value_stripped[:80]}"
                 )
@@ -281,7 +305,7 @@ class LocFileParser:
             # with backslash lookahead.
             value, upgrade_count = _upgrade_middle_stray_quotes(value)
             if upgrade_count:
-                logger.warning(
+                self._corrected(
                     f'Upgraded {upgrade_count} middle stray `"` to `\\"` '
                     f"at line {line_number}: {raw_value_stripped[:80]}"
                 )
@@ -292,7 +316,7 @@ class LocFileParser:
             # trailing quote). Strip the leading `"` alone so downstream
             # Weblate upload and glossary extraction see the intended text
             # rather than leaking the stray quote into translator views.
-            logger.warning(
+            self._corrected(
                 f"Unclosed string literal at line {line_number}: "
                 f"{raw_value_stripped[:80]}"
             )
@@ -301,7 +325,7 @@ class LocFileParser:
             # Mirror case: trailing `"` without an opening one. Less
             # common but still observed (mods with typos like
             # `Key=value"`). Strip the trailing orphan.
-            logger.warning(
+            self._corrected(
                 f"Unopened string literal at line {line_number}: "
                 f"{raw_value_stripped[:80]}"
             )
@@ -389,7 +413,7 @@ class LocFileParser:
         result: list[StructFieldSchema] = []
         for field_str in fields_raw:
             if "=" not in field_str:
-                logger.warning(f"Struct field without '=': '{field_str[:60]}'")
+                self._corrected(f"Struct field without '=': '{field_str[:60]}'")
                 continue
 
             field_key, field_raw_value = field_str.split("=", 1)

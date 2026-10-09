@@ -1,4 +1,9 @@
-from src.core.placeholders import extract_tags, validate_tags
+from src.core.placeholders import (
+    extract_tags,
+    is_malformed,
+    repair_markup,
+    validate_tags,
+)
 
 
 class TestExtractTags:
@@ -48,3 +53,38 @@ class TestValidateTags:
     def test_no_tags_both(self):
         passed, _, _ = validate_tags("hello", "你好")
         assert passed
+
+
+BROKEN = "<font color='#df07b7'Smart Magazines</font>"
+
+
+def test_repair_markup_closes_an_opener_that_lost_its_bracket() -> None:
+    assert repair_markup(BROKEN) == "<font color='#df07b7'>Smart Magazines</font>"
+
+
+def test_repair_markup_leaves_well_formed_and_ambiguous_markup_alone() -> None:
+    fine = "<font color='#df07b7'>X</font> <Bullet/> <img src='a.png' width='3'/>"
+    assert repair_markup(fine) == fine
+    assert repair_markup("a<b c") == "a<b c"
+
+
+def test_translation_closing_the_tag_is_valid_against_a_broken_source() -> None:
+    assert validate_tags(BROKEN, "<font color='#df07b7'>智能弹匣</font>")[0]
+    assert not validate_tags(BROKEN, BROKEN)[0]
+    assert not validate_tags(BROKEN, "智能弹匣")[0]
+
+
+def test_unrepairable_source_defers_to_a_well_formed_translation() -> None:
+    source = "<font color=#df07b7 Smart</font>"
+    assert is_malformed(repair_markup(source))
+    assert validate_tags(source, "<font color='#df07b7'>智能</font>")[0]
+    assert validate_tags(source, source)[0]
+    assert not validate_tags(source, "智能")[0]
+
+
+def test_verbatim_copy_of_an_unrepairable_source_stays_valid() -> None:
+    source = "<Bullet/> Grants 1 hit point.\n<<Bullet/> Reduces infiltration time."
+    translation = "<Bullet/> 提供1点生命值。\n<<Bullet/> 缩短渗透时间。"
+    assert validate_tags(source, translation)[0]
+    assert validate_tags(source, "<Bullet/> 提供。\n<Bullet/> 缩短。")[0]
+    assert not validate_tags(source, "<Bullet/> 提供。")[0]

@@ -616,3 +616,29 @@ class TestParseWithDynamicFiles:
         p = make_loc_file('[Section]\nKey="确定取消"')
         result = parser.parse(p)
         assert result.sections[0].entries[0].value == "确定取消"
+
+
+def test_corrections_log_one_info_summary_per_file(tmp_path: Path) -> None:
+    from loguru import logger
+
+    path = tmp_path / "Broken.int"
+    path.write_text(
+        '[Section X2Template]\nA=""Cover Me"\nB="Unclosed\nnot an entry\n',
+        encoding="utf-8",
+    )
+    records: list[tuple[str, str]] = []
+    sink = logger.add(
+        lambda m: records.append((m.record["level"].name, m.record["message"])),
+        level="DEBUG",
+    )
+    try:
+        LocFileParser().parse(path)
+    finally:
+        logger.remove(sink)
+
+    levels = [level for level, _ in records]
+    assert "WARNING" not in levels
+    assert levels.count("DEBUG") == 3
+    assert [msg for level, msg in records if level == "INFO"] == [
+        "Broken.int: auto-corrected 3 malformed lines (details at DEBUG level)"
+    ]
