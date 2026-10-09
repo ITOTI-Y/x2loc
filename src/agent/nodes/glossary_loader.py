@@ -15,6 +15,7 @@ class GlossaryLoaderOutputSchema(TypedDict):
     base_glossary: dict[str, tuple[WeblateUnitSchema, ...]]
     mods_glossary: dict[str, tuple[WeblateUnitSchema, ...]]
     patterns: dict[str, tuple[PatternSchema, ...]]
+    glossaries_loaded: bool
 
 
 async def load_glossaries(
@@ -51,4 +52,5 @@ async def load_glossaries(
         "base_glossary": base_glossary,
         "mods_glossary": mods_glossary,
         "patterns": patterns,
+        "glossaries_loaded": True,
     }

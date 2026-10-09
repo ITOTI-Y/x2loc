@@ -38,6 +38,7 @@ class StatsSchema(TypedDict):
     approved: int
     modified: int
     skipped: int
+    needs_editing: int
 
 
 @dataclass
@@ -132,7 +133,7 @@ class ReviewItemSchema(BaseSchema):
 
 class ReviewDecisionSchema(BaseSchema):
     unit_id: int
-    action: Literal["approve", "modify", "skip"]
+    action: Literal["approve", "modify", "skip", "needs_editing"]
     translation: str | None = None
 
 
@@ -142,7 +143,9 @@ class NewAgentStateSchema(BaseSchema):
     component_slug: str = ""
 
     stats: StatsSchema = Field(
-        default_factory=lambda: StatsSchema(auto=0, approved=0, modified=0, skipped=0)
+        default_factory=lambda: StatsSchema(
+            auto=0, approved=0, modified=0, skipped=0, needs_editing=0
+        )
     )
 
     base_glossary: dict[str, tuple[WeblateUnitSchema, ...]] = Field(
@@ -157,6 +160,7 @@ class NewAgentStateSchema(BaseSchema):
 
     should_continue: bool = Field(default=True)
     patterns: dict[str, tuple[PatternSchema, ...]] = Field(default_factory=dict)
+    glossaries_loaded: bool = Field(default=False)
 
     to_translate: list[WeblateUnitSchema] = Field(default_factory=list)
     is_end: bool = Field(default=False)
@@ -172,6 +176,9 @@ class NewAgentStateSchema(BaseSchema):
 
     quality_feedback: dict[int, str] = Field(default_factory=dict)
     attempts: int = Field(default=0)
+    # Highest-scoring tag-valid candidate per unit across the quality-gate
+    # rounds of the current batch: (score, translation).
+    best_candidates: dict[int, tuple[int, str]] = Field(default_factory=dict)
     retry_pending: bool = Field(default=False)
 
     approved_pairs: dict[str, str] = Field(default_factory=dict)

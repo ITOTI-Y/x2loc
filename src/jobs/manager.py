@@ -27,12 +27,12 @@ class JobManager:
     runtime wipes the work directories at startup to match.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, concurrency: int = JOB_CONCURRENCY) -> None:
         self._records: dict[str, JobRecordSchema] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._active: dict[str, str] = {}
         self._subscribers: dict[str, set[asyncio.Queue[JobRecordSchema]]] = {}
-        self._semaphore = asyncio.Semaphore(JOB_CONCURRENCY)
+        self._semaphore = asyncio.Semaphore(concurrency)
 
     def get(self, job_id: str) -> JobRecordSchema | None:
         return self._records.get(job_id)

@@ -27,7 +27,14 @@ serde = JsonPlusSerializer(
 
 
 def route_after_fetch(state: NewAgentStateSchema) -> str:
-    return "end" if state.is_end else "continue"
+    """Load glossaries lazily, on the first batch that needs translating.
+
+    A component Weblate already holds in full ends here without paying for
+    three full glossary reads and pattern mining.
+    """
+    if state.is_end:
+        return "end"
+    return "continue" if state.glossaries_loaded else "load"
 
 
 def route_after_review(state: NewAgentStateSchema) -> str:
@@ -92,11 +99,17 @@ def build_graph(
     builder.add_node("review", nodes.review)
     builder.add_node("uploader", nodes.uploader)
 
-    builder.add_edge(START, "glossary_loader")
-    builder.add_edge("glossary_loader", "fetch_empty")
+    builder.add_edge(START, "fetch_empty")
     builder.add_conditional_edges(
-        "fetch_empty", route_after_fetch, {"continue": "context_collector", "end": END}
+        "fetch_empty",
+        route_after_fetch,
+        {
+            "load": "glossary_loader",
+            "continue": "context_collector",
+            "end": END,
+        },
     )
+    builder.add_edge("glossary_loader", "context_collector")
     builder.add_edge("context_collector", "translator")
     builder.add_edge("translator", "tag_validator")
     builder.add_edge("tag_validator", "scorer")

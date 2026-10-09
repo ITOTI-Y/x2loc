@@ -116,11 +116,13 @@ class WeblateUnitSchema(BaseSchema):
 
 
 class WeblateTranslationStatsSchema(BaseSchema):
-    """The unit count of one translation, from GET translations/.../."""
+    """Unit counts of one translation, from GET translations/.../."""
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
+    language_code: str = ""
     total: int = 0
+    translated: int = 0
 
 
 class WeblatePageSchema[T: BaseSchema](BaseSchema):

@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from httpx2 import AsyncClient
 from sse_starlette import EventSourceResponse
 
-from src.agent.llm import build_llm_http_client
+from src.agent.transport import build_llm_http_client
 from src.config import ServiceConfigSchema
 from src.core.workshop import WorkshopInputError
 from src.jobs._share import GLOSSARY_TTL_SECONDS, SSE_PING_SECONDS

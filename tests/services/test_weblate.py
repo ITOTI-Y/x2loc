@@ -29,6 +29,7 @@ from src.services.weblate import (
     RETRY_MAX_ATTEMPTS,
     AsyncWeblateClient,
     WeblateAPIError,
+    units_to_csv,
 )
 
 BASE_URL = "https://weblate.example.com/api/"
@@ -443,6 +444,8 @@ async def test_search_units_single_attempt_does_not_retry(
 
 SOURCE_UNITS_PATH = f"translations/{PROJECT}/{COMPONENT}/en/units/"
 SOURCE_FILE_PATH = f"translations/{PROJECT}/{COMPONENT}/en/file/"
+TARGET_UNITS_PATH = f"translations/{PROJECT}/{COMPONENT}/{LANG}/units/"
+TARGET_FILE_PATH = f"translations/{PROJECT}/{COMPONENT}/{LANG}/file/"
 
 
 def corpus_units(*contexts: str) -> list[CorpusUnitSchema]:
@@ -452,17 +455,39 @@ def corpus_units(*contexts: str) -> list[CorpusUnitSchema]:
     ]
 
 
-def route_translation_ready(fake: FakeWeblate, total: int) -> None:
-    fake.route(
-        "POST",
-        f"components/{PROJECT}/{COMPONENT}/translations/",
-        Response(201, json={}),
-    )
+TRANSLATIONS_PATH = f"components/{PROJECT}/{COMPONENT}/translations/"
+TARGET_STATS_PATH = f"translations/{PROJECT}/{COMPONENT}/{LANG}/"
+
+
+def stats_payload(language: str, total: int, translated: int = 0) -> dict[str, Any]:
+    return {"language_code": language, "total": total, "translated": translated}
+
+
+def route_translations(fake: FakeWeblate, *translations: dict[str, Any]) -> None:
+    """Serve the component's translation counts; none at all means 404."""
+    if not translations:
+        fake.route("GET", TRANSLATIONS_PATH, Response(404))
+        return
     fake.route(
         "GET",
-        f"translations/{PROJECT}/{COMPONENT}/{LANG}/",
-        Response(200, json={"total": total}),
+        TRANSLATIONS_PATH,
+        Response(200, json=page_payload(list(translations), len(translations))),
     )
+
+
+def csv_response(*contexts: str, target: str = "") -> Response:
+    units = [
+        CorpusUnitSchema(context=c, source=f"S {c}", target=target, note="")
+        for c in contexts
+    ]
+    # A source file carries the source text in its target column.
+    content = "target" if target else "source"
+    return Response(200, content=units_to_csv(units, content=content))
+
+
+def route_translation_ready(fake: FakeWeblate, total: int) -> None:
+    fake.route("POST", TRANSLATIONS_PATH, Response(201, json={}))
+    fake.route("GET", TARGET_STATS_PATH, Response(200, json={"total": total}))
 
 
 async def test_ssl_error_is_retried(
@@ -484,15 +509,10 @@ async def test_ssl_error_is_retried(
 async def test_sync_recreates_component_without_source_units(
     client: AsyncWeblateClient, fake: FakeWeblate, sleeps: list[float]
 ) -> None:
-    fake.route(
-        "GET",
-        COMPONENT_PATH,
-        Response(200, json=component_payload(COMPONENT)),
-        Response(404),
-    )
-    fake.route("GET", SOURCE_UNITS_PATH, Response(200, json=page_payload([], 0)))
+    route_translations(fake, stats_payload("en", 0), stats_payload(LANG, 0))
     fake.route("DELETE", COMPONENT_PATH, Response(204))
     fake.route("POST", COMPONENTS_PATH, Response(201, json={}))
+    fake.route("GET", COMPONENT_PATH, Response(404))
     fake.route("PATCH", COMPONENT_PATH, Response(200, json={}))
     route_translation_ready(fake, total=2)
 
@@ -512,16 +532,13 @@ async def test_sync_recreates_component_without_source_units(
 async def test_sync_adds_only_missing_source_units(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
-    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
-    fake.route(
-        "GET",
-        SOURCE_UNITS_PATH,
-        Response(200, json=page_payload([unit_payload(1, context="a")], 1)),
-    )
+    # The target lags the source, so presence is read from the source file.
+    route_translations(fake, stats_payload("en", 1), stats_payload(LANG, 0))
+    fake.route("GET", SOURCE_FILE_PATH, csv_response("a"))
     fake.route("POST", SOURCE_FILE_PATH, Response(200, json={"accepted": 1}))
     route_translation_ready(fake, total=2)
 
-    await client.sync_corpus(
+    snapshot = await client.sync_corpus(
         COMPONENT,
         name="n",
         language=LANG,
@@ -529,11 +546,16 @@ async def test_sync_adds_only_missing_source_units(
         has_existing_target=False,
     )
 
-    uploads = [r for r in fake.requests if r.url.path == API_PREFIX + SOURCE_FILE_PATH]
+    uploads = [
+        r
+        for r in fake.requests
+        if r.method == "POST" and r.url.path == API_PREFIX + SOURCE_FILE_PATH
+    ]
     assert len(uploads) == 1
     body = uploads[0].content.decode()
     assert '"b","S b"' in body
     assert '"a","S a"' not in body
+    assert snapshot is None
 
 
 async def test_rejection_body_is_logged_with_token_masked(
@@ -556,20 +578,11 @@ async def test_rejection_body_is_logged_with_token_masked(
 async def test_sync_recreates_translation_that_never_got_units(
     client: AsyncWeblateClient, fake: FakeWeblate, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    translation_path = f"translations/{PROJECT}/{COMPONENT}/{LANG}/"
-    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
-    fake.route(
-        "GET",
-        SOURCE_UNITS_PATH,
-        Response(200, json=page_payload([unit_payload(1, context="a")], 1)),
-    )
-    fake.route(
-        "POST",
-        f"components/{PROJECT}/{COMPONENT}/translations/",
-        Response(201, json={}),
-    )
-    fake.route("GET", translation_path, Response(200, json={"total": 0}))
-    fake.route("DELETE", translation_path, Response(204))
+    route_translations(fake, stats_payload("en", 1))
+    fake.route("GET", SOURCE_FILE_PATH, csv_response("a"))
+    fake.route("POST", TRANSLATIONS_PATH, Response(201, json={}))
+    fake.route("GET", TARGET_STATS_PATH, Response(200, json={"total": 0}))
+    fake.route("DELETE", TARGET_STATS_PATH, Response(204))
     waits: list[int] = []
 
     async def wait_once_then_ready(*_args: object, expected: int) -> None:
@@ -588,5 +601,84 @@ async def test_sync_recreates_translation_that_never_got_units(
     )
 
     sent = [(r.method, r.url.path) for r in fake.requests]
-    assert ("DELETE", API_PREFIX + translation_path) in sent
+    assert ("DELETE", API_PREFIX + TARGET_STATS_PATH) in sent
     assert waits == [1, 1]
+
+
+async def test_sync_uploads_only_targets_weblate_lacks(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    route_translations(fake, stats_payload("en", 3, 3), stats_payload(LANG, 3, 1))
+    fake.route("GET", TARGET_FILE_PATH, csv_response("a", "b", "c", target="x"))
+    fake.route(
+        "GET",
+        TARGET_UNITS_PATH,
+        Response(
+            200,
+            json=page_payload(
+                [
+                    unit_payload(2, context="b", state=10),
+                    unit_payload(3, context="c", target=[""], state=0),
+                ],
+                2,
+            ),
+        ),
+    )
+    fake.route("POST", TARGET_FILE_PATH, Response(200, json={"accepted": 2}))
+    units = [
+        CorpusUnitSchema(context=c, source=f"S {c}", target=f"T {c}", note="")
+        for c in "abc"
+    ]
+
+    snapshot = await client.sync_corpus(
+        COMPONENT, name="n", language=LANG, units=units, has_existing_target=True
+    )
+
+    listed = [r for r in fake.requests if r.url.path == API_PREFIX + TARGET_UNITS_PATH]
+    assert [r.url.params["q"] for r in listed] == ["state:<translated"]
+    uploads = [
+        r
+        for r in fake.requests
+        if r.method == "POST" and r.url.path == API_PREFIX + TARGET_FILE_PATH
+    ]
+    assert len(uploads) == 1
+    body = uploads[0].content.decode()
+    assert '"b"' in body and '"c"' in body
+    assert '"a"' not in body
+    assert snapshot is None
+
+
+async def test_synced_component_costs_two_reads_and_returns_snapshot(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    route_translations(fake, stats_payload("en", 1, 1), stats_payload(LANG, 1, 1))
+    fake.route("GET", TARGET_FILE_PATH, csv_response("a", target="T a"))
+    units = [CorpusUnitSchema(context="a", source="S a", target="T a", note="")]
+
+    snapshot = await client.sync_corpus(
+        COMPONENT, name="n", language=LANG, units=units, has_existing_target=True
+    )
+
+    assert [(r.method, r.url.path) for r in fake.requests] == [
+        ("GET", API_PREFIX + TRANSLATIONS_PATH),
+        ("GET", API_PREFIX + TARGET_FILE_PATH),
+    ]
+    assert snapshot == [
+        CorpusUnitSchema(context="a", source="S a", target="T a", note="")
+    ]
+
+
+async def test_download_units_parses_translation_csv(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    payload = (
+        '"context","source","target","developer_comments"\r\n'
+        '"a","S, a","多\n行","n"\r\n'
+        '"b","S b","",""\r\n'
+    )
+    fake.route("GET", TARGET_FILE_PATH, Response(200, content=payload.encode()))
+
+    assert await client.download_units(COMPONENT, LANG) == [
+        CorpusUnitSchema(context="a", source="S, a", target="多\n行", note="n"),
+        CorpusUnitSchema(context="b", source="S b", target="", note=""),
+    ]

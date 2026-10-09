@@ -3,19 +3,17 @@ from __future__ import annotations
 import asyncio
 import math
 import shutil
+import sys
 from pathlib import Path
-from typing import Final, Protocol
+from typing import Final, Protocol, runtime_checkable
 from uuid import uuid4
 
 import httpx
 from httpx2 import TransportError
 from loguru import logger
-from openai import APIStatusError
 from pydantic import ConfigDict
 
 from src.agent.config import ConfigSchema, build_agent_config
-from src.agent.graph import build_graph, graph_recursion_limit
-from src.agent.review import ThresholdReview
 from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
 from src.core.artifact import ArtifactBuilder, ArtifactValidationError
@@ -55,7 +53,6 @@ ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
     (ArtifactValidationError, "artifact_failed"),
     (WeblateAPIError, "weblate_failed"),
     (TransportError, "weblate_failed"),
-    (APIStatusError, "llm_failed"),
     (ValueError, "invalid_request"),
 )
 
@@ -66,6 +63,11 @@ COMPONENT_NAME_MAX_LENGTH: Final[int] = 100
 def error_code(exc: BaseException) -> str:
     if isinstance(exc, BaseExceptionGroup):
         return error_code(exc.exceptions[0])
+    # The OpenAI SDK is loaded only with the translation graph; until then
+    # no LLM error can exist, so the check needs no import of its own.
+    openai = sys.modules.get("openai")
+    if openai is not None and isinstance(exc, openai.APIStatusError):
+        return "llm_failed"
     for kind, code in ERROR_CODES:
         if isinstance(exc, kind):
             return code
@@ -76,6 +78,15 @@ class WorkshopSource(Protocol):
     """Where a job obtains the Workshop item it translates."""
 
     async def download(self, workshop_id: str) -> WorkshopItemSchema: ...
+
+
+@runtime_checkable
+class PreparedWorkshopSource(WorkshopSource, Protocol):
+    """A source that already parsed its items, so jobs need not again."""
+
+    def prepared_works(
+        self, workshop_id: str, target_lang: str
+    ) -> list[AssetWorkSchema] | None: ...
 
 
 class AssetWorkSchema(BaseSchema):
@@ -170,6 +181,9 @@ class WorkshopPipeline:
         self._aligner = BilingualAligner()
         self._extractor = TermExtractor()
         self._artifact = ArtifactBuilder()
+        # Shared by every job of this pipeline, so concurrent jobs keep the
+        # in-flight LLM ceiling of one; keyed by the per-job limit.
+        self._translate_slots: dict[int, asyncio.Semaphore] = {}
 
     async def run(self, job_id: str, request: WorkshopJobRequestSchema) -> None:
         """Run one job to a terminal state.
@@ -197,7 +211,13 @@ class WorkshopPipeline:
         item = await self._source.download(request.workshop_id)
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.DISCOVERING))
-        works = await asyncio.to_thread(prepare_works, item, request.target_lang)
+        works = (
+            self._source.prepared_works(request.workshop_id, request.target_lang)
+            if isinstance(self._source, PreparedWorkshopSource)
+            else None
+        )
+        if works is None:
+            works = await asyncio.to_thread(prepare_works, item, request.target_lang)
         progress = JobProgressSchema(
             files_total=len(works),
             units_total=sum(len(work.units) for work in works),
@@ -206,24 +226,43 @@ class WorkshopPipeline:
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.SYNCING_WEBLATE))
         async with asyncio.TaskGroup() as sync_group:
-            for work in works:
+            syncs = [
                 sync_group.create_task(
                     self._sync(work, request.target_lang, item.mod_info.namespace)
                 )
+                for work in works
+            ]
+        snapshots = [task.result() for task in syncs]
+        # A component whose post-sync snapshot holds no empty target has
+        # nothing for the graph to fetch; skipping it saves a round trip and
+        # keeps its snapshot valid for the readback below.
+        pending = [
+            work
+            for work, snapshot in zip(works, snapshots, strict=True)
+            if snapshot is None or any(not unit.target for unit in snapshot)
+        ]
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.TRANSLATING))
-        translated = await self._translate(request, works)
+        translated = await self._translate(request, pending)
         progress = progress.model_copy(
             update={"units_translated": translated, "files_completed": len(works)}
         )
         self._jobs.update(job_id, JobUpdateSchema(progress=progress))
 
+        pending_slugs = {work.asset.component_slug for work in pending}
+
+        async def read_back(
+            work: AssetWorkSchema, snapshot: list[CorpusUnitSchema] | None
+        ) -> dict[str, str]:
+            slug = work.asset.component_slug
+            if snapshot is None or slug in pending_slugs:
+                snapshot = await self._weblate.download_units(slug, request.target_lang)
+            return self._authoritative(work, snapshot)
+
         async with asyncio.TaskGroup() as readback_group:
             readback = [
-                readback_group.create_task(
-                    self._authoritative(work, request.target_lang)
-                )
-                for work in works
+                readback_group.create_task(read_back(work, snapshot))
+                for work, snapshot in zip(works, snapshots, strict=True)
             ]
         authoritative = [task.result() for task in readback]
         progress = progress.model_copy(
@@ -269,47 +308,66 @@ class WorkshopPipeline:
 
     async def _sync(
         self, work: AssetWorkSchema, target_lang: str, namespace: str
-    ) -> None:
+    ) -> list[CorpusUnitSchema] | None:
+        """Sync one component; return its target units if still current.
+
+        The snapshot is None once mismatched tags were cleared from it.
+        """
         # The slug is already unique per mod and file; the display name
         # carries the mod namespace because a bare relative path such as
         # "Localization/XComGame.int" is identical across most mods and
         # Weblate rejects duplicate component names within one project.
-        await self._weblate.sync_corpus(
+        snapshot = await self._weblate.sync_corpus(
             work.asset.component_slug,
             name=component_name(work.asset, namespace),
             language=target_lang,
             units=work.units,
             has_existing_target=work.asset.existing_target_path is not None,
         )
-        await self._clear_tag_mismatches(work, target_lang)
+        if snapshot is None:
+            snapshot = await self._weblate.download_units(
+                work.asset.component_slug, target_lang
+            )
+        if await self._clear_tag_mismatches(work, target_lang, snapshot):
+            return None
+        return snapshot
 
     async def _clear_tag_mismatches(
-        self, work: AssetWorkSchema, target_lang: str
-    ) -> None:
+        self,
+        work: AssetWorkSchema,
+        target_lang: str,
+        snapshot: list[CorpusUnitSchema],
+    ) -> bool:
         """Empty held translations whose tags disagree with their source.
 
         Such a translation, typically shipped in the mod's own `.chn`, would
         fail the overlay check; emptied, it is retranslated like any
-        untranslated unit.
+        untranslated unit. Returns whether anything was cleared.
         """
-        units = await self._weblate.list_units(work.asset.component_slug, target_lang)
-        broken = [
-            unit
-            for unit in units
+        slug = work.asset.component_slug
+        broken_contexts = {
+            unit.context
+            for unit in snapshot
             if unit.context in work.expected
             and unit.target.strip()
             and not validate_tags(unit.source, unit.target)[0]
+        }
+        if not broken_contexts:
+            return False
+        # Patching needs unit ids, which only the (slow) units API carries.
+        broken = [
+            unit
+            for unit in await self._weblate.list_units(slug, target_lang)
+            if unit.context in broken_contexts
         ]
         for unit in broken:
             await self._weblate.patch_unit(
                 unit.id, WeblateUnitPatchSchema(target=[""], state=WEBLATE_STATE_EMPTY)
             )
-        if broken:
-            logger.warning(
-                "Cleared {} translations with mismatched tags in {}",
-                len(broken),
-                work.asset.component_slug,
-            )
+        logger.warning(
+            "Cleared {} translations with mismatched tags in {}", len(broken), slug
+        )
+        return True
 
     async def _translate(
         self, request: WorkshopJobRequestSchema, works: list[AssetWorkSchema]
@@ -320,6 +378,13 @@ class WorkshopPipeline:
         once, so component concurrency is their quotient into
         `llm_concurrency`, keeping the in-flight request ceiling there.
         """
+        if not works:
+            return 0
+        # Deferred: the LangChain/LangGraph stack costs ~1.5 s to import, and
+        # a run over already translated mods never needs it.
+        from src.agent.graph import build_graph, graph_recursion_limit
+        from src.agent.review import ThresholdReview
+
         agent_config = self._agent_config(request)
         graph, nodes = build_graph(
             agent_config,
@@ -332,7 +397,7 @@ class WorkshopPipeline:
             agent_config.batch_size / agent_config.units_per_request
         )
         limit = max(1, request.llm_concurrency // requests_per_batch)
-        semaphore = asyncio.Semaphore(limit)
+        semaphore = self._translate_slots.setdefault(limit, asyncio.Semaphore(limit))
 
         async def translate_one(work: AssetWorkSchema) -> int:
             async with semaphore:
@@ -358,17 +423,17 @@ class WorkshopPipeline:
             await nodes.aclose()
         return sum(task.result() for task in tasks)
 
-    async def _authoritative(
-        self, work: AssetWorkSchema, target_lang: str
+    @staticmethod
+    def _authoritative(
+        work: AssetWorkSchema, units: list[CorpusUnitSchema]
     ) -> dict[str, str]:
-        """Read back Weblate's own view of the component.
+        """Weblate's own view of the component, from a fresh read.
 
         Weblate is the authority: whatever it holds wins over the local
         `.chn`, so the overlay is built from this read, not from what the
         translator produced. Units still empty here (skipped by the quality
         gate) are absent from the result, and the overlay keeps their source.
         """
-        units = await self._weblate.list_units(work.asset.component_slug, target_lang)
         result: dict[str, str] = {}
         for unit in units:
             expected_source = work.expected.get(unit.context)

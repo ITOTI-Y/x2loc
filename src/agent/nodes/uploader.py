@@ -7,6 +7,7 @@ from loguru import logger
 from src.models.agent import NewAgentStateSchema, StatsSchema
 from src.models.weblate import WeblateUnitPatchSchema
 from src.services.weblate import (
+    WEBLATE_STATE_FUZZY,
     WEBLATE_STATE_TRANSLATED,
     AsyncWeblateClient,
     WeblateAPIError,
@@ -30,7 +31,7 @@ class BackgroundUploader:
         self._client = client
         self._tasks: set[asyncio.Task[None]] = set()
 
-    def submit(self, items: list[tuple[int, str]]) -> None:
+    def submit(self, items: list[tuple[int, str, int]]) -> None:
         if not items:
             return
         self._tasks.add(asyncio.create_task(self._upload(items)))
@@ -44,20 +45,19 @@ class BackgroundUploader:
         if errors:
             raise BaseExceptionGroup("background Weblate uploads failed", errors)
 
-    async def _upload(self, items: list[tuple[int, str]]) -> None:
+    async def _upload(self, items: list[tuple[int, str, int]]) -> None:
         results = await asyncio.gather(
-            *[self._patch(unit_id, target) for unit_id, target in items]
+            *[self._patch(unit_id, target, state) for unit_id, target, state in items]
         )
         failed = len(items) - sum(results)
         if failed:
             raise WeblateAPIError(502, f"{failed}/{len(items)} unit patches")
         logger.success(f"[UPLOAD] {len(items)} units patched")
 
-    async def _patch(self, unit_id: int, target: str) -> bool:
+    async def _patch(self, unit_id: int, target: str, state: int) -> bool:
         try:
             await self._client.patch_unit(
-                unit_id,
-                WeblateUnitPatchSchema(target=[target], state=WEBLATE_STATE_TRANSLATED),
+                unit_id, WeblateUnitPatchSchema(target=[target], state=state)
             )
         except (WeblateAPIError, TransportError) as exc:
             logger.error(f"PATCH failed for unit {unit_id}: {exc!r}")
@@ -69,8 +69,8 @@ async def uploader(
     state: NewAgentStateSchema, *, background_uploader: BackgroundUploader
 ) -> UploaderOutputSchema:
     units = {u.id: u for u in state.scores}
-    items: list[tuple[int, str]] = []
-    n_approved = n_modified = n_skipped = 0
+    items: list[tuple[int, str, int]] = []
+    n_approved = n_modified = n_skipped = n_needs_editing = 0
 
     for decision in state.decisions:
         unit = units.get(decision.unit_id)
@@ -79,11 +79,15 @@ async def uploader(
         if decision.action == "skip" or not target:
             n_skipped += 1
             continue
+        state_code = WEBLATE_STATE_TRANSLATED
         if decision.action == "approve":
             n_approved += 1
+        elif decision.action == "needs_editing":
+            n_needs_editing += 1
+            state_code = WEBLATE_STATE_FUZZY
         else:
             n_modified += 1
-        items.append((decision.unit_id, target))
+        items.append((decision.unit_id, target, state_code))
 
     background_uploader.submit(items)
 
@@ -93,5 +97,6 @@ async def uploader(
             approved=state.stats["approved"] + n_approved,
             modified=state.stats["modified"] + n_modified,
             skipped=state.stats["skipped"] + n_skipped,
+            needs_editing=state.stats["needs_editing"] + n_needs_editing,
         )
     }

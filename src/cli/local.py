@@ -7,7 +7,7 @@ standalone overlay mod under the game's `XComGame/Mods` directory.
 
 import asyncio
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 from loguru import logger
@@ -17,7 +17,7 @@ from src.config import LocalConfigSchema, ServiceConfigSchema
 from src.core.mod_resolver import ModResolveError
 from src.core.overlay_mod import install_overlay
 from src.core.workshop import WorkshopInputError, load_workshop_item
-from src.jobs.pipeline import prepare_works
+from src.jobs.pipeline import AssetWorkSchema, prepare_works
 from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.models.job import JobStatus
 from src.models.workshop import (
@@ -26,15 +26,41 @@ from src.models.workshop import (
     WorkshopLimitsSchema,
 )
 
+# Most local mods are already translated and only wait on Weblate round
+# trips, so several run at once; the LLM ceiling stays shared across them.
+DEFAULT_LOCAL_JOBS: Final = 32
+
 
 class LocalWorkshopSource:
-    """Serve items that were scanned from disk before the run started."""
+    """Serve items that were scanned and parsed before the run started."""
 
-    def __init__(self, items: dict[str, WorkshopItemSchema]) -> None:
+    def __init__(
+        self,
+        items: dict[str, WorkshopItemSchema],
+        works: dict[str, list[AssetWorkSchema]],
+    ) -> None:
         self._items = items
+        self._works = works
+
+    def add(
+        self,
+        items: dict[str, WorkshopItemSchema],
+        works: dict[str, list[AssetWorkSchema]],
+    ) -> None:
+        """Register mods scanned after the pipeline was opened."""
+        self._items.update(items)
+        self._works.update(works)
 
     async def download(self, workshop_id: str) -> WorkshopItemSchema:
         return self._items[workshop_id]
+
+    def prepared_works(
+        self, workshop_id: str, target_lang: str
+    ) -> list[AssetWorkSchema] | None:
+        """The scan's parse, handed over once; a repeat parses afresh."""
+        if target_lang != TARGET_LANGUAGE:
+            return None
+        return self._works.pop(workshop_id, None)
 
 
 def local(
@@ -61,28 +87,34 @@ def local(
             "--llm-concurrency",
             min=1,
             max=MAX_LLM_CONCURRENCY,
-            help="LLM requests in flight per job.",
+            help="LLM requests in flight, shared by concurrent mods.",
         ),
     ] = DEFAULT_LLM_CONCURRENCY,
+    jobs: Annotated[
+        int,
+        typer.Option(
+            "--jobs",
+            "-j",
+            min=1,
+            help="Mods processed concurrently.",
+        ),
+    ] = DEFAULT_LOCAL_JOBS,
 ) -> None:
     """Translate local Workshop mods and install them as overlay mods."""
     config = ServiceConfigSchema.from_toml(config_path)
     config = config.model_copy(update={"data_root": config.data_root / "local"})
     paths = _resolve_paths(config.local, workshop_dir, mods_dir)
-    items, skipped = _load_items(paths.workshop_dir, workshop_ids, config.limits)
-    logger.info("{} local mods to translate, {} skipped", len(items), len(skipped))
     run_dir = new_run_dir(output)
-    results = skipped
-    if items:
-        results += asyncio.run(
-            _run(
-                config,
-                items,
-                mods_dir=paths.mods_dir,
-                run_dir=run_dir,
-                llm_concurrency=llm_concurrency,
-            )
+    results = asyncio.run(
+        _run(
+            config,
+            paths,
+            workshop_ids,
+            run_dir=run_dir,
+            llm_concurrency=llm_concurrency,
+            jobs=jobs,
         )
+    )
     write_summary(run_dir, results)
 
 
@@ -107,11 +139,15 @@ def _resolve_paths(
 
 def _load_items(
     workshop_dir: Path, wanted: list[str] | None, limits: WorkshopLimitsSchema
-) -> tuple[dict[str, WorkshopItemSchema], list[dict[str, object]]]:
+) -> tuple[
+    dict[str, WorkshopItemSchema],
+    dict[str, list[AssetWorkSchema]],
+    list[dict[str, object]],
+]:
     """Scan the local mods up front; mods with nothing to translate are skipped.
 
-    Every source file is parsed here and again by the job; the repeat costs
-    seconds even for the largest mods.
+    The parsed works are returned alongside the items so the jobs reuse
+    them instead of parsing every source file a second time.
     """
     available = {
         path.name: path
@@ -127,11 +163,12 @@ def _load_items(
         available = {workshop_id: available[workshop_id] for workshop_id in wanted}
 
     items: dict[str, WorkshopItemSchema] = {}
+    works: dict[str, list[AssetWorkSchema]] = {}
     skipped: list[dict[str, object]] = []
     for workshop_id, mod_root in available.items():
         try:
             item = load_workshop_item(mod_root, workshop_id, limits)
-            prepare_works(item, TARGET_LANGUAGE)
+            works[workshop_id] = prepare_works(item, TARGET_LANGUAGE)
         except (WorkshopInputError, ModResolveError) as exc:
             logger.warning("[{}] skipped: {}", workshop_id, exc)
             skipped.append(
@@ -139,41 +176,68 @@ def _load_items(
             )
             continue
         items[workshop_id] = item
-    return items, skipped
+    return items, works, skipped
 
 
 async def _run(
     config: ServiceConfigSchema,
-    items: dict[str, WorkshopItemSchema],
+    paths: LocalConfigSchema,
+    wanted: list[str] | None,
     *,
-    mods_dir: Path,
     run_dir: Path,
     llm_concurrency: int,
+    jobs: int,
 ) -> list[dict[str, object]]:
-    results: list[dict[str, object]] = []
-    async with open_pipeline(config, LocalWorkshopSource(items)) as (
-        manager,
-        pipeline,
-    ):
-        for workshop_id, item in items.items():
-            title = item.mod_info.mod_title
-            result = await translate_item(
-                manager,
-                pipeline,
-                workshop_id=workshop_id,
-                title=title,
-                run_dir=run_dir,
-                llm_concurrency=llm_concurrency,
+    """Scan the mods and translate them; returns skipped entries first.
+
+    The scan is CPU-bound and opening the pipeline waits on Weblate, so the
+    two overlap; jobs are submitted only once the scan is done.
+    """
+    scan = asyncio.create_task(
+        asyncio.to_thread(_load_items, paths.workshop_dir, wanted, config.limits)
+    )
+    source = LocalWorkshopSource({}, {})
+    try:
+        async with open_pipeline(config, source, job_concurrency=jobs) as (
+            manager,
+            pipeline,
+        ):
+            items, works, skipped = await scan
+            logger.info(
+                "{} local mods to translate, {} skipped", len(items), len(skipped)
             )
-            if result["status"] == JobStatus.SUCCEEDED:
-                installed = await asyncio.to_thread(
-                    install_overlay,
-                    artifact=run_dir / f"{workshop_id}.zip",
-                    mods_dir=mods_dir,
+            source.add(items, works)
+
+            async def run_one(
+                workshop_id: str, item: WorkshopItemSchema
+            ) -> dict[str, object]:
+                title = item.mod_info.mod_title
+                result = await translate_item(
+                    manager,
+                    pipeline,
                     workshop_id=workshop_id,
                     title=title,
+                    run_dir=run_dir,
+                    llm_concurrency=llm_concurrency,
                 )
-                logger.success("[{}] installed to {}", workshop_id, installed)
-                result["installed"] = str(installed)
-            results.append(result)
-    return results
+                if result["status"] == JobStatus.SUCCEEDED:
+                    installed = await asyncio.to_thread(
+                        install_overlay,
+                        artifact=run_dir / f"{workshop_id}.zip",
+                        mods_dir=paths.mods_dir,
+                        workshop_id=workshop_id,
+                        title=title,
+                    )
+                    logger.success("[{}] installed to {}", workshop_id, installed)
+                    result["installed"] = str(installed)
+                return result
+
+            # JobManager caps how many run at once; results keep the item order.
+            translated = await asyncio.gather(
+                *(run_one(workshop_id, item) for workshop_id, item in items.items())
+            )
+    finally:
+        # Opening the pipeline failed before the scan was awaited.
+        if not scan.done():
+            await asyncio.gather(scan, return_exceptions=True)
+    return [*skipped, *translated]

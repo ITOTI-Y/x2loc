@@ -212,8 +212,9 @@ async def validate_weblate_components(
     migrates them, so a missing one must stop startup rather than surface
     as a confusing mid-job failure.
     """
-    for slug in (glossary.base_slug, glossary.mods_slug, glossary.custom_slug):
-        component = await client.get_component(slug)
+    slugs = (glossary.base_slug, glossary.mods_slug, glossary.custom_slug)
+    components = await asyncio.gather(*(client.get_component(s) for s in slugs))
+    for slug, component in zip(slugs, components, strict=True):
         if component is None:
             raise RuntimeError(f"required Weblate component is missing: {slug}")
         if component.file_format != "csv":

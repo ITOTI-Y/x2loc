@@ -20,10 +20,10 @@ import typer
 from httpx2 import AsyncClient
 from loguru import logger
 
-from src.agent.llm import build_llm_http_client
+from src.agent.transport import build_llm_http_client
 from src.config import ServiceConfigSchema
 from src.core.workshop import parse_workshop_url
-from src.jobs._share import GLOSSARY_TTL_SECONDS
+from src.jobs._share import GLOSSARY_TTL_SECONDS, JOB_CONCURRENCY
 from src.jobs.manager import JobManager
 from src.jobs.pipeline import WorkshopPipeline, WorkshopSource, reset_work_dirs
 from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
@@ -127,7 +127,10 @@ async def _run(
 
 @asynccontextmanager
 async def open_pipeline(
-    config: ServiceConfigSchema, source: WorkshopSource
+    config: ServiceConfigSchema,
+    source: WorkshopSource,
+    *,
+    job_concurrency: int = JOB_CONCURRENCY,
 ) -> AsyncGenerator[tuple[JobManager, WorkshopPipeline]]:
     """Wire one in-process pipeline over the persistent glossary store.
 
@@ -147,7 +150,7 @@ async def open_pipeline(
                 component_slug=config.glossary.custom_slug,
                 target_lang=TARGET_LANGUAGE,
             )
-            manager = JobManager()
+            manager = JobManager(job_concurrency)
             pipeline = WorkshopPipeline(
                 config=config,
                 jobs=manager,
@@ -157,10 +160,17 @@ async def open_pipeline(
                 glossaries=store,
                 llm_client=llm_client,
             )
+            # Every job's term extraction reads the custom glossary; syncing it
+            # while the jobs talk to Weblate keeps it off the tail of the run.
+            warm = asyncio.create_task(
+                store.units(config.glossary.custom_slug, TARGET_LANGUAGE)
+            )
             try:
                 yield manager, pipeline
             finally:
                 await manager.close()
+                warm.cancel()
+                await asyncio.gather(warm, return_exceptions=True)
             published = await writer.flush(weblate)
             logger.success("Published {} new custom glossary terms", published)
     finally:
