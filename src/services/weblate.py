@@ -36,6 +36,7 @@ from src.models.weblate import (
 )
 
 WEBLATE_STATE_EMPTY: Final[int] = 0
+WEBLATE_STATE_FUZZY: Final[int] = 10
 WEBLATE_STATE_TRANSLATED: Final[int] = 20
 
 # Ordinary calls must fail fast; only file uploads legitimately run for
@@ -144,6 +145,18 @@ def units_to_csv(
             }
         )
     return buffer.getvalue().encode("utf-8")
+
+
+def _csv_to_units(text: str) -> list[CorpusUnitSchema]:
+    return [
+        CorpusUnitSchema(
+            context=row["context"],
+            source=row["source"],
+            target=row["target"],
+            note=row.get("developer_comments") or "",
+        )
+        for row in csv.DictReader(io.StringIO(text))
+    ]
 
 
 def _batched(units: list[CorpusUnitSchema], size: int) -> list[list[CorpusUnitSchema]]:
@@ -268,7 +281,9 @@ class AsyncWeblateClient:
             expected_statuses=frozenset({400, 409}),
         )
 
-    async def translation_total(self, component_slug: str, language: str) -> int:
+    async def translation_stats(
+        self, component_slug: str, language: str
+    ) -> WeblateTranslationStatsSchema:
         response = await self._request(
             WeblateRequestSchema(
                 method="GET",
@@ -278,7 +293,60 @@ class AsyncWeblateClient:
                 ),
             )
         )
-        return WeblateTranslationStatsSchema.model_validate(response.json()).total
+        return WeblateTranslationStatsSchema.model_validate(response.json())
+
+    async def component_translations(
+        self, component_slug: str
+    ) -> dict[str, WeblateTranslationStatsSchema] | None:
+        """Counts of every translation of a component, or None if it is missing.
+
+        One request answers what a component lookup plus a counts read per
+        language would.
+        """
+        response = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path=(
+                    f"components/{self.config.project_slug}/{component_slug}"
+                    "/translations/"
+                ),
+            ),
+            expected_statuses=frozenset({404}),
+        )
+        if response.status_code == 404:
+            return None
+        page = WeblatePageSchema[WeblateTranslationStatsSchema].model_validate(
+            response.json()
+        )
+        return {stats.language_code: stats for stats in page.results}
+
+    async def translation_total(self, component_slug: str, language: str) -> int:
+        return (await self.translation_stats(component_slug, language)).total
+
+    async def download_units(
+        self, component_slug: str, language: str
+    ) -> list[CorpusUnitSchema]:
+        """Every unit of one translation, read from its CSV file.
+
+        The units API serializes ~2.5 ms of server time and ~1 KB of JSON per
+        unit; the file is the same data at a fraction of both, so whole-
+        translation reads that need no unit ids or states go through it.
+        Weblate commits the translation's pending changes before serving
+        the file, so it reflects every accepted edit.
+        """
+        response = await self._request(
+            WeblateRequestSchema(
+                method="GET",
+                path=(
+                    f"translations/{self.config.project_slug}/{component_slug}"
+                    f"/{language}/file/"
+                ),
+            ),
+            timeout=HTTP_UPLOAD_TIMEOUT,
+        )
+        return await asyncio.to_thread(
+            _csv_to_units, response.content.decode("utf-8-sig")
+        )
 
     async def delete_translation(self, component_slug: str, language: str) -> None:
         await self._request(
@@ -298,17 +366,18 @@ class AsyncWeblateClient:
         *,
         expected: int,
         timeout: float = TRANSLATION_READY_TIMEOUT,
-    ) -> None:
-        """Return once the translation holds `expected` units, else raise."""
+    ) -> WeblateTranslationStatsSchema:
+        """Return the counts once the translation holds `expected` units."""
         deadline = time.monotonic() + timeout
         delay = 0.5
         while True:
-            total = await self.translation_total(component_slug, language)
-            if total >= expected:
-                return
+            stats = await self.translation_stats(component_slug, language)
+            if stats.total >= expected:
+                return stats
             if time.monotonic() + delay > deadline:
                 raise WeblateAPIError(
-                    504, f"{component_slug}/{language} has {total}/{expected} units"
+                    504,
+                    f"{component_slug}/{language} has {stats.total}/{expected} units",
                 )
             await asyncio.sleep(delay)
             delay = min(delay * 2, TRANSLATION_READY_MAX_DELAY)
@@ -453,15 +522,21 @@ class AsyncWeblateClient:
         language: str,
         units: list[CorpusUnitSchema],
         has_existing_target: bool,
-    ) -> None:
+    ) -> list[CorpusUnitSchema] | None:
         """Bring one component's source strings and existing targets up to date.
 
         Creates the component from a source docfile when it is missing,
         otherwise appends only the source strings it lacks with
         `method="add"`. A component left with no source units (its docfile
         import never materialized) holds no data and is recreated. Existing
-        targets are filled with `method="translate", conflicts="ignore"` so
+        targets are filled, only for units Weblate does not yet count as
+        translated, with `method="translate", conflicts="ignore"` so
         Weblate keeps whatever it already holds — Weblate is the authority.
+
+        Returns the target translation's units when they were read and
+        nothing was written afterwards, so the caller can skip a re-read;
+        None otherwise. On an already synced component this costs two
+        requests: the translation counts and the target file.
 
         An empty unit list is a caller error: creating a header-only
         component is undefined behavior on Weblate's side, and the pipeline
@@ -469,15 +544,31 @@ class AsyncWeblateClient:
         """
         if not units:
             raise ValueError(f"sync_corpus received no units for {component_slug}")
+        source_language = self.config.source_language
+        expected = len({unit.context for unit in units if unit.source})
+        translations = await self.component_translations(component_slug)
+        exists = translations is not None
+        source_stats = translations.get(source_language) if translations else None
+        held = translations.get(language) if translations else None
+        snapshot: list[CorpusUnitSchema] | None = None
         pending = units
-        exists = await self.get_component(component_slug) is not None
         if exists:
-            present = {
-                unit.context
-                for unit in await self.list_units(
-                    component_slug, self.config.source_language
-                )
-            }
+            # A component whose docfile import never materialized may have
+            # no file to download; the count settles emptiness first.
+            if source_stats is None or not source_stats.total:
+                present: set[str] = set()
+            elif held is not None and held.total == source_stats.total:
+                # Every source unit has its counterpart in the target
+                # translation, so one file answers both reads.
+                snapshot = await self.download_units(component_slug, language)
+                present = {unit.context for unit in snapshot}
+            else:
+                present = {
+                    unit.context
+                    for unit in await self.download_units(
+                        component_slug, source_language
+                    )
+                }
             if present:
                 pending = [unit for unit in units if unit.context not in present]
             else:
@@ -501,15 +592,44 @@ class AsyncWeblateClient:
         for batch in source_batches:
             await self.upload_file(
                 component_slug,
-                self.config.source_language,
+                source_language,
                 await asyncio.to_thread(units_to_csv, batch, content="source"),
                 method="add",
             )
 
+        # Counts read before any source change still describe a translation
+        # that already holds every unit; otherwise wait for it to fill.
+        if not exists or pending or held is None or held.total < expected:
+            held = await self._ensure_translation_ready(
+                component_slug, language, expected=expected
+            )
+            snapshot = None
+        if not has_existing_target:
+            return snapshot
+        # A file import costs Weblate seconds per batch even when
+        # `conflicts="ignore"` skips every row, so only the units Weblate does
+        # not yet count as translated are sent; a fully translated
+        # translation is settled by its counts alone.
+        if held.translated >= held.total:
+            return snapshot
+        lacking = {
+            unit.context
+            for unit in await self.list_units(
+                component_slug, language, q="state:<translated"
+            )
+        }
+        missing = [unit for unit in units if unit.context in lacking and unit.target]
+        if missing:
+            await self.upload_targets(component_slug, language, missing)
+            snapshot = None
+        return snapshot
+
+    async def _ensure_translation_ready(
+        self, component_slug: str, language: str, *, expected: int
+    ) -> WeblateTranslationStatsSchema:
         await self.ensure_translation(component_slug, language)
-        expected = len({unit.context for unit in units if unit.source})
         try:
-            await self.wait_for_translation_units(
+            return await self.wait_for_translation_units(
                 component_slug, language, expected=expected
             )
         except WeblateAPIError:
@@ -524,12 +644,9 @@ class AsyncWeblateClient:
             )
             await self.delete_translation(component_slug, language)
             await self.ensure_translation(component_slug, language)
-            await self.wait_for_translation_units(
+            return await self.wait_for_translation_units(
                 component_slug, language, expected=expected
             )
-        if not has_existing_target:
-            return
-        await self.upload_targets(component_slug, language, units)
 
     async def _upload_targets(
         self, component_slug: str, language: str, payload: bytes

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Final
 
-import httpx
 from httpx import AsyncClient
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
@@ -17,6 +16,7 @@ from src.agent.prompts import (
     tag_fix_system_blocks,
     translation_system_blocks,
 )
+from src.agent.transport import build_llm_http_client as build_llm_http_client
 from src.models.agent import (
     AgentInputSchema,
     ScoreBatchOutputSchema,
@@ -127,17 +127,3 @@ def build_scorer_llm(
         system_prompt=SystemMessage(content=[dict(system_blocks)]),
         response_format=ToolStrategy(ScoreBatchOutputSchema, handle_errors=False),
     )
-
-
-def build_llm_http_client(timeout_seconds: float) -> httpx.AsyncClient:
-    """Shared LLM transport for every job's ChatOpenAI instances.
-
-    Every LLM call goes through `abatch`, so only the async transport is
-    wired; the SDK's implicit sync client is never used.
-
-    `trust_env=False` ignores proxy environment variables and
-    `follow_redirects=False` refuses 30x, so neither can steer an outbound
-    call away from the caller-supplied LLM endpoint.
-    """
-    timeout = httpx.Timeout(timeout_seconds, connect=10.0)
-    return httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False)

@@ -28,9 +28,10 @@ def test_load_items_skips_mod_without_localization(tmp_path: Path) -> None:
     _write_mod(tmp_path / "222", localized=False)
     (tmp_path / "not-a-mod").mkdir()
 
-    items, skipped = _load_items(tmp_path, None, LIMITS)
+    items, works, skipped = _load_items(tmp_path, None, LIMITS)
 
     assert list(items) == ["111"]
+    assert list(works) == ["111"] and works["111"]
     assert items["111"].mod_info.mod_title == "Test Mod"
     assert [entry["workshop_id"] for entry in skipped] == ["222"]
 

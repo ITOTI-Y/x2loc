@@ -21,6 +21,7 @@ class ReviewOutputSchema(TypedDict):
     quality_feedback: dict[int, str]
     attempts: int
     retry_pending: bool
+    best_candidates: dict[int, tuple[int, str]]
 
 
 class ReviewPolicy(Protocol):
@@ -55,6 +56,7 @@ class InterruptReview:
             "quality_feedback": {},
             "attempts": 0,
             "retry_pending": False,
+            "best_candidates": {},
         }
 
 
@@ -62,9 +64,11 @@ class ThresholdReview:
     """Accept on a valid tag set and a score at or above the threshold.
 
     Failures are fed back into the next translation round. Once
-    `max_translation_attempts` rounds are spent the remaining failures are
-    skipped: they stay empty in Weblate for a human to fill, and the overlay
-    keeps their source text.
+    `max_translation_attempts` rounds are spent, each remaining failure gets
+    its highest-scoring tag-valid candidate from any round, written as
+    "needs editing" for a human to review; that state also keeps it out of
+    the next run's empty-unit fetch. A unit with no tag-valid candidate is
+    skipped and stays empty: a broken tag set would fail the overlay check.
     """
 
     extracts_patterns = False
@@ -89,6 +93,14 @@ class ThresholdReview:
             else:
                 failed.append(unit)
 
+        best = dict(state.best_candidates)
+        for unit in failed:
+            score = unit.score_result.score if unit.score_result else 0
+            if unit.translated.strip() and unit.tag_valid:
+                previous = best.get(unit.id)
+                if previous is None or score > previous[0]:
+                    best[unit.id] = (score, unit.translated)
+
         if not failed:
             return {
                 "decisions": accepted,
@@ -97,35 +109,52 @@ class ThresholdReview:
                 "quality_feedback": {},
                 "attempts": 0,
                 "retry_pending": False,
+                "best_candidates": {},
             }
 
         attempts = state.attempts + 1
         if attempts >= agent_config.max_translation_attempts:
+            exhausted: list[ReviewDecisionSchema] = []
             for unit in failed:
                 score = unit.score_result.score if unit.score_result else 0
                 notes = unit.score_result.notes if unit.score_result else ""
+                candidate = best.get(unit.id)
                 logger.warning(
-                    "Quality gate exhausted, leaving unit {} [{}] empty: score={} "
+                    "Quality gate exhausted for unit {} [{}], {}: score={} "
                     "tag_valid={} notes={!r} source={!r} last_translation={!r}",
                     unit.id,
                     unit.key,
+                    (
+                        f"writing best candidate (score {candidate[0]}) "
+                        "as needs editing"
+                        if candidate
+                        else "leaving it empty"
+                    ),
                     score,
                     unit.tag_valid,
                     notes,
                     unit.source[:120],
                     unit.translated[:120],
                 )
-            skipped = [
-                ReviewDecisionSchema(unit_id=unit.id, action="skip", translation="")
-                for unit in failed
-            ]
+                exhausted.append(
+                    ReviewDecisionSchema(
+                        unit_id=unit.id,
+                        action="needs_editing",
+                        translation=candidate[1],
+                    )
+                    if candidate
+                    else ReviewDecisionSchema(
+                        unit_id=unit.id, action="skip", translation=""
+                    )
+                )
             return {
-                "decisions": accepted + skipped,
+                "decisions": accepted + exhausted,
                 "accepted_decisions": [],
                 "to_translate": [],
                 "quality_feedback": {},
                 "attempts": 0,
                 "retry_pending": False,
+                "best_candidates": {},
             }
 
         logger.warning(
@@ -141,6 +170,7 @@ class ThresholdReview:
             "quality_feedback": {unit.id: _feedback(unit) for unit in failed},
             "attempts": attempts,
             "retry_pending": True,
+            "best_candidates": best,
         }
 
 

@@ -4,24 +4,28 @@ from typing import Annotated
 from uuid import uuid4
 
 import typer
-from langchain_core.runnables import RunnableConfig
-from langgraph.types import Command
 
 from src.agent._share import GRAPH_RECURSION_LIMIT
 from src.agent.config import ConfigSchema, build_agent_config
-from src.agent.graph import build_graph
-from src.agent.review import InterruptReview
 from src.config import ServiceConfigSchema
 from src.models._share import DEFAULT_LLM_CONCURRENCY
 from src.models.agent import NewAgentStateSchema, TranslationUnitSchema
 from src.models.workshop import TARGET_LANGUAGE
-from src.ui.user import prompt_user_review
 
 app = typer.Typer(name="agent", help="LangGraph glossary translation agent.")
 
 
 async def _run_async(config: ConfigSchema, auto_accept: bool) -> None:
     """Drive the graph through its async API."""
+    # Deferred so that `x2loc` commands which never run the graph skip the
+    # LangChain/LangGraph import.
+    from langchain_core.runnables import RunnableConfig
+    from langgraph.types import Command
+
+    from src.agent.graph import build_graph
+    from src.agent.review import InterruptReview
+    from src.ui.user import prompt_user_review
+
     graph, nodes = build_graph(config, review=InterruptReview())
     thread: RunnableConfig = {
         "configurable": {"thread_id": str(uuid4())},
