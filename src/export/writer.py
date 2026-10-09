@@ -88,7 +88,9 @@ def glossary_to_csv(glossary: Glossary) -> str:
             "category": term.category,
             "context_section": first_ctx.section_raw if first_ctx else "",
             "context_key": first_ctx.key if first_ctx else "",
-            "context_source_file": str(first_ctx.source_path) if first_ctx else "",
+            "context_source_file": (
+                first_ctx.source_path.as_posix() if first_ctx else ""
+            ),
             "do_not_translate": "true" if term.do_not_translate else "",
             "same_as_source": "true" if term.same_as_source else "",
             "context_count": len(term.contexts),
