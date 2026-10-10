@@ -1,29 +1,12 @@
-import asyncio
 import re
-from collections import Counter
 from collections.abc import Mapping, Sequence
 from functools import cache
-from typing import Final
 
 from rapidfuzz import process
 from rapidfuzz.fuzz import WRatio
 
-from src.agent._share import (
-    CONTEXT_SEARCH_ATTEMPTS,
-    CONTEXT_SEARCH_TIMEOUT,
-    DEFAULT_NEARBY_RANGE,
-    MAX_CONTEXT_COMPONENTS,
-    MAX_MATCHES_PER_COMPONENT,
-)
-from src.models.agent import ComponentInfoSchema, PatternSchema
-from src.models.weblate import WeblateRequestParamsSchema, WeblateUnitSchema
-from src.services.weblate import AsyncWeblateClient
-
-_HTML_TAG_RE: Final = re.compile(r"<[^>]+>")
-
-
-def strip_html(text: str) -> str:
-    return _HTML_TAG_RE.sub("", text).strip()
+from src.models.agent import PatternSchema
+from src.models.weblate import WeblateUnitSchema
 
 
 def lookup_glossary(
@@ -118,86 +101,3 @@ def _phrase_hits(
         for i in range(len(words) - n + 1):
             phrases.add(" ".join(words[i : i + n]))
     return {key for key in glossary if len(key) >= 3 and key.lower() in phrases}
-
-
-async def collect_context_for_term(
-    client: AsyncWeblateClient,
-    input_unit: WeblateUnitSchema,
-    nearby_range: int = DEFAULT_NEARBY_RANGE,
-    exclude_slug: str = "",
-) -> list[ComponentInfoSchema]:
-    """Collect cross-component context for one source string.
-
-    `exclude_slug` keeps the component being translated out of its own
-    context: its nearby units are sibling fields of the same template
-    (title next to description), and feeding those back misleads both the
-    translator and the scorer into swapping field contents.
-    """
-
-    async def _enrich(component: ComponentInfoSchema) -> ComponentInfoSchema:
-        nearby_page = await client.list_units_page(
-            component.slug,
-            component.lang,
-            WeblateRequestParamsSchema(
-                page_size=20,
-                q=(
-                    f"position:[{component.position - nearby_range}"
-                    f" to {component.position + nearby_range}]"
-                ),
-            ),
-        )
-        component.nearby = [
-            u for u in nearby_page.results if component.key in u.context
-        ]
-        return component
-
-    search_query = strip_html(input_unit.source) or input_unit.source
-    # A `"` in the source would end the quoted phrase early and leave the
-    # rest as broken query syntax (Weblate answers 400 and the job fails).
-    quoted = search_query.replace("\\", "\\\\").replace('"', '\\"')
-    units = await client.search_units(
-        WeblateRequestParamsSchema(
-            page_size=20,
-            q=(
-                f'source:="{quoted}"'
-                f" AND language:{input_unit.language_code}"
-                f" AND project:{client.config.project_slug}"
-            ),
-        ),
-        timeout=CONTEXT_SEARCH_TIMEOUT,
-        attempts=CONTEXT_SEARCH_ATTEMPTS,
-    )
-
-    components: list[ComponentInfoSchema] = []
-    for u in units:
-        parts = u.translation.rstrip("/").split("/")
-        if len(parts) < 2:
-            continue
-        slug = parts[-2]
-        if slug.startswith("glossary") or slug == exclude_slug:
-            continue
-        components.append(
-            ComponentInfoSchema(
-                unit=u,
-                key=u.context.split("::")[0],
-                slug=slug,
-                lang=u.language_code,
-                position=u.position,
-                nearby=[],
-            )
-        )
-
-    if not components:
-        return []
-
-    seen_slugs: Counter[str] = Counter()
-    picked: list[ComponentInfoSchema] = []
-    for c in components:
-        if seen_slugs[c.slug] >= MAX_MATCHES_PER_COMPONENT:
-            continue
-        seen_slugs[c.slug] += 1
-        picked.append(c)
-        if len(picked) >= MAX_CONTEXT_COMPONENTS:
-            break
-
-    return list(await asyncio.gather(*[_enrich(c) for c in picked]))

@@ -1,9 +1,6 @@
 from typing import Final
 
 DEFAULT_NEARBY_RANGE: Final = 2
-CONTEXT_COLLECTOR_CONCURRENCY: Final = 10
-CONTEXT_SEARCH_TIMEOUT: Final = 10.0
-CONTEXT_SEARCH_ATTEMPTS: Final = 5
 MAX_CONTEXT_COMPONENTS: Final = 6
 
 # Total translate/validate/score rounds a batch may consume before the

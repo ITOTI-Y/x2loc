@@ -4,7 +4,7 @@ from pydantic import ConfigDict, Field
 from pydantic.dataclasses import dataclass
 
 from src.models._share import BaseSchema
-from src.models.weblate import WeblateUnitSchema
+from src.models.weblate import CorpusUnitSchema, WeblateUnitSchema
 
 
 class PatternExampleSchema(TypedDict):
@@ -43,12 +43,13 @@ class StatsSchema(TypedDict):
 
 @dataclass
 class ComponentInfoSchema:
-    unit: WeblateUnitSchema
+    """Another component's occurrence of a source string, as context."""
+
+    unit: CorpusUnitSchema
     key: str
     slug: str
-    lang: str
     position: int
-    nearby: list[WeblateUnitSchema] = Field(default_factory=list)
+    nearby: list[CorpusUnitSchema] = Field(default_factory=list)
 
 
 class SystemBlockSchema(TypedDict):

@@ -7,6 +7,7 @@ from src.agent.config import ConfigSchema
 from src.agent.nodes import WorkflowNodes
 from src.agent.review import ThresholdReview
 from src.models.agent import NewAgentStateSchema
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySnapshots
 from src.services.weblate import AsyncWeblateClient
 
@@ -27,6 +28,7 @@ async def _agents_used(
         config,
         review=ThresholdReview(),
         glossaries=GlossarySnapshots(client, ttl_seconds=60),
+        context=ContextIndexSource(client, language="zh_Hans", ttl_seconds=60),
         llm_slots=asyncio.Semaphore(1),
     )
     await nodes.translator(NewAgentStateSchema(attempts=0))

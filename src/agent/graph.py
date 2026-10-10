@@ -14,6 +14,7 @@ from src.agent.config import ConfigSchema
 from src.agent.nodes import WorkflowNodes
 from src.agent.review import ReviewPolicy
 from src.models.agent import NewAgentStateSchema
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySnapshots, GlossarySource
 from src.services.weblate import AsyncWeblateClient
 
@@ -22,6 +23,7 @@ serde = JsonPlusSerializer(
         ("src.models.weblate", "WeblateUnitSchema"),
         ("src.models.agent", "PatternSchema"),
         ("src.models.agent", "ComponentInfoSchema"),
+        ("src.models.weblate", "CorpusUnitSchema"),
         ("src.models.agent", "TranslationUnitSchema"),
     ]
 )
@@ -63,23 +65,30 @@ def build_graph(
     llm_slots: asyncio.Semaphore,
     client: AsyncWeblateClient | None = None,
     glossaries: GlossarySource | None = None,
+    context: ContextIndexSource | None = None,
     http_async_client: AsyncClient | None = None,
 ) -> tuple[CompiledStateGraph, WorkflowNodes]:
     """Compile the translation graph around one review policy.
 
-    A long-lived service passes `client` and `glossaries` to share one
-    Weblate connection pool and one glossary cache across jobs, and
+    A long-lived service passes `client`, `glossaries` and `context` to
+    share one Weblate connection pool, glossary cache and context index
+    across jobs, and
     `http_async_client` to share the LLM transport. `llm_slots` caps the
     LLM requests in flight across everything that shares it. The interactive CLI
-    passes none; the graph then owns a client and a session-long glossary
-    cache and closes both with the nodes.
+    passes none; the graph then owns a client, a session-long glossary cache
+    and context index, and closes them with the nodes.
     """
     if client is None:
         client = AsyncWeblateClient(config.weblate)
         glossaries = GlossarySnapshots(client, ttl_seconds=math.inf)
+        context = ContextIndexSource(
+            client, language=config.target_lang, ttl_seconds=math.inf
+        )
         owns_client = True
-    elif glossaries is None:
-        raise ValueError("a shared Weblate client needs a shared glossary cache")
+    elif glossaries is None or context is None:
+        raise ValueError(
+            "a shared Weblate client needs a shared glossary cache and context index"
+        )
     else:
         owns_client = False
     nodes = WorkflowNodes(
@@ -87,6 +96,7 @@ def build_graph(
         config,
         review=review,
         glossaries=glossaries,
+        context=context,
         llm_slots=llm_slots,
         owns_client=owns_client,
         http_async_client=http_async_client,

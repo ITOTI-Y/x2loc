@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import TypedDict
 
 from httpx import AsyncClient
 from loguru import logger
@@ -9,10 +9,6 @@ from src.agent.llm import (
     build_scorer_llm,
     build_tag_validator_llm,
     build_translator_llm,
-)
-from src.agent.nodes.context_collector import (
-    ContextResultsOutputSchema,
-    context_collector,
 )
 from src.agent.nodes.fetch_empty import (
     FetchEmptyOutputSchema,
@@ -27,8 +23,13 @@ from src.agent.nodes.translator import TranslateOutputSchema, translator
 from src.agent.nodes.uploader import BackgroundUploader, UploaderOutputSchema, uploader
 from src.agent.review import ReviewOutputSchema, ReviewPolicy
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySource
 from src.services.weblate import AsyncWeblateClient
+
+
+class ContextResultsOutputSchema(TypedDict):
+    context_results: dict[int, list[ComponentInfoSchema]]
 
 
 class WorkflowNodes:
@@ -47,6 +48,7 @@ class WorkflowNodes:
         *,
         review: ReviewPolicy,
         glossaries: GlossarySource,
+        context: ContextIndexSource,
         llm_slots: asyncio.Semaphore,
         owns_client: bool = True,
         http_async_client: AsyncClient | None = None,
@@ -77,9 +79,7 @@ class WorkflowNodes:
         )
         self._scorer_llm = build_scorer_llm(config, http_async_client=http_async_client)
         self._glossaries: asyncio.Task[GlossaryLoaderOutputSchema] | None = None
-        self._prefetch: dict[
-            str, asyncio.Task[dict[int, list[ComponentInfoSchema]]]
-        ] = {}
+        self._context = context
         self._background_uploader = BackgroundUploader(client)
         self.pattern_extractor = pattern_extractor
 
@@ -106,15 +106,12 @@ class WorkflowNodes:
     async def context_collector(
         self, state: NewAgentStateSchema
     ) -> ContextResultsOutputSchema:
-        prefetched = await self._harvest_prefetch(state.component_slug)
-        hit = {u.id: prefetched[u.id] for u in state.to_translate if u.id in prefetched}
-        missing = [u for u in state.to_translate if u.id not in prefetched]
-        fresh = await context_collector(
-            missing, client=self._client, exclude_slug=state.component_slug
-        )
-        self._start_prefetch(state.component_slug)
+        index = await self._context.index()
         return {
-            "context_results": {**hit, **fresh},
+            "context_results": {
+                unit.id: index.lookup(unit.source, exclude_slug=state.component_slug)
+                for unit in state.to_translate
+            }
         }
 
     async def translator(self, state: NewAgentStateSchema) -> TranslateOutputSchema:
@@ -156,47 +153,15 @@ class WorkflowNodes:
         await self._background_uploader.drain()
         logger.success("[UPLOAD] Background uploader drained")
 
-    async def _harvest_prefetch(
-        self, component_slug: str
-    ) -> dict[int, list[ComponentInfoSchema]]:
-        task = self._prefetch.pop(component_slug, None)
-        if task is None:
-            return {}
-        try:
-            return await task
-        except Exception as exc:
-            logger.warning(
-                f"Context prefetch failed; falling back to live fetch: {exc!r}"
-            )
-            return {}
-
-    def _start_prefetch(self, component_slug: str) -> None:
-        next_units = self._unit_iterator.peek_units(
-            component_slug=component_slug,
-            lang=self._config.target_lang,
-            batch_size=self._config.batch_size,
-            q="state:empty",
-        )
-        if not next_units:
-            return
-        self._prefetch[component_slug] = asyncio.create_task(
-            context_collector(
-                next_units, client=self._client, exclude_slug=component_slug
-            )
-        )
-
     async def aclose(self) -> None:
-        pending: list[asyncio.Task[Any]] = list(self._prefetch.values())
         if self._glossaries is not None:
-            pending.append(self._glossaries)
-        for task in pending:
-            task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
-        self._prefetch.clear()
+            self._glossaries.cancel()
+            await asyncio.gather(self._glossaries, return_exceptions=True)
         try:
             await self.drain_uploads()
         except BaseExceptionGroup:
             logger.exception("Background uploads failed during close")
         if self._owns_client:
+            await self._context.aclose()
             await self._glossary_snapshots.aclose()
             await self._client.close()

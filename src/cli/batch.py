@@ -8,6 +8,7 @@ on disk; the next run publishes it.
 
 import asyncio
 import json
+import math
 import shutil
 from collections import Counter
 from collections.abc import AsyncGenerator
@@ -29,6 +30,7 @@ from src.jobs.pipeline import WorkshopPipeline, WorkshopSource, reset_work_dirs
 from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.models.job import JobRecordSchema, WorkshopJobRequestSchema
 from src.models.workshop import TARGET_LANGUAGE, XCOM2_APP_ID, WorkshopMetadataSchema
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import validate_weblate_components
 from src.services.glossary_store import DeferredGlossaryWriter, LocalGlossaryStore
 from src.services.steam import (
@@ -151,6 +153,11 @@ async def open_pipeline(
                 target_lang=TARGET_LANGUAGE,
             )
             manager = JobManager(job_concurrency)
+            # A CLI run is short; the index it builds stays current through
+            # the components the run syncs itself.
+            context = ContextIndexSource(
+                weblate, language=TARGET_LANGUAGE, ttl_seconds=math.inf
+            )
             pipeline = WorkshopPipeline(
                 config=config,
                 jobs=manager,
@@ -158,6 +165,7 @@ async def open_pipeline(
                 weblate=weblate,
                 glossary_writer=writer,
                 glossaries=store,
+                context=context,
                 llm_client=llm_client,
             )
             # Every job's term extraction reads the custom glossary; syncing it
@@ -169,6 +177,7 @@ async def open_pipeline(
                 yield manager, pipeline
             finally:
                 await manager.close()
+                await context.aclose()
                 warm.cancel()
                 await asyncio.gather(warm, return_exceptions=True)
             published = await writer.flush(weblate)
