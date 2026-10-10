@@ -150,3 +150,17 @@ async def test_source_without_other_occurrences_has_empty_context(
     client = _context_client(monkeypatch, no_matches)
     assert await collect_context_for_term(client, UNIT) == []
     assert calls[0]["attempts"] == CONTEXT_SEARCH_ATTEMPTS
+
+
+async def test_quotes_in_source_are_escaped_in_the_search_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queries: list[str] = []
+
+    async def capture(params, **_kwargs: object) -> list[WeblateUnitSchema]:
+        queries.append(params.q)
+        return []
+
+    unit = UNIT.model_copy(update={"source": r'mods <3") and a \ path'})
+    await collect_context_for_term(_context_client(monkeypatch, capture), unit)
+    assert queries[0].startswith(r'source:="mods <3\") and a \\ path" AND ')
