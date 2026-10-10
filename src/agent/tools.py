@@ -152,11 +152,14 @@ async def collect_context_for_term(
         return component
 
     search_query = strip_html(input_unit.source) or input_unit.source
+    # A `"` in the source would end the quoted phrase early and leave the
+    # rest as broken query syntax (Weblate answers 400 and the job fails).
+    quoted = search_query.replace("\\", "\\\\").replace('"', '\\"')
     units = await client.search_units(
         WeblateRequestParamsSchema(
             page_size=20,
             q=(
-                f'source:="{search_query}"'
+                f'source:="{quoted}"'
                 f" AND language:{input_unit.language_code}"
                 f" AND project:{client.config.project_slug}"
             ),
