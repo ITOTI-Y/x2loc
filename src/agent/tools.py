@@ -51,16 +51,33 @@ def match_patterns(
     hits = [
         pattern
         for key, group in patterns.items()
-        if _template_regex(key).search(source)
+        if _literals_present(key, source) and _template_regex(key).search(source)
         for pattern in group
     ]
     hits.sort(key=lambda p: (-len(p.src_pattern), -p.example_count))
     return hits[:limit]
 
 
+def _literals_present(src_pattern: str, source: str) -> bool:
+    """Cheap necessary condition for `_template_regex(src_pattern)` to match.
+
+    The regex requires both literals verbatim, and its lazy middle group
+    backtracks heavily on long sources; with thousands of templates the
+    regex pass alone dominated prompt building.
+    """
+    prefix, suffix = _template_literals(src_pattern)
+    return prefix in source and suffix in source
+
+
+@cache
+def _template_literals(src_pattern: str) -> tuple[str, str]:
+    prefix, _, suffix = (part.strip() for part in src_pattern.partition("{X}"))
+    return prefix, suffix
+
+
 @cache
 def _template_regex(src_pattern: str) -> re.Pattern[str]:
-    prefix, _, suffix = (part.strip() for part in src_pattern.partition("{X}"))
+    prefix, suffix = _template_literals(src_pattern)
     parts: list[str] = []
     if prefix:
         parts.append(_edge(prefix, start=True) + re.escape(prefix) + r"\s+")
