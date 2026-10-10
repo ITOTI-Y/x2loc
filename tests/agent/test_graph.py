@@ -1,3 +1,5 @@
+import asyncio
+
 from src.agent.config import ConfigSchema
 from src.agent.graph import build_graph, route_after_fetch
 from src.agent.review import ThresholdReview
@@ -37,7 +39,11 @@ async def test_fully_translated_component_skips_glossary_load(
     client = _FullyTranslatedClient(agent_config.weblate)
     glossaries = _RecordingGlossaries()
     graph, nodes = build_graph(
-        agent_config, review=ThresholdReview(), client=client, glossaries=glossaries
+        agent_config,
+        review=ThresholdReview(),
+        llm_slots=asyncio.Semaphore(1),
+        client=client,
+        glossaries=glossaries,
     )
     try:
         final = await graph.ainvoke(

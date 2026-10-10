@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TypedDict
 
 from loguru import logger
@@ -23,6 +24,7 @@ async def scorer(
     state: NewAgentStateSchema,
     *,
     agent_config: ConfigSchema,
+    llm_slots: asyncio.Semaphore,
     llm: ScoringAgent,
 ) -> ScorerOutputSchema:
     def build_prompt(unit: TranslationUnitSchema) -> tuple[int, str]:
@@ -59,7 +61,7 @@ async def scorer(
         llm,
         [build_prompt(candidate) for candidate in pending],
         units_per_request=agent_config.units_per_request,
-        max_concurrency=agent_config.max_concurrency,
+        slots=llm_slots,
         label="Scoring",
     )
     for candidate in pending:

@@ -32,6 +32,7 @@ async def translator(
     state: NewAgentStateSchema,
     *,
     agent_config: ConfigSchema,
+    llm_slots: asyncio.Semaphore,
     agent: TranslationAgent,
 ) -> TranslateOutputSchema:
     matches: dict[str, _Matches] = {}
@@ -88,7 +89,7 @@ async def translator(
         agent,
         prompts,
         units_per_request=agent_config.units_per_request,
-        max_concurrency=agent_config.max_concurrency,
+        slots=llm_slots,
         label="Translation",
     )
     candidates = [

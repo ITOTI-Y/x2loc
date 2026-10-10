@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import math
 
 from httpx import AsyncClient
@@ -59,6 +60,7 @@ def build_graph(
     config: ConfigSchema,
     *,
     review: ReviewPolicy,
+    llm_slots: asyncio.Semaphore,
     client: AsyncWeblateClient | None = None,
     glossaries: GlossarySource | None = None,
     http_async_client: AsyncClient | None = None,
@@ -67,7 +69,8 @@ def build_graph(
 
     A long-lived service passes `client` and `glossaries` to share one
     Weblate connection pool and one glossary cache across jobs, and
-    `http_async_client` to share the LLM transport. The interactive CLI
+    `http_async_client` to share the LLM transport. `llm_slots` caps the
+    LLM requests in flight across everything that shares it. The interactive CLI
     passes none; the graph then owns a client and a session-long glossary
     cache and closes both with the nodes.
     """
@@ -84,6 +87,7 @@ def build_graph(
         config,
         review=review,
         glossaries=glossaries,
+        llm_slots=llm_slots,
         owns_client=owns_client,
         http_async_client=http_async_client,
     )

@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 import src.agent.nodes as nodes_module
@@ -14,7 +16,7 @@ async def _agents_used(
 ) -> list[object]:
     used: list[object] = []
 
-    async def fake_translator(_state, *, agent_config, agent):
+    async def fake_translator(_state, *, agent_config, llm_slots, agent):
         used.append(agent)
         return {"candidates": []}
 
@@ -25,6 +27,7 @@ async def _agents_used(
         config,
         review=ThresholdReview(),
         glossaries=GlossarySnapshots(client, ttl_seconds=60),
+        llm_slots=asyncio.Semaphore(1),
     )
     await nodes.translator(NewAgentStateSchema(attempts=0))
     await nodes.translator(NewAgentStateSchema(attempts=1))

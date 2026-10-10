@@ -26,7 +26,11 @@ async def _run_async(config: ConfigSchema, auto_accept: bool) -> None:
     from src.agent.review import InterruptReview
     from src.ui.user import prompt_user_review
 
-    graph, nodes = build_graph(config, review=InterruptReview())
+    graph, nodes = build_graph(
+        config,
+        review=InterruptReview(),
+        llm_slots=asyncio.Semaphore(config.max_concurrency),
+    )
     thread: RunnableConfig = {
         "configurable": {"thread_id": str(uuid4())},
         "recursion_limit": GRAPH_RECURSION_LIMIT,

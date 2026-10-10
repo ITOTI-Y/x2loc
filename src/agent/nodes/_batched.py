@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from langchain_core.runnables import Runnable
@@ -15,7 +16,7 @@ async def invoke_batched(
     items: list[tuple[int, str]],
     *,
     units_per_request: int,
-    max_concurrency: int,
+    slots: asyncio.Semaphore,
     label: str,
 ) -> dict[int, Any]:
     """Send per-item prompts `units_per_request` at a time; map results by id.
@@ -29,7 +30,8 @@ async def invoke_batched(
             entry carrying the `id` of its item.
         items: `(unit id, single-item prompt)` pairs.
         units_per_request: Items packed into one request.
-        max_concurrency: Requests in flight.
+        slots: Bounds LLM requests in flight; shared by every node, component
+            and job that draws on the same LLM budget.
         label: Node name for log lines.
 
     Returns:
@@ -39,13 +41,15 @@ async def invoke_batched(
         items[start : start + units_per_request]
         for start in range(0, len(items), units_per_request)
     ]
-    responses = await agent.abatch(
-        [
-            {"messages": [{"role": "user", "content": format_batch(chunk)}]}
-            for chunk in chunks
-        ],
-        config={"max_concurrency": max_concurrency},
-        return_exceptions=True,
+
+    async def send(chunk: list[tuple[int, str]]) -> Any:
+        async with slots:
+            return await agent.ainvoke(
+                {"messages": [{"role": "user", "content": format_batch(chunk)}]}
+            )
+
+    responses = await asyncio.gather(
+        *(send(chunk) for chunk in chunks), return_exceptions=True
     )
     results: dict[int, Any] = {}
     for chunk, response in zip(chunks, responses, strict=True):
