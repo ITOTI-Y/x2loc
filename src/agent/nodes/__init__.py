@@ -47,6 +47,7 @@ class WorkflowNodes:
         *,
         review: ReviewPolicy,
         glossaries: GlossarySource,
+        llm_slots: asyncio.Semaphore,
         owns_client: bool = True,
         http_async_client: AsyncClient | None = None,
     ) -> None:
@@ -54,6 +55,7 @@ class WorkflowNodes:
         self._config = config
         self._review = review
         self._owns_client = owns_client
+        self._llm_slots = llm_slots
         self._glossary_snapshots = glossaries
         self._unit_iterator = UnitIterator(client)
         self._translator_agent = build_translator_llm(
@@ -122,17 +124,27 @@ class WorkflowNodes:
             if state.attempts > 0
             else self._translator_agent
         )
-        return await translator(state, agent_config=self._config, agent=agent)
+        return await translator(
+            state, agent_config=self._config, llm_slots=self._llm_slots, agent=agent
+        )
 
     async def tag_validator(
         self, state: NewAgentStateSchema
     ) -> TagValidatorOutputSchema:
         return await tag_validator(
-            state, agent_config=self._config, llm=self._tag_validator_llm
+            state,
+            agent_config=self._config,
+            llm_slots=self._llm_slots,
+            llm=self._tag_validator_llm,
         )
 
     async def scorer(self, state: NewAgentStateSchema) -> ScorerOutputSchema:
-        return await scorer(state, agent_config=self._config, llm=self._scorer_llm)
+        return await scorer(
+            state,
+            agent_config=self._config,
+            llm_slots=self._llm_slots,
+            llm=self._scorer_llm,
+        )
 
     async def review(self, state: NewAgentStateSchema) -> ReviewOutputSchema:
         return await self._review(state, agent_config=self._config)

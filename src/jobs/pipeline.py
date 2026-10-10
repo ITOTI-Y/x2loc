@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 import shutil
 import sys
 from pathlib import Path
@@ -181,9 +180,9 @@ class WorkshopPipeline:
         self._aligner = BilingualAligner()
         self._extractor = TermExtractor()
         self._artifact = ArtifactBuilder()
-        # Shared by every job of this pipeline, so concurrent jobs keep the
-        # in-flight LLM ceiling of one; keyed by the per-job limit.
-        self._translate_slots: dict[int, asyncio.Semaphore] = {}
+        # LLM requests in flight, shared by every job of this pipeline so
+        # concurrent jobs keep the ceiling of one; keyed by that ceiling.
+        self._llm_slots: dict[int, asyncio.Semaphore] = {}
 
     async def run(self, job_id: str, request: WorkshopJobRequestSchema) -> None:
         """Run one job to a terminal state.
@@ -374,9 +373,9 @@ class WorkshopPipeline:
     ) -> int:
         """Translate every component through one graph and one node instance.
 
-        A component's batch sends `batch_size / units_per_request` requests at
-        once, so component concurrency is their quotient into
-        `llm_concurrency`, keeping the in-flight request ceiling there.
+        Components run concurrently; the in-flight LLM requests are capped at
+        `llm_concurrency` per request, not per component, so one component's
+        Weblate reads and context searches overlap another's LLM calls.
         """
         if not works:
             return 0
@@ -386,32 +385,30 @@ class WorkshopPipeline:
         from src.agent.review import ThresholdReview
 
         agent_config = self._agent_config(request)
+        llm_slots = self._llm_slots.setdefault(
+            request.llm_concurrency, asyncio.Semaphore(request.llm_concurrency)
+        )
         graph, nodes = build_graph(
             agent_config,
             review=ThresholdReview(),
+            llm_slots=llm_slots,
             client=self._weblate,
             glossaries=self._glossaries,
             http_async_client=self._llm_client,
         )
-        requests_per_batch = math.ceil(
-            agent_config.batch_size / agent_config.units_per_request
-        )
-        limit = max(1, request.llm_concurrency // requests_per_batch)
-        semaphore = self._translate_slots.setdefault(limit, asyncio.Semaphore(limit))
 
         async def translate_one(work: AssetWorkSchema) -> int:
-            async with semaphore:
-                final = await graph.ainvoke(
-                    NewAgentStateSchema(component_slug=work.asset.component_slug),
-                    config={
-                        "configurable": {"thread_id": str(uuid4())},
-                        "recursion_limit": graph_recursion_limit(
-                            len(work.units),
-                            batch_size=agent_config.batch_size,
-                            max_attempts=agent_config.max_translation_attempts,
-                        ),
-                    },
-                )
+            final = await graph.ainvoke(
+                NewAgentStateSchema(component_slug=work.asset.component_slug),
+                config={
+                    "configurable": {"thread_id": str(uuid4())},
+                    "recursion_limit": graph_recursion_limit(
+                        len(work.units),
+                        batch_size=agent_config.batch_size,
+                        max_attempts=agent_config.max_translation_attempts,
+                    ),
+                },
+            )
             stats = final["stats"]
             return stats["approved"] + stats["modified"] + stats["auto"]
 

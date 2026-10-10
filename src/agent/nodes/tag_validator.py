@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TypedDict
 
 from loguru import logger
@@ -23,6 +24,7 @@ async def tag_validator(
     state: NewAgentStateSchema,
     *,
     agent_config: ConfigSchema,
+    llm_slots: asyncio.Semaphore,
     llm: TranslationAgent,
 ) -> TagValidatorOutputSchema:
     results: list[TranslationUnitSchema] = []
@@ -52,7 +54,7 @@ async def tag_validator(
             for candidate, missing, extra in pending
         ],
         units_per_request=agent_config.units_per_request,
-        max_concurrency=agent_config.max_concurrency,
+        slots=llm_slots,
         label="Tag fix",
     )
     for candidate, _missing, _extra in pending:
