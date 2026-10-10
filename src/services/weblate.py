@@ -202,6 +202,26 @@ class AsyncWeblateClient:
     async def __aexit__(self, *_exc: object) -> None:
         await self.close()
 
+    async def list_component_slugs(self) -> list[str]:
+        """Slugs of every component in the project, all pages."""
+        slugs: list[str] = []
+        page = 1
+        while True:
+            response = await self._request(
+                WeblateRequestSchema(
+                    method="GET",
+                    path=f"projects/{self.config.project_slug}/components/",
+                    params=WeblateRequestParamsSchema(page=page, page_size=1000),
+                )
+            )
+            listing = WeblatePageSchema[WeblateComponentSchema].model_validate(
+                response.json()
+            )
+            slugs.extend(component.slug for component in listing.results)
+            if listing.next is None:
+                return slugs
+            page += 1
+
     async def get_component(self, slug: str) -> WeblateComponentSchema | None:
         response = await self._request(
             WeblateRequestSchema(
@@ -449,26 +469,6 @@ class AsyncWeblateClient:
             *(fetch(page) for page in range(2, total_pages + 1))
         )
         return [*first.results, *(unit for page in rest for unit in page)]
-
-    async def search_units(
-        self,
-        params: WeblateRequestParamsSchema,
-        *,
-        timeout: float = HTTP_TIMEOUT,
-        attempts: int = RETRY_MAX_ATTEMPTS,
-    ) -> list[WeblateUnitSchema]:
-        """Search across the whole instance; returns the first page only.
-
-        Every consumer caps how many results it keeps, so paginating the
-        whole result set only wastes round trips.
-        """
-        response = await self._request(
-            WeblateRequestSchema(method="GET", path="units/", params=params),
-            timeout=timeout,
-            attempts=attempts,
-        )
-        page = WeblatePageSchema[WeblateUnitSchema].model_validate(response.json())
-        return list(page.results)
 
     async def create_unit(
         self,

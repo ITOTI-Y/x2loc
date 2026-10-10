@@ -5,6 +5,7 @@ from src.agent.graph import build_graph, route_after_fetch
 from src.agent.review import ThresholdReview
 from src.models.agent import NewAgentStateSchema
 from src.models.weblate import WeblateUnitSchema
+from src.services.context_index import ContextIndexSource
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -26,6 +27,9 @@ class _FullyTranslatedClient(AsyncWeblateClient):
     ) -> list[WeblateUnitSchema]:
         return []
 
+    async def list_component_slugs(self) -> list[str]:
+        raise AssertionError("nothing to translate must not build the index")
+
 
 def test_route_after_fetch_loads_glossaries_once() -> None:
     assert route_after_fetch(NewAgentStateSchema(is_end=True)) == "end"
@@ -44,6 +48,7 @@ async def test_fully_translated_component_skips_glossary_load(
         llm_slots=asyncio.Semaphore(1),
         client=client,
         glossaries=glossaries,
+        context=ContextIndexSource(client, language="zh_Hans", ttl_seconds=60),
     )
     try:
         final = await graph.ainvoke(

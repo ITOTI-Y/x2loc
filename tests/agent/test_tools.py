@@ -1,27 +1,6 @@
-import pytest
-from httpx2 import ReadTimeout
-
-from src.agent._share import CONTEXT_SEARCH_ATTEMPTS
-from src.agent.tools import (
-    collect_context_for_term,
-    lookup_glossary,
-    match_patterns,
-    strip_html,
-)
+from src.agent.tools import lookup_glossary, match_patterns
 from src.models.agent import PatternSchema
-from src.models.weblate import WeblateConfigSchema, WeblateUnitSchema
-from src.services.weblate import AsyncWeblateClient
-
-
-class TestStripHtml:
-    def test_basic(self):
-        assert strip_html("<font color='red'>text</font>") == "text"
-
-    def test_no_html(self):
-        assert strip_html("plain text") == "plain text"
-
-    def test_nested(self):
-        assert strip_html("<b><i>bold italic</i></b>") == "bold italic"
+from src.models.weblate import WeblateUnitSchema
 
 
 class TestLookupGlossary:
@@ -113,54 +92,3 @@ class TestMatchPatterns:
     def test_most_specific_first(self):
         hits = match_patterns("Give Alien Rocket", self.patterns)
         assert [p.src_pattern for p in hits] == ["Give {X} Rocket", "Alien {X}"]
-
-
-def _context_client(monkeypatch: pytest.MonkeyPatch, search) -> AsyncWeblateClient:
-    client = AsyncWeblateClient(
-        WeblateConfigSchema(url="http://weblate", token="t", project_slug="p")
-    )
-    monkeypatch.setattr(client, "search_units", search)
-    return client
-
-
-UNIT = WeblateUnitSchema(
-    id=1, language_code="zh_Hans", source="Plasma Grenade", target="", context="k"
-)
-
-
-async def test_failed_context_search_fails_instead_of_translating_blind(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def stalled(*_args: object, **_kwargs: object) -> list[WeblateUnitSchema]:
-        raise ReadTimeout("stalled")
-
-    with pytest.raises(ReadTimeout):
-        await collect_context_for_term(_context_client(monkeypatch, stalled), UNIT)
-
-
-async def test_source_without_other_occurrences_has_empty_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[dict[str, object]] = []
-
-    async def no_matches(*_args: object, **kwargs: object) -> list[WeblateUnitSchema]:
-        calls.append(kwargs)
-        return []
-
-    client = _context_client(monkeypatch, no_matches)
-    assert await collect_context_for_term(client, UNIT) == []
-    assert calls[0]["attempts"] == CONTEXT_SEARCH_ATTEMPTS
-
-
-async def test_quotes_in_source_are_escaped_in_the_search_query(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    queries: list[str] = []
-
-    async def capture(params, **_kwargs: object) -> list[WeblateUnitSchema]:
-        queries.append(params.q)
-        return []
-
-    unit = UNIT.model_copy(update={"source": r'mods <3") and a \ path'})
-    await collect_context_for_term(_context_client(monkeypatch, capture), unit)
-    assert queries[0].startswith(r'source:="mods <3\") and a \\ path" AND ')

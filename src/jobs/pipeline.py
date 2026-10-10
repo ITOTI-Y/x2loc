@@ -36,6 +36,7 @@ from src.models.job import (
 )
 from src.models.weblate import CorpusUnitSchema, WeblateUnitPatchSchema
 from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySource, GlossaryWriter
 from src.services.steam import SteamDownloadError
 from src.services.weblate import (
@@ -168,6 +169,7 @@ class WorkshopPipeline:
         weblate: AsyncWeblateClient,
         glossary_writer: GlossaryWriter,
         glossaries: GlossarySource,
+        context: ContextIndexSource,
         llm_client: httpx.AsyncClient,
     ) -> None:
         self._config = config
@@ -176,6 +178,7 @@ class WorkshopPipeline:
         self._weblate = weblate
         self._glossary_writer = glossary_writer
         self._glossaries = glossaries
+        self._context = context
         self._llm_client = llm_client
         self._aligner = BilingualAligner()
         self._extractor = TermExtractor()
@@ -256,6 +259,7 @@ class WorkshopPipeline:
             slug = work.asset.component_slug
             if snapshot is None or slug in pending_slugs:
                 snapshot = await self._weblate.download_units(slug, request.target_lang)
+                self._context.update(slug, snapshot)
             return self._authoritative(work, snapshot)
 
         async with asyncio.TaskGroup() as readback_group:
@@ -327,6 +331,7 @@ class WorkshopPipeline:
             snapshot = await self._weblate.download_units(
                 work.asset.component_slug, target_lang
             )
+        self._context.update(work.asset.component_slug, snapshot)
         if await self._clear_tag_mismatches(work, target_lang, snapshot):
             return None
         return snapshot
@@ -394,6 +399,7 @@ class WorkshopPipeline:
             llm_slots=llm_slots,
             client=self._weblate,
             glossaries=self._glossaries,
+            context=self._context,
             http_async_client=self._llm_client,
         )
 

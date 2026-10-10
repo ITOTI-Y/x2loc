@@ -55,18 +55,6 @@ class UnitIterator:
             return [], True
         return batch, False
 
-    def peek_units(
-        self,
-        component_slug: str,
-        lang: str,
-        batch_size: int,
-        q: str = "",
-    ) -> list[WeblateUnitSchema]:
-        cursor = self._cursors.get((component_slug, lang, q))
-        if cursor is None:
-            return []
-        return cursor.units[cursor.offset : cursor.offset + batch_size]
-
 
 async def fetch_empty(
     state: NewAgentStateSchema,

@@ -239,29 +239,6 @@ async def test_list_units_page_forwards_params(
     assert params["q"] == "state:<20"
 
 
-async def test_search_units_parses_and_joins_list_fields(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.route(
-        "GET",
-        "units/",
-        Response(200, json={"results": [unit_payload(7, source=["A", "B"])]}),
-    )
-
-    units = await client.search_units(WeblateRequestParamsSchema(q="foo"))
-
-    assert [u.id for u in units] == [7]
-    assert units[0].source == "AB"
-    assert units[0].target == "确定"
-
-
-async def test_search_units_handles_missing_results_key(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.route("GET", "units/", Response(200, json={}))
-    assert await client.search_units(WeblateRequestParamsSchema()) == []
-
-
 async def test_patch_unit_sends_json_body(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
@@ -429,17 +406,6 @@ async def test_wait_for_translation_units_times_out(
         await client.wait_for_translation_units(
             COMPONENT, LANG, expected=23, timeout=0.1
         )
-
-
-async def test_search_units_single_attempt_does_not_retry(
-    client: AsyncWeblateClient, fake: FakeWeblate
-) -> None:
-    fake.route(
-        "GET", "units/", Response(502), Response(200, json=page_payload([], count=0))
-    )
-    with pytest.raises(WeblateAPIError):
-        await client.search_units(WeblateRequestParamsSchema(q="x"), attempts=1)
-    assert len(fake.requests) == 1
 
 
 SOURCE_UNITS_PATH = f"translations/{PROJECT}/{COMPONENT}/en/units/"

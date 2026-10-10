@@ -24,6 +24,7 @@ from src.models.job import (
     WorkshopJobRequestSchema,
 )
 from src.models.workshop import TARGET_LANGUAGE
+from src.services.context_index import ContextIndexSource
 from src.services.glossary import (
     CustomGlossaryWriter,
     GlossarySnapshots,
@@ -184,6 +185,11 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                 glossaries = GlossarySnapshots(
                     weblate, ttl_seconds=GLOSSARY_TTL_SECONDS
                 )
+                # Other processes add components; a service rebuilds the
+                # index on the glossary cadence to see them.
+                context = ContextIndexSource(
+                    weblate, language=TARGET_LANGUAGE, ttl_seconds=GLOSSARY_TTL_SECONDS
+                )
                 pipeline = WorkshopPipeline(
                     config=config,
                     jobs=manager,
@@ -202,6 +208,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                         target_lang=TARGET_LANGUAGE,
                     ),
                     glossaries=glossaries,
+                    context=context,
                     llm_client=llm_client,
                 )
                 try:
@@ -209,6 +216,7 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                         manager=manager, pipeline=pipeline, steam_web=steam_web
                     )
                 finally:
+                    await context.aclose()
                     await glossaries.aclose()
         finally:
             await steam_web.aclose()
