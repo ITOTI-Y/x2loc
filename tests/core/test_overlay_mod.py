@@ -14,6 +14,7 @@ def _zip(path: Path, entries: dict[str, str]) -> Path:
 def test_install_overlay_writes_manifest_and_replaces_previous(tmp_path: Path) -> None:
     mods_dir = tmp_path / "Mods"
     mods_dir.mkdir()
+    (mods_dir / "x2loc_zh_42").mkdir()  # an install under the old name
     first = _zip(tmp_path / "a.zip", {"Localization/Old.chn": "old"})
     second = _zip(tmp_path / "b.zip", {"Localization/Foo.chn": "new"})
 
@@ -22,9 +23,9 @@ def test_install_overlay_writes_manifest_and_replaces_previous(tmp_path: Path) -
         artifact=second, mods_dir=mods_dir, workshop_id="42", title="Test Mod"
     )
 
-    assert target == mods_dir / "x2loc_zh_42"
+    assert target == mods_dir / "x2loc_42_zh"
     assert (target / "Localization" / "Foo.chn").read_text() == "new"
     assert not (target / "Localization" / "Old.chn").exists()
-    manifest = (target / "x2loc_zh_42.XComMod").read_text(encoding="utf-8")
+    manifest = (target / "x2loc_42_zh.XComMod").read_text(encoding="utf-8")
     assert "Title=Test Mod [zh_Hans]" in manifest
-    assert sorted(p.name for p in mods_dir.iterdir()) == ["x2loc_zh_42"]
+    assert sorted(p.name for p in mods_dir.iterdir()) == ["x2loc_42_zh"]

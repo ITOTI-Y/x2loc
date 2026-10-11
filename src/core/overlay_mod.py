@@ -3,11 +3,14 @@ import zipfile
 from pathlib import Path
 from typing import Final
 
-OVERLAY_PREFIX: Final[str] = "x2loc_zh_"
+# The name must not end in "_<digits>": UE3 stores that suffix of a name as a
+# 32-bit number, so a save recorded every overlay of a Workshop id above
+# 2147483647 as "x2loc_zh_2147483647" and then reported each one missing.
+LEGACY_PREFIX: Final[str] = "x2loc_zh_"
 
 
 def overlay_mod_name(workshop_id: str) -> str:
-    return f"{OVERLAY_PREFIX}{workshop_id}"
+    return f"x2loc_{workshop_id}_zh"
 
 
 def _manifest(workshop_id: str, title: str) -> str:
@@ -61,4 +64,8 @@ def install_overlay(
     finally:
         if staging.exists():
             shutil.rmtree(staging)
+    # Both would load; the new one replaces an install under the old name.
+    legacy = mods_dir / f"{LEGACY_PREFIX}{workshop_id}"
+    if legacy.exists():
+        shutil.rmtree(legacy)
     return target
