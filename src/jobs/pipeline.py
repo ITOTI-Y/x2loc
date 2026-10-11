@@ -183,6 +183,7 @@ class WorkshopPipeline:
         self._llm_client = llm_client
         self._aligner = BilingualAligner()
         self._extractor = TermExtractor()
+        self._converter = CorpusConverter()
         self._artifact = ArtifactBuilder()
         # LLM requests in flight, shared by every job of this pipeline so
         # concurrent jobs keep the ceiling of one; keyed by that ceiling.
@@ -294,7 +295,7 @@ class WorkshopPipeline:
         )
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.EXTRACTING_TERMS))
-        added, skipped = await self._extract_terms(works, written, item, request)
+        added, skipped = await self._extract_terms(works, authoritative, item, request)
         progress = progress.model_copy(
             update={"terms_added": added, "terms_skipped": skipped}
         )
@@ -576,7 +577,7 @@ class WorkshopPipeline:
             path, target_file = self._artifact.write_target(
                 asset=work.asset,
                 source_file=work.source_file,
-                translations=translations,
+                translations=self._with_shipped(work, translations),
                 target_lang=target_lang,
                 staging_root=overlay,
             )
@@ -586,22 +587,53 @@ class WorkshopPipeline:
             written.append((path, target_file))
         return written
 
+    @staticmethod
+    def _with_shipped(
+        work: AssetWorkSchema, translations: dict[str, str]
+    ) -> dict[str, str]:
+        """Weblate's translations, the mod's own filling the units it lacks.
+
+        The overlay loads after the mod and writes every unit, its source
+        text where it has no translation; that would replace a translation
+        the mod ships. A shipped one whose tags disagree with the source is
+        left out, as the overlay check would reject it.
+        """
+        shipped = {
+            unit.context: unit.target
+            for unit in work.units
+            if unit.target
+            and unit.context not in translations
+            and validate_tags(unit.source, unit.target)[0]
+        }
+        return {**shipped, **translations}
+
     async def _extract_terms(
         self,
         works: list[AssetWorkSchema],
-        written: list[tuple[Path, LocalizationFile]],
+        authoritative: list[dict[str, str]],
         item: WorkshopItemSchema,
         request: WorkshopJobRequestSchema,
     ) -> tuple[int, int]:
+        """Mine terms from Weblate's translations only.
+
+        The overlay also carries the mod's unreviewed translations, which
+        must not reach the glossary.
+        """
+
         def align_and_extract() -> Glossary:
             corpora = [
                 self._aligner.align(
                     work.source_file,
-                    target_file,
+                    self._converter.build_target_file(
+                        source=work.source_file,
+                        translations=translations,
+                        target_lang=request.target_lang,
+                        target_path=work.asset.source_path,
+                    ),
                     target_lang=request.target_lang,
                     mod_info=item.mod_info,
                 )
-                for work, (_path, target_file) in zip(works, written, strict=True)
+                for work, translations in zip(works, authoritative, strict=True)
             ]
             return self._extractor.extract(corpora)
 

@@ -127,3 +127,24 @@ async def test_changed_source_is_updated_and_its_translation_redone() -> None:
         (100, ["New text"], WEBLATE_STATE_TRANSLATED),
         (200, [""], WEBLATE_STATE_EMPTY),
     ]
+
+
+def test_overlay_fills_units_weblate_lacks_with_the_mods_translation() -> None:
+    w = AssetWorkSchema.model_construct(
+        asset=asset("Localization/Foo.int"),
+        units=[
+            CorpusUnitSchema(context=c, source=s, target=t, note="")
+            for c, s, t in [
+                ("held", "Rifle", "模组步枪"),
+                ("lacking", "Shotgun", "霰弹枪"),
+                ("broken", "Deals <Ability:X/> damage", "造成伤害"),
+                ("untranslated", "Pistol", ""),
+            ]
+        ],
+        expected={},
+    )
+
+    assert WorkshopPipeline._with_shipped(w, {"held": "步枪"}) == {
+        "held": "步枪",
+        "lacking": "霰弹枪",
+    }
