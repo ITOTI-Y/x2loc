@@ -41,6 +41,7 @@ from src.services.glossary import GlossarySource, GlossaryWriter
 from src.services.steam import SteamDownloadError
 from src.services.weblate import (
     WEBLATE_STATE_EMPTY,
+    WEBLATE_STATE_TRANSLATED,
     AsyncWeblateClient,
     WeblateAPIError,
 )
@@ -234,7 +235,13 @@ class WorkshopPipeline:
                 )
                 for work in works
             ]
-        snapshots = [task.result() for task in syncs]
+        snapshots = [task.result()[0] for task in syncs]
+        # Translations cleared because their source changed, by component:
+        # each is its unit's first-round candidate, after the mod's own.
+        previous = {
+            work.asset.component_slug: task.result()[1]
+            for work, task in zip(works, syncs, strict=True)
+        }
         # A component whose post-sync snapshot holds no empty target has
         # nothing for the graph to fetch; skipping it saves a round trip and
         # keeps its snapshot valid for the readback below.
@@ -245,7 +252,7 @@ class WorkshopPipeline:
         ]
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.TRANSLATING))
-        translated = await self._translate(request, pending)
+        translated = await self._translate(request, pending, previous)
         progress = progress.model_copy(
             update={"units_translated": translated, "files_completed": len(works)}
         )
@@ -258,7 +265,10 @@ class WorkshopPipeline:
         ) -> dict[str, str]:
             slug = work.asset.component_slug
             if snapshot is None or slug in pending_slugs:
-                snapshot = await self._weblate.download_units(slug, request.target_lang)
+                snapshot = await self._true_sources(
+                    work,
+                    await self._weblate.download_units(slug, request.target_lang),
+                )
                 self._context.update(slug, snapshot)
             return self._authoritative(work, snapshot)
 
@@ -311,10 +321,12 @@ class WorkshopPipeline:
 
     async def _sync(
         self, work: AssetWorkSchema, target_lang: str, namespace: str
-    ) -> list[CorpusUnitSchema] | None:
+    ) -> tuple[list[CorpusUnitSchema] | None, dict[str, str]]:
         """Sync one component; return its target units if still current.
 
-        The snapshot is None once mismatched tags were cleared from it.
+        The snapshot is None once anything was cleared from it. Also
+        returns, by context, the translations cleared because the mod has
+        changed their source since.
         """
         # The slug is already unique per mod and file; the display name
         # carries the mod namespace because a bare relative path such as
@@ -330,10 +342,88 @@ class WorkshopPipeline:
             snapshot = await self._weblate.download_units(
                 work.asset.component_slug, target_lang
             )
+        snapshot = await self._true_sources(work, snapshot)
         self._context.update(work.asset.component_slug, snapshot)
-        if await self._clear_tag_mismatches(work, target_lang, snapshot):
-            return None
-        return snapshot
+        previous = await self._clear_changed_sources(work, target_lang, snapshot)
+        cleared = await self._clear_tag_mismatches(work, target_lang, snapshot)
+        return (None if previous or cleared else snapshot), previous
+
+    async def _true_sources(
+        self, work: AssetWorkSchema, snapshot: list[CorpusUnitSchema]
+    ) -> list[CorpusUnitSchema]:
+        """The snapshot with each unit's source as Weblate's template holds it.
+
+        Weblate's CSV export puts some units' key in the source column
+        (seen on units created by earlier versions of this tool), while the
+        source-language file's target column always holds the real source.
+        That file is read only when the snapshot disagrees with the parsed
+        sources, which is rare.
+        """
+        if all(
+            work.expected.get(unit.context, unit.source) == unit.source
+            for unit in snapshot
+        ):
+            return snapshot
+        sources = {
+            unit.context: unit.target
+            for unit in await self._weblate.download_units(
+                work.asset.component_slug, self._weblate.config.source_language
+            )
+        }
+        return [
+            unit.model_copy(update={"source": sources.get(unit.context, unit.source)})
+            for unit in snapshot
+        ]
+
+    async def _clear_changed_sources(
+        self,
+        work: AssetWorkSchema,
+        target_lang: str,
+        snapshot: list[CorpusUnitSchema],
+    ) -> dict[str, str]:
+        """Update the sources the mod has changed; clear their translations.
+
+        A held translation was made for the old source, so it is emptied for
+        the graph to redo and returned by context, to be scored as the
+        unit's first-round candidate instead of trusted.
+        """
+        changed = {
+            unit.context: unit
+            for unit in snapshot
+            if unit.context in work.expected
+            and unit.source != work.expected[unit.context]
+        }
+        if not changed:
+            return {}
+        slug = work.asset.component_slug
+        # Patching needs unit ids, which only the (slow) units API carries.
+        for unit in await self._weblate.list_units(
+            slug, self._weblate.config.source_language
+        ):
+            if unit.context in changed:
+                await self._weblate.patch_unit(
+                    unit.id,
+                    WeblateUnitPatchSchema(
+                        target=[work.expected[unit.context]],
+                        state=WEBLATE_STATE_TRANSLATED,
+                    ),
+                )
+        for unit in await self._weblate.list_units(slug, target_lang):
+            if unit.context in changed:
+                await self._weblate.patch_unit(
+                    unit.id,
+                    WeblateUnitPatchSchema(target=[""], state=WEBLATE_STATE_EMPTY),
+                )
+        logger.warning(
+            "Updated {} changed sources in {}; their translations are redone",
+            len(changed),
+            slug,
+        )
+        return {
+            context: unit.target
+            for context, unit in changed.items()
+            if unit.target.strip()
+        }
 
     async def _clear_tag_mismatches(
         self,
@@ -373,7 +463,10 @@ class WorkshopPipeline:
         return True
 
     async def _translate(
-        self, request: WorkshopJobRequestSchema, works: list[AssetWorkSchema]
+        self,
+        request: WorkshopJobRequestSchema,
+        works: list[AssetWorkSchema],
+        previous: dict[str, dict[str, str]],
     ) -> int:
         """Translate every component through one graph and one node instance.
 
@@ -407,7 +500,12 @@ class WorkshopPipeline:
                 NewAgentStateSchema(
                     component_slug=work.asset.component_slug,
                     references={
-                        unit.context: unit.target for unit in work.units if unit.target
+                        **previous.get(work.asset.component_slug, {}),
+                        **{
+                            unit.context: unit.target
+                            for unit in work.units
+                            if unit.target
+                        },
                     },
                 ),
                 config={
