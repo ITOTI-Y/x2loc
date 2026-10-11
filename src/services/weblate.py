@@ -268,14 +268,17 @@ class AsyncWeblateClient:
             timeout=HTTP_UPLOAD_TIMEOUT,
         )
         await self._await_task(response.json().get("task_url"))
+        await self._enable_unit_management(draft.slug)
+        logger.success(f"Created component {draft.slug}")
+
+    async def _enable_unit_management(self, slug: str) -> None:
         await self._request(
             WeblateRequestSchema(
                 method="PATCH",
-                path=f"components/{self.config.project_slug}/{draft.slug}/",
+                path=f"components/{self.config.project_slug}/{slug}/",
                 json_body={"manage_units": True, "edit_template": True},
             )
         )
-        logger.success(f"Created component {draft.slug}")
 
     async def delete_component(
         self, slug: str, *, timeout: float = TRANSLATION_READY_TIMEOUT
@@ -603,6 +606,15 @@ class AsyncWeblateClient:
                 )
             )
             source_batches = source_batches[1:]
+        elif source_batches:
+            # A run interrupted between creation and its settings PATCH
+            # leaves a component that rejects every later `method="add"`.
+            component = await self.get_component(component_slug)
+            if component is not None and not (
+                component.manage_units and component.edit_template
+            ):
+                logger.warning("Enabling unit management on {}", component_slug)
+                await self._enable_unit_management(component_slug)
         for batch in source_batches:
             await self.upload_file(
                 component_slug,

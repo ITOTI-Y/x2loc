@@ -498,12 +498,21 @@ async def test_sync_adds_only_missing_source_units(
     route_translations(fake, stats_payload("en", 1), stats_payload(LANG, 0))
     fake.route("GET", SOURCE_FILE_PATH, csv_response("a"))
     fake.route("POST", SOURCE_FILE_PATH, Response(200, json={"accepted": 1}))
+    fake.route(
+        "GET",
+        COMPONENT_PATH,
+        Response(
+            200,
+            json={"slug": COMPONENT, "manage_units": True, "edit_template": True},
+        ),
+    )
     route_translation_ready(fake, total=2)
 
     snapshot = await client.sync_corpus(
         COMPONENT, name="n", language=LANG, units=corpus_units("a", "b")
     )
 
+    assert not [r for r in fake.requests if r.method == "PATCH"]
     uploads = [
         r
         for r in fake.requests
@@ -514,6 +523,25 @@ async def test_sync_adds_only_missing_source_units(
     assert '"b","S b"' in body
     assert '"a","S a"' not in body
     assert snapshot is None
+
+
+async def test_sync_enables_unit_management_before_adding(
+    client: AsyncWeblateClient, fake: FakeWeblate
+) -> None:
+    route_translations(fake, stats_payload("en", 1), stats_payload(LANG, 0))
+    fake.route("GET", SOURCE_FILE_PATH, csv_response("a"))
+    fake.route("POST", SOURCE_FILE_PATH, Response(200, json={"accepted": 1}))
+    fake.route("GET", COMPONENT_PATH, Response(200, json={"slug": COMPONENT}))
+    fake.route("PATCH", COMPONENT_PATH, Response(200, json={"slug": COMPONENT}))
+    route_translation_ready(fake, total=2)
+
+    await client.sync_corpus(
+        COMPONENT, name="n", language=LANG, units=corpus_units("a", "b")
+    )
+
+    sent = [(r.method, r.url.path) for r in fake.requests]
+    patch = sent.index(("PATCH", API_PREFIX + COMPONENT_PATH))
+    assert patch < sent.index(("POST", API_PREFIX + SOURCE_FILE_PATH))
 
 
 async def test_rejection_body_is_logged_with_token_masked(
