@@ -2,7 +2,9 @@ import asyncio
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Final, Protocol
+
+from loguru import logger
 
 from src.config import GlossaryConfigSchema
 from src.core.glossary import normalize_term, term_context, term_pair
@@ -13,6 +15,9 @@ from src.models.weblate import (
     WeblateUnitSchema,
 )
 from src.services.weblate import AsyncWeblateClient, WeblateAPIError
+
+# A run can queue thousands of terms; one unit POST each takes minutes.
+PUBLISH_PROGRESS_EVERY: Final = 500
 
 
 class GlossarySource(Protocol):
@@ -63,8 +68,12 @@ async def publish_pairs(
     created on the source translation (the only place unit creation is
     allowed), then the targets are filled through one translate upload.
     """
+    total = len(pairs)
+    created = 0
+    logger.info("Publishing {} terms to {}", total, component_slug)
 
     async def _create(source: str, target: str) -> None:
+        nonlocal created
         try:
             await client.create_unit(
                 component_slug,
@@ -81,8 +90,12 @@ async def publish_pairs(
             # way, which also heals empty-target orphans.
             if exc.status_code != 400:
                 raise
+        created += 1
+        if created % PUBLISH_PROGRESS_EVERY == 0 and created < total:
+            logger.info("Created {}/{} term sources", created, total)
 
     await asyncio.gather(*(_create(source, target) for source, target in pairs))
+    logger.info("Created {} term sources; uploading their targets", total)
     await client.upload_targets(
         component_slug,
         target_lang,
