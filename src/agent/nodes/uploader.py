@@ -1,5 +1,5 @@
 import asyncio
-from typing import TypedDict
+from typing import NamedTuple, TypedDict
 
 from httpx2 import TransportError
 from loguru import logger
@@ -18,6 +18,14 @@ class UploaderOutputSchema(TypedDict):
     stats: StatsSchema
 
 
+class UnitWrite(NamedTuple):
+    unit_id: int
+    target: str
+    state: int
+    # Empty for none; otherwise posted on the unit after the target.
+    comment: str
+
+
 class BackgroundUploader:
     """Fire-and-drain Weblate writes.
 
@@ -31,7 +39,7 @@ class BackgroundUploader:
         self._client = client
         self._tasks: set[asyncio.Task[None]] = set()
 
-    def submit(self, items: list[tuple[int, str, int]]) -> None:
+    def submit(self, items: list[UnitWrite]) -> None:
         if not items:
             return
         self._tasks.add(asyncio.create_task(self._upload(items)))
@@ -45,22 +53,24 @@ class BackgroundUploader:
         if errors:
             raise BaseExceptionGroup("background Weblate uploads failed", errors)
 
-    async def _upload(self, items: list[tuple[int, str, int]]) -> None:
-        results = await asyncio.gather(
-            *[self._patch(unit_id, target, state) for unit_id, target, state in items]
-        )
+    async def _upload(self, items: list[UnitWrite]) -> None:
+        results = await asyncio.gather(*[self._patch(item) for item in items])
         failed = len(items) - sum(results)
         if failed:
             raise WeblateAPIError(502, f"{failed}/{len(items)} unit patches")
         logger.success(f"[UPLOAD] {len(items)} units patched")
 
-    async def _patch(self, unit_id: int, target: str, state: int) -> bool:
+    async def _patch(self, item: UnitWrite) -> bool:
         try:
             await self._client.patch_unit(
-                unit_id, WeblateUnitPatchSchema(target=[target], state=state)
+                item.unit_id,
+                WeblateUnitPatchSchema(target=[item.target], state=item.state),
             )
+            # A unit handed to a human without its reason is a failed write.
+            if item.comment:
+                await self._client.add_unit_comment(item.unit_id, item.comment)
         except (WeblateAPIError, TransportError) as exc:
-            logger.error(f"PATCH failed for unit {unit_id}: {exc!r}")
+            logger.error(f"Write failed for unit {item.unit_id}: {exc!r}")
             return False
         return True
 
@@ -69,7 +79,7 @@ async def uploader(
     state: NewAgentStateSchema, *, background_uploader: BackgroundUploader
 ) -> UploaderOutputSchema:
     units = {u.id: u for u in state.scores}
-    items: list[tuple[int, str, int]] = []
+    items: list[UnitWrite] = []
     n_approved = n_modified = n_skipped = n_needs_editing = 0
 
     for decision in state.decisions:
@@ -87,7 +97,7 @@ async def uploader(
             state_code = WEBLATE_STATE_FUZZY
         else:
             n_modified += 1
-        items.append((decision.unit_id, target, state_code))
+        items.append(UnitWrite(decision.unit_id, target, state_code, decision.comment))
 
     background_uploader.submit(items)
 

@@ -136,6 +136,8 @@ class ReviewDecisionSchema(BaseSchema):
     unit_id: int
     action: Literal["approve", "modify", "skip", "needs_editing"]
     translation: str | None = None
+    # Posted on the unit for a human reviewer; why it needs editing.
+    comment: str = ""
 
 
 class NewAgentStateSchema(BaseSchema):
@@ -178,8 +180,8 @@ class NewAgentStateSchema(BaseSchema):
     quality_feedback: dict[int, str] = Field(default_factory=dict)
     attempts: int = Field(default=0)
     # Highest-scoring tag-valid candidate per unit across the quality-gate
-    # rounds of the current batch: (score, translation).
-    best_candidates: dict[int, tuple[int, str]] = Field(default_factory=dict)
+    # rounds of the current batch: (score, translation, scorer's review).
+    best_candidates: dict[int, tuple[int, str, str]] = Field(default_factory=dict)
     retry_pending: bool = Field(default=False)
 
     approved_pairs: dict[str, str] = Field(default_factory=dict)

@@ -1,6 +1,7 @@
 from src.agent.config import ConfigSchema
 from src.agent.review import ThresholdReview
 from src.models.agent import (
+    DeductionSchema,
     NewAgentStateSchema,
     ScoreResultSchema,
     TranslationUnitSchema,
@@ -54,7 +55,10 @@ def with_score(
     return unit.model_copy(
         update={
             "translated": translated,
-            "score_result": ScoreResultSchema(score=score),
+            "score_result": ScoreResultSchema(
+                score=score,
+                deductions=[DeductionSchema(dim="semantic", pts=15, reason="漏译")],
+            ),
         }
     )
 
@@ -69,7 +73,7 @@ async def test_exhausted_gate_writes_best_candidate_as_needs_editing(
     )
     retry = await review(state, agent_config=agent_config)
     assert retry["retry_pending"]
-    assert retry["best_candidates"] == {1: (55, "最好")}
+    assert retry["best_candidates"][1][:2] == (55, "最好")
 
     last = NewAgentStateSchema(
         scores=[with_score(scored_unit(1, tag_valid=True), 45, "较差")],
@@ -78,9 +82,10 @@ async def test_exhausted_gate_writes_best_candidate_as_needs_editing(
     )
     result = await review(last, agent_config=agent_config)
 
-    assert [(d.action, d.translation) for d in result["decisions"]] == [
-        ("needs_editing", "最好")
-    ]
+    [decision] = result["decisions"]
+    assert (decision.action, decision.translation) == ("needs_editing", "最好")
+    assert "score 55" in decision.comment
+    assert "semantic -15: 漏译" in decision.comment
     assert result["best_candidates"] == {}
 
 

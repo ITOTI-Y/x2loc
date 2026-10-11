@@ -56,6 +56,8 @@ LOCK_BUSY_BASE_DELAY: Final[float] = 30.0
 TASK_POLL_INTERVAL: Final[float] = 2.0
 TASK_POLL_TIMEOUT: Final[float] = 900.0
 ERROR_BODY_LOG_CHARS: Final[int] = 500
+# Weblate's comment serializer rejects longer text.
+COMMENT_MAX_CHARS: Final[int] = 1000
 
 UPLOAD_CSV_COLUMNS: Final[tuple[str, ...]] = (
     "context",
@@ -502,6 +504,19 @@ class AsyncWeblateClient:
             payload = await asyncio.to_thread(units_to_csv, batch, content="target")
             if payload.count(b"\n") > 1:
                 await self._upload_targets(component_slug, language, payload)
+
+    async def add_unit_comment(self, unit_id: int, comment: str) -> None:
+        """Comment on one translation unit; shown beside it in the editor."""
+        await self._request(
+            WeblateRequestSchema(
+                method="POST",
+                path=f"units/{unit_id}/comments/",
+                json_body={
+                    "scope": "translation",
+                    "comment": comment[:COMMENT_MAX_CHARS],
+                },
+            )
+        )
 
     async def patch_unit(self, unit_id: int, patch: WeblateUnitPatchSchema) -> None:
         """Weblate answers a unit PATCH with a partial body (no id/source/

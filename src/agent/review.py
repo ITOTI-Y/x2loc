@@ -21,7 +21,7 @@ class ReviewOutputSchema(TypedDict):
     quality_feedback: dict[int, str]
     attempts: int
     retry_pending: bool
-    best_candidates: dict[int, tuple[int, str]]
+    best_candidates: dict[int, tuple[int, str, str]]
 
 
 class ReviewPolicy(Protocol):
@@ -99,7 +99,7 @@ class ThresholdReview:
             if unit.translated.strip() and unit.tag_valid:
                 previous = best.get(unit.id)
                 if previous is None or score > previous[0]:
-                    best[unit.id] = (score, unit.translated)
+                    best[unit.id] = (score, unit.translated, _review(unit))
 
         if not failed:
             return {
@@ -141,6 +141,12 @@ class ThresholdReview:
                         unit_id=unit.id,
                         action="needs_editing",
                         translation=candidate[1],
+                        comment=(
+                            f"x2loc quality gate: no candidate reached "
+                            f"{agent_config.auto_approve_threshold} in {attempts} "
+                            f"rounds; this is the best one, score {candidate[0]}.\n\n"
+                            f"{candidate[2]}"
+                        ),
                     )
                     if candidate
                     else ReviewDecisionSchema(
@@ -172,6 +178,19 @@ class ThresholdReview:
             "retry_pending": True,
             "best_candidates": best,
         }
+
+
+def _review(unit: TranslationUnitSchema) -> str:
+    """The scorer's verdict as Markdown, for the reviewer in Weblate."""
+    result = unit.score_result
+    if result is None:
+        return "No structured score was returned."
+    lines = [f"- {item.dim} -{item.pts}: {item.reason}" for item in result.deductions]
+    if result.notes:
+        lines.append(f"\nScorer notes: {result.notes}")
+    if result.suggested_translation:
+        lines.append(f"\nScorer suggestion: {result.suggested_translation}")
+    return "\n".join(lines) or "The scorer gave no reason."
 
 
 def _feedback(unit: TranslationUnitSchema) -> str:
