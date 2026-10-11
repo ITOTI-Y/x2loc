@@ -325,7 +325,6 @@ class WorkshopPipeline:
             name=component_name(work.asset, namespace),
             language=target_lang,
             units=work.units,
-            has_existing_target=work.asset.existing_target_path is not None,
         )
         if snapshot is None:
             snapshot = await self._weblate.download_units(
@@ -405,7 +404,12 @@ class WorkshopPipeline:
 
         async def translate_one(work: AssetWorkSchema) -> int:
             final = await graph.ainvoke(
-                NewAgentStateSchema(component_slug=work.asset.component_slug),
+                NewAgentStateSchema(
+                    component_slug=work.asset.component_slug,
+                    references={
+                        unit.context: unit.target for unit in work.units if unit.target
+                    },
+                ),
                 config={
                     "configurable": {"thread_id": str(uuid4())},
                     "recursion_limit": graph_recursion_limit(

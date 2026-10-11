@@ -536,17 +536,16 @@ class AsyncWeblateClient:
         name: str,
         language: str,
         units: list[CorpusUnitSchema],
-        has_existing_target: bool,
     ) -> list[CorpusUnitSchema] | None:
-        """Bring one component's source strings and existing targets up to date.
+        """Bring one component's source strings up to date.
 
         Creates the component from a source docfile when it is missing,
         otherwise appends only the source strings it lacks with
         `method="add"`. A component left with no source units (its docfile
-        import never materialized) holds no data and is recreated. Existing
-        targets are filled, only for units Weblate does not yet count as
-        translated, with `method="translate", conflicts="ignore"` so
-        Weblate keeps whatever it already holds — Weblate is the authority.
+        import never materialized) holds no data and is recreated. The
+        units' targets, the mod's own translations, are not imported: they
+        are often inaccurate, so the translation graph scores each one
+        before anything reaches Weblate.
 
         Returns the target translation's units when they were read and
         nothing was written afterwards, so the caller can skip a re-read;
@@ -615,27 +614,9 @@ class AsyncWeblateClient:
         # Counts read before any source change still describe a translation
         # that already holds every unit; otherwise wait for it to fill.
         if not exists or pending or held is None or held.total < expected:
-            held = await self._ensure_translation_ready(
+            await self._ensure_translation_ready(
                 component_slug, language, expected=expected
             )
-            snapshot = None
-        if not has_existing_target:
-            return snapshot
-        # A file import costs Weblate seconds per batch even when
-        # `conflicts="ignore"` skips every row, so only the units Weblate does
-        # not yet count as translated are sent; a fully translated
-        # translation is settled by its counts alone.
-        if held.translated >= held.total:
-            return snapshot
-        lacking = {
-            unit.context
-            for unit in await self.list_units(
-                component_slug, language, q="state:<translated"
-            )
-        }
-        missing = [unit for unit in units if unit.context in lacking and unit.target]
-        if missing:
-            await self.upload_targets(component_slug, language, missing)
             snapshot = None
         return snapshot
 

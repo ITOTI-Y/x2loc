@@ -483,11 +483,7 @@ async def test_sync_recreates_component_without_source_units(
     route_translation_ready(fake, total=2)
 
     await client.sync_corpus(
-        COMPONENT,
-        name="n",
-        language=LANG,
-        units=corpus_units("a", "b"),
-        has_existing_target=False,
+        COMPONENT, name="n", language=LANG, units=corpus_units("a", "b")
     )
 
     sent = [(r.method, r.url.path) for r in fake.requests]
@@ -505,11 +501,7 @@ async def test_sync_adds_only_missing_source_units(
     route_translation_ready(fake, total=2)
 
     snapshot = await client.sync_corpus(
-        COMPONENT,
-        name="n",
-        language=LANG,
-        units=corpus_units("a", "b"),
-        has_existing_target=False,
+        COMPONENT, name="n", language=LANG, units=corpus_units("a", "b")
     )
 
     uploads = [
@@ -559,11 +551,7 @@ async def test_sync_recreates_translation_that_never_got_units(
     monkeypatch.setattr(client, "wait_for_translation_units", wait_once_then_ready)
 
     await client.sync_corpus(
-        COMPONENT,
-        name="n",
-        language=LANG,
-        units=corpus_units("a"),
-        has_existing_target=False,
+        COMPONENT, name="n", language=LANG, units=corpus_units("a")
     )
 
     sent = [(r.method, r.url.path) for r in fake.requests]
@@ -571,47 +559,20 @@ async def test_sync_recreates_translation_that_never_got_units(
     assert waits == [1, 1]
 
 
-async def test_sync_uploads_only_targets_weblate_lacks(
+async def test_sync_never_uploads_the_mods_translations(
     client: AsyncWeblateClient, fake: FakeWeblate
 ) -> None:
     route_translations(fake, stats_payload("en", 3, 3), stats_payload(LANG, 3, 1))
     fake.route("GET", TARGET_FILE_PATH, csv_response("a", "b", "c", target="x"))
-    fake.route(
-        "GET",
-        TARGET_UNITS_PATH,
-        Response(
-            200,
-            json=page_payload(
-                [
-                    unit_payload(2, context="b", state=10),
-                    unit_payload(3, context="c", target=[""], state=0),
-                ],
-                2,
-            ),
-        ),
-    )
-    fake.route("POST", TARGET_FILE_PATH, Response(200, json={"accepted": 2}))
     units = [
         CorpusUnitSchema(context=c, source=f"S {c}", target=f"T {c}", note="")
         for c in "abc"
     ]
 
-    snapshot = await client.sync_corpus(
-        COMPONENT, name="n", language=LANG, units=units, has_existing_target=True
-    )
+    snapshot = await client.sync_corpus(COMPONENT, name="n", language=LANG, units=units)
 
-    listed = [r for r in fake.requests if r.url.path == API_PREFIX + TARGET_UNITS_PATH]
-    assert [r.url.params["q"] for r in listed] == ["state:<translated"]
-    uploads = [
-        r
-        for r in fake.requests
-        if r.method == "POST" and r.url.path == API_PREFIX + TARGET_FILE_PATH
-    ]
-    assert len(uploads) == 1
-    body = uploads[0].content.decode()
-    assert '"b"' in body and '"c"' in body
-    assert '"a"' not in body
-    assert snapshot is None
+    assert not [r for r in fake.requests if r.method == "POST"]
+    assert snapshot is not None
 
 
 async def test_synced_component_costs_two_reads_and_returns_snapshot(
@@ -621,9 +582,7 @@ async def test_synced_component_costs_two_reads_and_returns_snapshot(
     fake.route("GET", TARGET_FILE_PATH, csv_response("a", target="T a"))
     units = [CorpusUnitSchema(context="a", source="S a", target="T a", note="")]
 
-    snapshot = await client.sync_corpus(
-        COMPONENT, name="n", language=LANG, units=units, has_existing_target=True
-    )
+    snapshot = await client.sync_corpus(COMPONENT, name="n", language=LANG, units=units)
 
     assert [(r.method, r.url.path) for r in fake.requests] == [
         ("GET", API_PREFIX + TRANSLATIONS_PATH),

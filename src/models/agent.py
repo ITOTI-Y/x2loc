@@ -144,6 +144,10 @@ class NewAgentStateSchema(BaseSchema):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     component_slug: str = ""
+    # Translations shipped with the mod, by unit context. They are not
+    # imported into Weblate; each one is the unit's first-round candidate
+    # and must pass the quality gate like a model translation.
+    references: dict[str, str] = Field(default_factory=dict)
 
     stats: StatsSchema = Field(
         default_factory=lambda: StatsSchema(

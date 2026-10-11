@@ -58,6 +58,12 @@ async def translator(
             state.context_results[unit.id],
             match_patterns,
         )
+        reference = state.references.get(unit.context)
+        if reference:
+            prompt = (
+                f"{prompt}\n\nThe mod ships this translation, which may be "
+                f"inaccurate; use it only as a reference:\n{reference}"
+            )
         feedback = state.quality_feedback.get(unit.id)
         if feedback:
             prompt = f"{prompt}\n\nPrevious attempt was rejected:\n{feedback}"
@@ -82,8 +88,21 @@ async def translator(
             patterns=match_patterns,
         )
 
+    # The first round scores the mod's own translation where there is one;
+    # the model only translates what it lacks, or what the gate rejected.
+    shipped = (
+        {
+            unit.id: state.references[unit.context]
+            for unit in state.to_translate
+            if state.references.get(unit.context)
+        }
+        if state.attempts == 0
+        else {}
+    )
     prompts = await asyncio.to_thread(
-        lambda: [_build_prompt(unit) for unit in state.to_translate]
+        lambda: [
+            _build_prompt(unit) for unit in state.to_translate if unit.id not in shipped
+        ]
     )
     results = await invoke_batched(
         agent,
@@ -92,9 +111,15 @@ async def translator(
         slots=llm_slots,
         label="Translation",
     )
-    candidates = [
-        _candidate(unit, results[unit.id].result if unit.id in results else "")
-        for unit in state.to_translate
-    ]
-    logger.success(f"Translated {len(candidates)} units")
+
+    def _translation(unit: WeblateUnitSchema) -> str:
+        if unit.id in shipped:
+            return shipped[unit.id]
+        return results[unit.id].result if unit.id in results else ""
+
+    candidates = [_candidate(unit, _translation(unit)) for unit in state.to_translate]
+    logger.success(
+        f"Translated {len(candidates) - len(shipped)} units; "
+        f"{len(shipped)} mod translations go to review as they are"
+    )
     return {"candidates": candidates}
