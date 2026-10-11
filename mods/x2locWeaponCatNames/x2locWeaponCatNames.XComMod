@@ -1,0 +1,6 @@
+[mod]
+publishedFileId=0
+Title=x2loc Weapon Category Names
+Description=Names the weapon categories that mods add, in the valid-weapons line Musashi's Mods Fixes appends to ability descriptions.
+tags= war of the chosen
+RequiresXPACK=true
