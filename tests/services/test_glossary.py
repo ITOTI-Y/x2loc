@@ -4,6 +4,7 @@ import pytest
 
 from src.agent.config import ConfigSchema
 from src.agent.nodes.glossary_loader import load_glossaries
+from src.core.glossary import term_context
 from src.models.glossary import GlossaryTerm
 from src.models.weblate import CorpusUnitSchema, WeblateConfigSchema, WeblateUnitSchema
 from src.services import glossary as module
@@ -149,3 +150,25 @@ async def test_writer_diffs_against_shared_snapshot_then_invalidates(
     await load_glossaries(snapshots, agent_config)
     assert weblate.calls.count("custom") == 2
     assert weblate.calls.count("base") == 1
+
+
+def test_missing_pairs_skips_pairs_whose_keyed_unit_was_corrected() -> None:
+    corrected = WeblateUnitSchema(
+        id=1,
+        language_code="zh_Hans",
+        source="Bitterfrost",
+        target="苦霜",
+        context=term_context("Bitterfrost", "严霜"),
+    )
+    orphan = WeblateUnitSchema(
+        id=2,
+        language_code="zh_Hans",
+        source="Kosma",
+        target="",
+        context=term_context("Kosma", "考斯玛"),
+    )
+
+    assert module.missing_pairs(
+        [("Bitterfrost", "严霜"), ("Kosma", "考斯玛"), ("Frost", "冰霜")],
+        [corrected, orphan],
+    ) == [("Kosma", "考斯玛"), ("Frost", "冰霜")]

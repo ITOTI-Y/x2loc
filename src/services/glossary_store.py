@@ -24,7 +24,7 @@ from src.core.glossary import term_context
 from src.models._share import BaseSchema
 from src.models.glossary import GlossaryTerm
 from src.models.weblate import WeblateUnitSchema
-from src.services.glossary import existing_pairs, publish_pairs, term_pairs
+from src.services.glossary import missing_pairs, publish_pairs, term_pairs
 from src.services.weblate import AsyncWeblateClient
 
 WEBLATE_STATE_TRANSLATED: Final = 20
@@ -193,8 +193,7 @@ class DeferredGlossaryWriter:
             return 0, 0
         async with self._lock:
             current = await self._store.units(self._component_slug, self._target_lang)
-            existing = existing_pairs(current)
-            new_pairs = [pair for pair in pairs if pair not in existing]
+            new_pairs = missing_pairs(pairs, current)
             self._store.add_pending(self._component_slug, self._target_lang, new_pairs)
         return len(new_pairs), len(pairs) - len(new_pairs)
 

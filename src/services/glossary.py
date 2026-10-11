@@ -47,12 +47,25 @@ def term_pairs(terms: Iterable[GlossaryTerm]) -> list[tuple[str, str]]:
     )
 
 
-def existing_pairs(units: Iterable[WeblateUnitSchema]) -> set[tuple[str, str]]:
-    return {
-        term_pair(unit.source, unit.target)
-        for unit in units
-        if normalize_term(unit.source) and normalize_term(unit.target)
-    }
+def missing_pairs(
+    pairs: list[tuple[str, str]], units: Iterable[WeblateUnitSchema]
+) -> list[tuple[str, str]]:
+    """The pairs the glossary does not hold yet.
+
+    A pair is held when a unit carries it, or when the unit created for it
+    (keyed by the pair) has a target: a reviewer may have corrected that
+    target since, and re-creating the pair would only collide with the key.
+    A keyed unit left without a target is not held, so publishing heals it.
+    """
+    held: set[tuple[str, str]] = set()
+    keyed: set[str] = set()
+    for unit in units:
+        if normalize_term(unit.source) and normalize_term(unit.target):
+            held.add(term_pair(unit.source, unit.target))
+            keyed.add(unit.context)
+    return [
+        pair for pair in pairs if pair not in held and term_context(*pair) not in keyed
+    ]
 
 
 async def publish_pairs(
@@ -200,8 +213,7 @@ class CustomGlossaryWriter:
             current = await self._snapshots.units(
                 self._component_slug, self._target_lang
             )
-            existing = existing_pairs(current)
-            new_pairs = [pair for pair in pairs if pair not in existing]
+            new_pairs = missing_pairs(pairs, current)
         if not new_pairs:
             return 0, len(pairs)
         try:
