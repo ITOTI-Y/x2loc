@@ -29,6 +29,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+build = [
+    "nuitka>=4.3",
+]
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.4.0",

@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: webui/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: webui/pnpm-lock.yaml
+
+      - name: Build the pages
+        working-directory: webui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm check:i18n
+          pnpm build
+
+      - name: Test
+        run: |
+          uv sync --locked --group build
+          uv run pytest -q
+
+      - uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\Nuitka
+          key: nuitka-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: nuitka-${{ runner.os }}-
+
+      - name: Build the executable
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF_TYPE" == tag ]] || version=""
+          uv run --group build python packaging/build.py --version "${version}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: x2loc-windows
+          path: build/nuitka/x2loc.exe
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" build/nuitka/x2loc.exe --title "${{ github.ref_name }}" --generate-notes

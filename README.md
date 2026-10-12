@@ -115,6 +115,13 @@ uv run x2loc-app
 
 Settings live in `%LOCALAPPDATA%\x2loc\settings.json` (`X2LOC_HOME` overrides the folder), together with the local translation store; the LLM API key and the Weblate token are kept in the Windows Credential Manager. For UI work, run `uv run x2loc-app --port 8765 --token dev --no-browser` and `pnpm dev` in `webui/`, then open `http://localhost:5173/#token=dev`.
 
+Releases ship the app as one Windows executable, `x2loc.exe`, which needs neither Python nor Node.js: run it, keep its console window open while using the page it opens, and close the window to stop it. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the pages, runs the tests, compiles the executable with Nuitka (`packaging/build.py`) and attaches it to a GitHub release. To build it locally:
+
+```bash
+cd webui && pnpm build && cd ..
+uv run --group build python packaging/build.py -- --zig   # without Visual Studio; omit --zig with MSVC
+```
+
 ### Docker
 
 ```bash

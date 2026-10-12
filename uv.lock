@@ -704,6 +704,12 @@ wheels = [
 ]
 
 [[package]]
+name = "nuitka"
+version = "4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/5f/ba7cb858da0c98c24f85c54454a5ea18f2b784f658a91531fa051b2f2ee9/nuitka-4.3.tar.gz", hash = "sha256:8b102c6bf30d9504e82e69674d396972729092b25cefa680e8fd05678fdfa30b", size = 4766934, upload-time = "2026-10-10T11:13:15.577Z" }
+
+[[package]]
 name = "openai"
 version = "2.45.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1649,6 +1655,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+build = [
+    { name = "nuitka" },
+]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1680,6 +1689,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+build = [{ name = "nuitka", specifier = ">=4.3" }]
 dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
