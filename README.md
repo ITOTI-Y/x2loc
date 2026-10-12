@@ -2,37 +2,39 @@
 
 English | [简体中文](README.zh-CN.md)
 
-XCOM 2 War of the Chosen localization toolkit. It parses UE3 `.int`/`.chn` files, aligns source and target languages, and translates mods through Weblate with an LLM agent, either interactively from the CLI or as an HTTP service that takes a Steam Workshop URL and returns a translated overlay package.
+Most XCOM 2: War of the Chosen mods ship only English text, and community translations, often shared in comment threads, fall behind as the mods update. x2loc translates mods through a shared Weblate project: it parses the UE3 `.int` and `.chn` localization files, aligns source text with existing translations, translates the missing units with a large language model (LLM) behind a scoring quality gate, and installs each result as a standalone overlay mod. The same pipeline runs in three interfaces: a local app for players, a command line interface (CLI), and an HTTP service.
 
 ## Download
 
-Players can download `x2loc.exe` from [Releases](https://github.com/ITOTI-Y/x2loc/releases) and run it: it opens a page in the browser that scans your subscribed mods, translates the missing text with your own OpenAI-compatible model and installs each translation as a separate mod. Without a Weblate token it only reads the shared translations and keeps its own results on your computer. See [Local app](#local-app) for details.
+Players download `x2loc.exe` from [Releases](https://github.com/ITOTI-Y/x2loc/releases) and run it. The program opens a browser page that scans the subscribed mods, translates missing text with the player's own OpenAI compatible model, and installs one translation mod per original mod. Without a Weblate token, it reads the shared translations only and keeps its own results on the local computer. [Local app](#local-app) describes the program in detail.
 
 ## Requirements
 
 - Python 3.13 and [uv](https://docs.astral.sh/uv/)
-- A Weblate project holding three glossary components (base game, mods, custom)
-- An OpenAI-compatible LLM endpoint (OpenRouter by default)
-- SteamCMD and a Steam account, for the service's Workshop downloads only
+- A Weblate project with three glossary components: base game, mods, and custom
+- An OpenAI compatible LLM endpoint, OpenRouter by default
+- SteamCMD and a Steam account, needed only when the HTTP service downloads Workshop items
 
 ## Setup
 
 ```bash
 uv sync
-cp configs/weblate.toml configs/weblate.local.toml   # gitignored; fill in credentials
+cp configs/weblate.toml configs/weblate.local.toml   # gitignored; holds the credentials
 ```
 
-`configs/weblate.local.toml` is the single configuration file for the CLI and the service:
+`configs/weblate.local.toml` is the single configuration file of the CLI and the HTTP service:
 
-| Table | Purpose |
+| Table | Contents |
 |---|---|
-| top level | `service_token` (API bearer token), `data_root`, `bind_port` |
+| top level | `service_token` (bearer token of the HTTP API), `data_root`, `bind_port` |
 | `[weblate]` | API URL, token, project slug, source language |
-| `[agent]` | LLM API key, base URL, model names (`retry_translation_model_name` translates quality-gate retries; empty reuses the translation model), batch size, `units_per_request` (units packed into one LLM request), auto-approve threshold, `llm_timeout_seconds` per request (default 45; raise it for flex-tier endpoints, which queue for minutes) |
+| `[agent]` | LLM API key, endpoint URL, model names, batch size, `units_per_request`, auto-approve threshold, `llm_timeout_seconds` |
 | `[steam]` | SteamCMD executable, download root, Steam credentials |
-| `[glossary]` | slugs of the base, mods and custom glossary components |
+| `[glossary]` | slugs of the base game, mods, and custom glossary components |
 
-Every key can be overridden by an `X2LOC_`-prefixed environment variable, nested with `__` (for example `X2LOC_WEBLATE__TOKEN`).
+In `[agent]`, `retry_translation_model_name` translates the units that fail the quality gate and falls back to the translation model when empty; `units_per_request` packs several units into one LLM request; `llm_timeout_seconds` limits one request and defaults to 45 s, which flex tier endpoints exceed because they queue requests for minutes.
+
+Every key can be overridden by an environment variable with the `X2LOC_` prefix, with nested keys joined by `__`, for example `X2LOC_WEBLATE__TOKEN`.
 
 ## Offline CLI
 
@@ -42,7 +44,7 @@ uv run x2loc align XComGame.int XComGame.chn -f csv -o out/corpus.csv
 uv run x2loc extract out/corpora/ -f csv -o out/glossary.csv
 ```
 
-`parse` reads one file, `align` pairs a source file with its translation into a bilingual corpus, and `extract` mines glossary terms from directories of corpus JSON files (earlier directories take priority).
+`parse` reads one file. `align` pairs a source file with its translation into a bilingual corpus. `extract` mines glossary terms from directories of corpus JSON files, giving priority to the directories listed first.
 
 ## Interactive translation agent
 
@@ -50,7 +52,7 @@ uv run x2loc extract out/corpora/ -f csv -o out/glossary.csv
 uv run x2loc agent run --config configs/weblate.local.toml --batch-size 20
 ```
 
-The agent pulls untranslated units of the mods glossary from Weblate, translates, validates tags, scores each candidate, and asks for a human decision on every batch before uploading approved translations.
+The agent pulls the untranslated units of the mods glossary from Weblate, translates them, validates their markup tags, and scores each candidate. Approved translations are uploaded only after a person confirms each batch.
 
 ## HTTP service
 
@@ -58,17 +60,19 @@ The agent pulls untranslated units of the mods glossary from Weblate, translates
 uv run x2loc-api
 ```
 
-All routes require `Authorization: Bearer <service_token>`.
+Every route requires the header `Authorization: Bearer <service_token>`.
 
 | Route | Purpose |
 |---|---|
-| `POST /v1/jobs` | Submit `{"workshop_url": "https://steamcommunity.com/sharedfiles/filedetails/?id=..."}`; LLM fields are optional overrides of `[agent]` |
+| `POST /v1/jobs` | Submit `{"workshop_url": "https://steamcommunity.com/sharedfiles/filedetails/?id=..."}`; optional LLM fields override `[agent]` |
 | `GET /v1/jobs/{id}` | Job status and stage |
-| `GET /v1/jobs/{id}/events` | Server-sent progress events |
+| `GET /v1/jobs/{id}/events` | Progress as server-sent events (SSE) |
 | `POST /v1/jobs/{id}/cancel` | Cancel a running job |
-| `GET /v1/jobs/{id}/artifact` | Download the translated overlay zip (`X-Artifact-SHA256` header) |
+| `GET /v1/jobs/{id}/artifact` | Download the overlay zip, with its digest in `X-Artifact-SHA256` |
 
-A job downloads the mod with SteamCMD, syncs its localization into Weblate components, translates missing units with automatic threshold review, writes Chinese overlay files, adds newly mined terms to the custom glossary, and packages the result. A mod's own `.chn` translations are not imported directly: each is scored as its unit's first candidate and reaches Weblate only through the quality gate, and a rejected one is shown to the translator as a reference for the retry. Units that still fail the gate after the last attempt are written as "needs editing" with the best candidate and the scorer's reasons as a Weblate comment; a unit with no candidate whose tags match the source stays empty and keeps its source text in the overlay (`units_untranslated` in the job progress). Held translations whose tags disagree with the source are cleared and retranslated. Jobs and artifacts live in memory and under `data_root`, which is reset on every start.
+A job downloads the mod with SteamCMD and syncs its localization into Weblate components. It then translates the missing units with automatic threshold review, writes the Chinese overlay files, adds newly mined terms to the custom glossary, and packages the result. Jobs and artifacts live in memory and under `data_root`, which is reset at every start.
+
+The quality gate decides what reaches Weblate. A mod's own `.chn` translation is never imported directly: it is scored as the first candidate of its unit, and a rejected one becomes a reference for the retry. A unit that still fails after the last attempt is written as "needs editing" with its best candidate, and the scorer's reasons become a Weblate comment. A unit without any candidate whose tags match the source stays empty, and the overlay keeps its source text; the job progress counts these units as `units_untranslated`. Existing translations whose tags disagree with the source are cleared and translated again.
 
 ### Batch translation of a collection
 
@@ -78,12 +82,12 @@ docker compose exec x2loc x2loc batch \
   --max-size-mb 5 --limit 30
 ```
 
-`x2loc batch` runs the job pipeline in-process for every item of a public Workshop collection, one at a time, and writes each overlay zip plus `summary.json` to `output/batch/<UTC timestamp>/`. It differs from the service in two ways:
+`x2loc batch` runs the job pipeline in process for every item of a public Workshop collection, one item at a time, and writes each overlay zip and `summary.json` to `output/batch/<UTC timestamp>/`. It differs from the service in two respects:
 
-- Glossaries are kept on disk (`glossary_cache_dir`, the `glossary-cache` volume in Docker): the first run reads them in full, later runs pull only units changed since the last sync, and a full re-read happens once a day.
-- New custom-glossary terms are queued locally and published once the run ends; later jobs of the same run already use them. If a run stops early, the queue stays on disk and the next run publishes it.
+- Glossaries are cached on disk in `glossary_cache_dir`, the `glossary-cache` volume in Docker. The first run reads them in full, later runs pull only the units changed since the last sync, and a full read happens once a day.
+- New custom glossary terms are queued locally and published when the run ends, while later jobs of the same run already use them. A run that stops early leaves the queue on disk, and the next run publishes it.
 
-Run it inside the container, where SteamCMD and its login cache live, and do not submit service jobs meanwhile: both would drive the same SteamCMD install.
+Run it inside the container, which holds SteamCMD and its login cache, and submit no service jobs meanwhile, because both would drive the same SteamCMD installation.
 
 ### Translating the mods installed on this machine
 
@@ -92,11 +96,13 @@ uv run x2loc local                 # every mod in [local] workshop_dir
 uv run x2loc local 1122974240 667104300
 ```
 
-`x2loc local` reads mods straight from the local Workshop content directory and runs the same pipeline as `batch`, so it needs Weblate and the LLM endpoint but neither SteamCMD, a Steam account nor `service_token`. Set the two paths once in the `[local]` table (or pass `--workshop-dir` and `--mods-dir`). Mods without `.int` files under `Localization` are skipped.
+`x2loc local` reads mods from the local Workshop content directory and runs the same pipeline as `batch`. It needs Weblate and the LLM endpoint, but neither SteamCMD, a Steam account, nor `service_token`. The two paths are set once in the `[local]` table or passed with `--workshop-dir` and `--mods-dir`. Mods without `.int` files under `Localization` are skipped.
+
+Each translated mod is installed as the standalone mod `XComGame/Mods/x2loc_<workshop id>_zh/`, which holds the generated `.chn` files and its own `.XComMod`. A Steam update of the original mod therefore cannot overwrite the translation, and a new run replaces the previous one. The overlay mods are enabled in the mod launcher. Overlay zips and `summary.json` are also written to `output/local/<UTC timestamp>/`. Run this command on the computer where the game is installed, not in the container.
 
 #### Without a Weblate token
 
-Weblate is only read when `[weblate] token` is empty: translations Weblate already holds are used as they are, the rest are translated with your own LLM endpoint, and the results are kept in a local SQLite file (`store_path`, default `data/store.sqlite`) instead of being written back. `--store local` does the same with a token set; `--store weblate` forces writing to Weblate. Push what was kept locally later with a token that may write:
+With an empty `[weblate] token`, Weblate is only read. Translations already on Weblate are used as they are, the rest are translated with the configured LLM endpoint, and the results are kept in a local SQLite file, `store_path`, which defaults to `data/store.sqlite`. With a token set, `--store local` keeps the results locally as well, and `--store weblate` forces writing to Weblate. A token with write permission uploads the local results later:
 
 ```bash
 uv run x2loc local 1122974240 --store local
@@ -104,11 +110,9 @@ uv run x2loc upload                # every queued translation
 uv run x2loc upload <component slug>
 ```
 
-A unit someone changed on Weblate after it was translated here is not overwritten: `upload` lists it as a conflict.
+`upload` never overwrites a unit that someone changed on Weblate after it was translated locally; it reports such a unit as a conflict.
 
-When Weblate, this machine and the mod itself each hold a translation of a unit, the overlay takes the first available one in `priority` order: `manual` (edited here by hand), `upstream` (translated on Weblate), `machine` (translated here), `needs_editing`, `shipped` (the mod's own); the source text is the last resort.
-
-Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_<workshop id>_zh/`, holding the generated `.chn` files and its own `.XComMod`, so a Steam update of the original mod cannot overwrite the translation; re-running replaces it. Enable the overlay mods in the mod launcher. Overlay zips and `summary.json` also go to `output/local/<UTC timestamp>/`. Run it on the host that has the game installed, not in the container.
+When Weblate, the local store, and the mod itself each hold a translation of a unit, the overlay uses the first one available in `priority` order: `manual` (edited locally by hand), `upstream` (translated on Weblate), `machine` (translated locally), `needs_editing`, and `shipped` (shipped with the mod). The source text is the last resort.
 
 ### Docker
 
@@ -116,20 +120,20 @@ Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_<works
 docker compose up -d --build
 ```
 
-The container mounts `configs/weblate.local.toml` read-only, listens on `127.0.0.1:8180`, and keeps SteamCMD, its login cache and the Workshop download cache in named volumes.
+The container mounts `configs/weblate.local.toml` read only, listens on `127.0.0.1:8180`, and keeps SteamCMD, its login cache, and the Workshop download cache in named volumes.
 
 ## Local app
 
-`x2loc-app` serves the same pipeline to a browser page on this machine: settings (model, Weblate, game paths, translation priority), the subscribed mods with their Weblate progress, runs, installed translations, review and the upload queue. It binds to `127.0.0.1` on a free port and opens the browser with a per-launch session token; every API call must carry it.
+`x2loc-app` offers the same pipeline through a browser page on the local computer. The page covers settings (model, Weblate, game paths, and translation priority), the subscribed mods with their Weblate progress, runs, installed translations, review, and the upload queue. The app listens on a free port of `127.0.0.1` and opens the browser with a session token generated at each launch, which every API request must carry.
 
 ```bash
 cd webui && pnpm install && pnpm build && cd ..   # builds into src/webui/dist
 uv run x2loc-app
 ```
 
-Settings live in `%LOCALAPPDATA%\x2loc\settings.json` (`X2LOC_HOME` overrides the folder), together with the local translation store; the LLM API key and the Weblate token are kept in the Windows Credential Manager. For UI work, run `uv run x2loc-app --port 8765 --token dev --no-browser` and `pnpm dev` in `webui/`, then open `http://localhost:5173/#token=dev`.
+Settings and the local translation store live in `%LOCALAPPDATA%\x2loc\`, which `X2LOC_HOME` can override, and the LLM API key and the Weblate token are kept in the Windows Credential Manager. For interface development, run `uv run x2loc-app --port 8765 --token dev --no-browser` together with `pnpm dev` in `webui/`, then open `http://localhost:5173/#token=dev`.
 
-Releases ship the app as one Windows executable, `x2loc.exe`, which needs neither Python nor Node.js: run it, keep its console window open while using the page it opens, and close the window to stop it. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the pages, runs the tests, compiles the executable with Nuitka (`packaging/build.py`) and attaches it to a GitHub release. To build it locally:
+Each release packages the app as one Windows executable, `x2loc.exe`, which needs neither Python nor Node.js. Its console window stays open while the page is in use, and closing the window stops the program. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the pages, runs the tests, compiles the executable with Nuitka through `packaging/build.py`, and attaches it to a GitHub release. A local build runs as follows:
 
 ```bash
 cd webui && pnpm build && cd ..
@@ -138,14 +142,14 @@ uv run --group build python packaging/build.py -- --zig   # without Visual Studi
 
 ## Weapon category names mod
 
-`mods/x2locWeaponCatNames` is a small script mod. [WOTCMusashiModFixes](https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723) appends a "valid weapons" line to ability descriptions, where categories added by mods show as internal codes such as `combatknife`; this mod replaces each code with the localized name of the category's own weapons, in whatever language the game runs. It needs War of the Chosen, [X2WOTCCommunityHighlander](https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495) and WOTCMusashiModFixes, and the local app can install it from its Installed page.
+[WOTCMusashiModFixes](https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723) appends a "valid weapons" line to ability descriptions, in which weapon categories added by mods appear as internal codes such as `combatknife`. The script mod `mods/x2locWeaponCatNames` replaces each code with the localized name of the category's own weapons, in the language the game runs in. It requires War of the Chosen, [X2WOTCCommunityHighlander](https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495), and WOTCMusashiModFixes, and the local app installs it from its Installed page.
 
 ```bash
 uv run python mods/x2locWeaponCatNames/build.py --sdk <WOTC SDK> --mods-dir <XComGame/Mods>
 uv run python mods/x2locWeaponCatNames/publish.py --steamcmd <steamcmd.exe> --username <Steam account>
 ```
 
-`build.py` compiles it with the War of the Chosen SDK and installs it; `publish.py` uploads it to the Steam Workshop with [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD), using `workshop/description.bbcode` and `ModPreview.jpg`. Tags and required items are set on the item's Workshop page.
+`build.py` compiles the mod with the War of the Chosen SDK and installs it. `publish.py` uploads it to the Steam Workshop with [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD), taking the description from `workshop/description.bbcode` and the preview from `ModPreview.jpg`. Tags and required items are set on the item's Workshop page, since SteamCMD cannot set them.
 
 ## Development
 
@@ -160,18 +164,18 @@ cd webui && pnpm lint && pnpm check:i18n && pnpm build
 
 ```
 src/
-├── config.py      # layered service/CLI configuration (env > TOML > defaults)
+├── config.py      # layered service and CLI configuration (env > TOML > defaults)
 ├── core/          # UE3 parsing, alignment, term extraction, overlay writing, packaging
 ├── models/        # Pydantic schemas
-├── export/        # CSV/JSON serializers for the offline CLI
+├── export/        # CSV and JSON serializers for the offline CLI
 ├── services/      # Weblate and Steam clients, glossaries, translation stores
 ├── agent/         # LangGraph translation agent and its nodes
-├── jobs/          # service job manager and Workshop pipeline
+├── jobs/          # job manager and Workshop pipeline of the service
 ├── api/           # FastAPI service
-├── app/           # local app: settings, secrets, runs and its HTTP interface
+├── app/           # local app: settings, secrets, runs, and its HTTP interface
 ├── cli/           # `x2loc` Typer entry point
 └── ui/            # interactive review prompts
-webui/             # the local app's pages (React, Vite, Tailwind)
+webui/             # pages of the local app (React, Vite, Tailwind)
 packaging/         # Nuitka build of x2loc.exe
 mods/x2locWeaponCatNames/   # weapon category names script mod
 ```
