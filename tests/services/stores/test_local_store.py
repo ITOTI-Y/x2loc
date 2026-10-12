@@ -228,3 +228,15 @@ async def test_resolving_a_conflict_requeues_or_drops_the_local_one(
     assert (report.uploaded, report.conflicts) == (1, 0)
     assert weblate.patches[-1] == (200, ["甲"], WEBLATE_STATE_TRANSLATED)
     assert store.queue() == []
+
+
+async def test_a_hand_edit_replaces_the_queued_machine_translation(db: Path) -> None:
+    store = store_over(FakeWeblate(None), db)
+    await store.prepare(work({"a": "A"}), name="n", language=LANG)
+    [unit] = await store.pending(SLUG, LANG)
+    await store.write(UnitWrite(unit.id, "甲", WEBLATE_STATE_FUZZY, "score 70"))
+
+    store.edit(SLUG, LANG, "a", source="A", target="甲甲", upstream_at_read="")
+
+    assert [(r.origin, r.target) for r in store.queue()] == [("manual", "甲甲")]
+    assert store.review(LANG) == []

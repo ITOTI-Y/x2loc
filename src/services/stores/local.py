@@ -26,7 +26,8 @@ from src.services.stores.upstream import NeedsEditing, true_sources
 from src.services.weblate import WEBLATE_STATE_TRANSLATED, AsyncWeblateClient
 
 type Origin = Literal["machine", "manual"]
-type UploadState = Literal["pending", "uploaded", "conflict"]
+# "superseded": a machine translation a player has since corrected by hand.
+type UploadState = Literal["pending", "uploaded", "conflict", "superseded"]
 
 SCHEMA: Final[str] = """
 CREATE TABLE IF NOT EXISTS units (
@@ -219,6 +220,13 @@ class LocalStore:
             comment="",
             upstream_at_read=upstream_at_read,
         )
+        with self._db:
+            self._db.execute(
+                "UPDATE translations SET upload = 'superseded' WHERE slug = ? "
+                "AND language = ? AND context = ? AND origin = 'machine' "
+                "AND upload IN ('pending', 'conflict')",
+                (slug, language, context),
+            )
 
     def review(self, language: str) -> list[QueuedTranslation]:
         """Machine translations the quality gate did not approve, unless a
