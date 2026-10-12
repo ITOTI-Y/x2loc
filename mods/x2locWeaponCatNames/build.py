@@ -1,5 +1,7 @@
 """Build x2locWeaponCatNames with the WOTC SDK and install it into the game.
 
+The compiled script is also kept in `Script/`, which the app installs from.
+
 uv run python mods/x2locWeaponCatNames/build.py --sdk <SDK dir> --mods-dir <XComGame/Mods>
 """
 
@@ -50,8 +52,9 @@ def main(
 
         make(sdk)
         make(sdk, "-mods", MOD, str(stage))
-        (stage / "Script").mkdir()
-        shutil.copy2(sdk / "XComGame" / "Script" / f"{MOD}.u", stage / "Script")
+        (HERE / "Script").mkdir(exist_ok=True)
+        shutil.copy2(sdk / "XComGame" / "Script" / f"{MOD}.u", HERE / "Script")
+        shutil.copytree(HERE / "Script", stage / "Script")
 
         installed = mods_dir / MOD
         shutil.rmtree(installed, ignore_errors=True)
