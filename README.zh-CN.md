@@ -6,7 +6,9 @@
 
 ## 下载
 
-玩家从 [Releases](https://github.com/ITOTI-Y/x2loc/releases) 下载 `x2loc.exe` 后直接运行即可。程序在浏览器中打开一个页面，扫描已订阅的 mod，用玩家自己的 OpenAI 兼容模型翻译缺失的文本，并为每个原 mod 安装一个汉化 mod。没有 Weblate token 时，程序只读取共享译文，自己翻译的结果保存在本地。程序的完整说明见[本地应用](#本地应用)。
+玩家从 [Releases](https://github.com/ITOTI-Y/x2loc/releases) 下载 `x2loc.exe` 后直接运行即可。程序在浏览器中打开一个页面，扫描已订阅的 mod，用玩家自己的 OpenAI 兼容模型翻译缺失的文本，并为每个原 mod 安装一个汉化 mod。没有 Weblate token 时，程序只读取共享译文，自己翻译的结果保存在本地。带截图的分步说明见[使用教程](docs/tutorial.zh-CN.md)，程序的完整说明见[本地应用](#本地应用)。
+
+![从勾选模组到安装汉化的完整流程](docs/images/demo.gif)
 
 ## 环境要求
 

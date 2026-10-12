@@ -6,7 +6,9 @@ Most XCOM 2: War of the Chosen mods ship only English text, and community transl
 
 ## Download
 
-Players download `x2loc.exe` from [Releases](https://github.com/ITOTI-Y/x2loc/releases) and run it. The program opens a browser page that scans the subscribed mods, translates missing text with the player's own OpenAI compatible model, and installs one translation mod per original mod. Without a Weblate token, it reads the shared translations only and keeps its own results on the local computer. [Local app](#local-app) describes the program in detail.
+Players download `x2loc.exe` from [Releases](https://github.com/ITOTI-Y/x2loc/releases) and run it. The program opens a browser page that scans the subscribed mods, translates missing text with the player's own OpenAI compatible model, and installs one translation mod per original mod. Without a Weblate token, it reads the shared translations only and keeps its own results on the local computer. [Local app](#local-app) describes the program in detail, and the [tutorial](docs/tutorial.zh-CN.md), written in Chinese, walks through it with screenshots.
+
+![From selecting mods to installing their translations](docs/images/demo.gif)
 
 ## Requirements
 
