@@ -164,8 +164,7 @@ class ContextIndexSource:
         try:
             return slug, await self._client.download_units(slug, self._language)
         except WeblateAPIError as exc:
-            # A component without this translation has no context to offer,
-            # as the old `language:` filtered search had none from it either.
+            # A component without this translation has no context to offer.
             if exc.status_code != 404:
                 raise
             return slug, None

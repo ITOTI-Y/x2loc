@@ -270,9 +270,9 @@ class TestToUnitsStructAppend:
 
 class TestTranslatableStructFieldsConstant:
     def test_matches_real_data_scan(self) -> None:
-        """Regression: whitelist is derived from a full scan of data/.
+        """The whitelist covers the struct fields that hold display text.
 
-        See WEBLATE.md §3.5. All three entries come from real mod files:
+        Each entry comes from a shipped mod file:
           Description          — +MissionDescriptions (LW_Overhaul)
           UnitDescription      — +UnitTacticalInfo    (AdditionalUnitInfoWOTC)
           AnimationDisplayName — +m_arrAnimationPoses (WotCBallisticShields)
@@ -284,7 +284,7 @@ class TestTranslatableStructFieldsConstant:
         } == TRANSLATABLE_STRUCT_FIELDS
 
     def test_unit_name_is_not_translatable(self) -> None:
-        """Regression: UnitName is a template DataName, not display text.
+        """UnitName is a template DataName, not display text.
 
         +UnitTacticalInfo=(UnitName="Muton", ...) — the string is an
         X2CharacterTemplate identifier; translating it breaks template lookup.

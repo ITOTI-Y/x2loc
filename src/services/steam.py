@@ -37,7 +37,7 @@ async def fetch_workshop_metadata(
 ) -> WorkshopMetadataSchema:
     """Anonymous metadata preflight against the official Steam Web API.
 
-    XCOM 2 items carry no `file_url` (verified 2026-07-29: `file_size=0`,
+    XCOM 2 items carry no `file_url` (`file_size=0`,
     content exists only as an `hcontent_file` depot handle), so this call
     cannot replace the SteamCMD download. It rejects nonexistent or
     foreign-app items before SteamCMD starts and supplies `title` and

@@ -441,7 +441,7 @@ class TestParseEntry:
         assert e.value == '\\"Hello\\"'
 
     def test_middle_stray_quote_upgraded_to_escape(self) -> None:
-        # Real-mod case (Bug 4) from RealModFiles/1123582370 line 16:
+        # A shape found in shipped mod files:
         #   LocLongDescription="A powerful form... any single action." 3 turn cooldown."
         # Three quotes total. The strict strip takes [1:-1], producing
         #   A powerful form... any single action." 3 turn cooldown.
@@ -468,13 +468,13 @@ class TestParseEntry:
         # Multiple stray quotes in a single value — each gets upgraded
         # independently.
         e = parser._parse_entry(("", "Key", '"a"b"c"d"'), 1, [])
-        # Strict strip: a"b"c"d → Bug 4 upgrade: a\"b\"c\"d
+        # Strict strip: a"b"c"d → upgrade: a\"b\"c\"d
         assert e.value == 'a\\"b\\"c\\"d'
 
     def test_mixed_legitimate_and_stray_upgrades_only_strays(self) -> None:
         # Input: `"already \"clean\" and "dirty" mixed"`
         # Strict strip: `already \"clean\" and "dirty" mixed`
-        # Bug 4: upgrades the two stray `"` around "dirty" but leaves
+        # Upgrades the two stray `"` around "dirty" but leaves
         # the `\"clean\"` escapes intact.
         raw = '"already \\"clean\\" and "dirty" mixed"'
         e = parser._parse_entry(("", "Key", raw), 1, [])

@@ -354,9 +354,9 @@ class WorkshopPipeline:
     ) -> list[CorpusUnitSchema]:
         """The snapshot with each unit's source as Weblate's template holds it.
 
-        Weblate's CSV export puts some units' key in the source column
-        (seen on units created by earlier versions of this tool), while the
-        source-language file's target column always holds the real source.
+        Weblate's CSV export keeps a unit's source column at the text the
+        unit was created with, even after the source is edited, while the
+        source-language file's target column always holds the current one.
         That file is read only when the snapshot disagrees with the parsed
         sources, which is rare.
         """

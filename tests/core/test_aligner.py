@@ -134,8 +134,8 @@ class TestBuildIndex:
     def test_scalar_append_aligns_with_non_append(
         self, aligner: BilingualAligner
     ) -> None:
-        """Regression for LW_Overhaul: source uses `m_strUrgent=...` but
-        target uses `+m_strUrgent=...`. Both must resolve to the same
+        """A source may write `m_strUrgent=...` where its translation
+        writes `+m_strUrgent=...`. Both must resolve to the same
         compound key so the aligner pairs them instead of dumping both
         into source_only / target_only."""
         src_section = _make_section(
@@ -180,8 +180,8 @@ class TestBuildIndex:
         self, aligner: BilingualAligner
     ) -> None:
         """Repeated non-append keys within one section are treated as an
-        array: each occurrence gets an ordinal suffix instead of the old
-        "last wins" behavior. This preserves data when a file genuinely
+        array: each occurrence gets an ordinal suffix rather than the last one
+        winning. This preserves data when a file genuinely
         has two `Key="..."` lines meant as separate list entries.
         """
         section = _make_section(

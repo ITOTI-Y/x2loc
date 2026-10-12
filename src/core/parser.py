@@ -289,7 +289,7 @@ class LocFileParser:
                 )
                 value = value[:-1]
 
-            # Middle stray-quote upgrade (Bug 4):
+            # Middle stray-quote upgrade:
             #   LocLongDescription="A ... single action." 3 turn cooldown."
             # The middle `"` after "single action." is an UNescaped
             # literal quote that UE3's parser would treat as a premature

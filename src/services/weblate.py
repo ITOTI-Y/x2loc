@@ -67,8 +67,8 @@ UPLOAD_CSV_COLUMNS: Final[tuple[str, ...]] = (
 )
 
 # `method="add"` only appends source strings, so Weblate's per-batch work is
-# linear in batch size. 5000 rows was verified to import within the 300s
-# client timeout; larger batches start hitting server-side import timeouts.
+# linear in batch size. 5000 rows import within the 300s client
+# timeout; larger batches start hitting server-side import timeouts.
 SOURCE_BATCH_SIZE: Final[int] = 5000
 
 # `method="translate"` is O(batch) *and* O(component_total): every row is
@@ -248,8 +248,7 @@ class AsyncWeblateClient:
         pair is required together — without `edit_template`, every later
         `method="add"` upload and `create_unit` call fails with "Adding
         strings is disabled in the component configuration" even when
-        `manage_units` is True (verified against Weblate 5.x, 2026-04 and
-        2026-07).
+        `manage_units` is True (Weblate 5.x).
         """
         response = await self._request(
             WeblateRequestSchema(
@@ -485,7 +484,7 @@ class AsyncWeblateClient:
         Weblate rejects unit creation on non-source translations with "Add
         the string to the source language instead"; the source-side body is
         the monolingual key/value shape with plural-form list value
-        (verified against Weblate 5.x, 2026-07). Targets are filled
+        (Weblate 5.x). Targets are filled
         afterwards via `upload_targets`.
         """
         await self._request(
@@ -717,8 +716,8 @@ class AsyncWeblateClient:
                         files=request.files,
                         timeout=timeout,
                     )
-            # httpx2 surfaces some TLS failures on a reused connection (seen:
-            # "bad record mac") as a raw SSLError instead of a TransportError.
+            # httpx2 surfaces some TLS failures on a reused connection, such as
+            # "bad record mac", as a raw SSLError instead of a TransportError.
             except (TransportError, ssl.SSLError) as exc:
                 if attempt == attempts:
                     raise
