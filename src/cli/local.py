@@ -12,7 +12,13 @@ from typing import Annotated, Final
 import typer
 from loguru import logger
 
-from src.cli.batch import new_run_dir, open_pipeline, translate_item, write_summary
+from src.cli.batch import (
+    new_run_dir,
+    open_pipeline,
+    translate_item,
+    with_store,
+    write_summary,
+)
 from src.config import LocalConfigSchema, ServiceConfigSchema
 from src.core.mod_resolver import ModResolveError
 from src.core.overlay_mod import install_overlay
@@ -20,6 +26,7 @@ from src.core.workshop import WorkshopInputError, load_workshop_item
 from src.jobs.pipeline import AssetWorkSchema, prepare_works
 from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.models.job import JobStatus
+from src.models.store import StoreMode
 from src.models.workshop import (
     TARGET_LANGUAGE,
     WorkshopItemSchema,
@@ -99,9 +106,17 @@ def local(
             help="Mods processed concurrently.",
         ),
     ] = DEFAULT_LOCAL_JOBS,
+    store: Annotated[
+        StoreMode | None,
+        typer.Option(
+            "--store",
+            help="Where translations go: weblate, local, or auto (Weblate "
+            "when a token is set). Overrides the config.",
+        ),
+    ] = None,
 ) -> None:
     """Translate local Workshop mods and install them as overlay mods."""
-    config = ServiceConfigSchema.from_toml(config_path)
+    config = with_store(ServiceConfigSchema.from_toml(config_path), store)
     config = config.model_copy(update={"data_root": config.data_root / "local"})
     paths = _resolve_paths(config.local, workshop_dir, mods_dir)
     run_dir = new_run_dir(output)

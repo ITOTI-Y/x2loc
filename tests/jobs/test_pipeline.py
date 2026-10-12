@@ -1,5 +1,4 @@
 from pathlib import Path, PurePosixPath
-from types import SimpleNamespace
 
 from src.core.workshop import component_slug
 from src.jobs.pipeline import (
@@ -8,13 +7,10 @@ from src.jobs.pipeline import (
     WorkshopPipeline,
     component_name,
 )
-from src.models.weblate import (
-    CorpusUnitSchema,
-    WeblateUnitPatchSchema,
-    WeblateUnitSchema,
-)
+from src.models.store import DEFAULT_PRIORITY
+from src.models.weblate import CorpusUnitSchema
 from src.models.workshop import LocalizationAssetSchema
-from src.services.weblate import WEBLATE_STATE_EMPTY, WEBLATE_STATE_TRANSLATED
+from src.services.stores import merge
 
 
 def asset(relative: str) -> LocalizationAssetSchema:
@@ -41,94 +37,6 @@ def test_component_name_shortens_long_names_keeping_file_name() -> None:
     assert name.endswith("/XComGame.int")
 
 
-class FakeWeblate:
-    """Serves one component whose CSV export shows keys as sources."""
-
-    config = SimpleNamespace(source_language="en")
-
-    def __init__(self, sources: dict[str, str]) -> None:
-        self.sources = sources
-        self.patches: list[tuple[int, list[str], int]] = []
-
-    async def download_units(self, slug: str, language: str) -> list[CorpusUnitSchema]:
-        return [
-            CorpusUnitSchema(context=c, source=c, target=s, note="")
-            for c, s in self.sources.items()
-        ]
-
-    async def list_units(self, slug: str, language: str) -> list[WeblateUnitSchema]:
-        base = 100 if language == "en" else 200
-        return [
-            WeblateUnitSchema(
-                id=base + i, language_code=language, source=s, target="", context=c
-            )
-            for i, (c, s) in enumerate(self.sources.items())
-        ]
-
-    async def patch_unit(self, unit_id: int, patch: WeblateUnitPatchSchema) -> None:
-        self.patches.append((unit_id, patch.target, patch.state))
-
-
-def work(expected: dict[str, str]) -> AssetWorkSchema:
-    return AssetWorkSchema.model_construct(
-        asset=asset("Localization/Foo.int"), units=[], expected=expected
-    )
-
-
-def snapshot_of(targets: dict[str, str]) -> list[CorpusUnitSchema]:
-    # Keys in the source column, as Weblate exports some units.
-    return [
-        CorpusUnitSchema(context=c, source=c, target=t, note="")
-        for c, t in targets.items()
-    ]
-
-
-async def test_key_shaped_sources_are_read_from_the_source_file() -> None:
-    weblate = FakeWeblate({"k1": "Tongue Grab"})
-    pipeline = SimpleNamespace(_weblate=weblate)
-    w = work({"k1": "Tongue Grab"})
-
-    snapshot = await WorkshopPipeline._true_sources(
-        pipeline,  # ty: ignore[invalid-argument-type]
-        w,
-        snapshot_of({"k1": "长舌拉拽"}),
-    )
-    previous = await WorkshopPipeline._clear_changed_sources(
-        pipeline,  # ty: ignore[invalid-argument-type]
-        w,
-        "zh_Hans",
-        snapshot,
-    )
-
-    assert [u.source for u in snapshot] == ["Tongue Grab"]
-    assert previous == {}
-    assert weblate.patches == []
-
-
-async def test_changed_source_is_updated_and_its_translation_redone() -> None:
-    weblate = FakeWeblate({"k1": "Old text"})
-    pipeline = SimpleNamespace(_weblate=weblate)
-    w = work({"k1": "New text"})
-
-    snapshot = await WorkshopPipeline._true_sources(
-        pipeline,  # ty: ignore[invalid-argument-type]
-        w,
-        snapshot_of({"k1": "旧译文"}),
-    )
-    previous = await WorkshopPipeline._clear_changed_sources(
-        pipeline,  # ty: ignore[invalid-argument-type]
-        w,
-        "zh_Hans",
-        snapshot,
-    )
-
-    assert previous == {"k1": "旧译文"}
-    assert weblate.patches == [
-        (100, ["New text"], WEBLATE_STATE_TRANSLATED),
-        (200, [""], WEBLATE_STATE_EMPTY),
-    ]
-
-
 def test_overlay_fills_units_weblate_lacks_with_the_mods_translation() -> None:
     w = AssetWorkSchema.model_construct(
         asset=asset("Localization/Foo.int"),
@@ -144,7 +52,10 @@ def test_overlay_fills_units_weblate_lacks_with_the_mods_translation() -> None:
         expected={},
     )
 
-    assert WorkshopPipeline._with_shipped(w, {"held": "步枪"}) == {
-        "held": "步枪",
-        "lacking": "霰弹枪",
+    found = WorkshopPipeline._with_shipped(w, {"held": {"upstream": "步枪"}})
+
+    assert found == {
+        "held": {"upstream": "步枪", "shipped": "模组步枪"},
+        "lacking": {"shipped": "霰弹枪"},
     }
+    assert merge(found, DEFAULT_PRIORITY) == {"held": "步枪", "lacking": "霰弹枪"}

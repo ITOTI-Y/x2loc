@@ -16,6 +16,7 @@ from src.agent.review import ReviewPolicy
 from src.models.agent import NewAgentStateSchema
 from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySnapshots, GlossarySource
+from src.services.stores import UnitStore, WeblateStore
 from src.services.weblate import AsyncWeblateClient
 
 serde = JsonPlusSerializer(
@@ -64,6 +65,7 @@ def build_graph(
     review: ReviewPolicy,
     llm_slots: asyncio.Semaphore,
     client: AsyncWeblateClient | None = None,
+    store: UnitStore | None = None,
     glossaries: GlossarySource | None = None,
     context: ContextIndexSource | None = None,
     http_async_client: AsyncClient | None = None,
@@ -76,7 +78,8 @@ def build_graph(
     `http_async_client` to share the LLM transport. `llm_slots` caps the
     LLM requests in flight across everything that shares it. The interactive CLI
     passes none; the graph then owns a client, a session-long glossary cache
-    and context index, and closes them with the nodes.
+    and context index, and closes them with the nodes. Translations go to
+    `store`, by default straight to Weblate through the client.
     """
     if client is None:
         client = AsyncWeblateClient(config.weblate)
@@ -95,6 +98,7 @@ def build_graph(
         client,
         config,
         review=review,
+        store=store if store is not None else WeblateStore(client),
         glossaries=glossaries,
         context=context,
         llm_slots=llm_slots,

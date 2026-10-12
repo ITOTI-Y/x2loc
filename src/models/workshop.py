@@ -5,7 +5,9 @@ from pydantic import ConfigDict, Field, SecretStr, field_validator
 
 from src._share import EXT_LANG_MAP
 from src.models._share import BaseSchema
+from src.models.file import LocalizationFile
 from src.models.mod import ModInfoSchema
+from src.models.weblate import CorpusUnitSchema
 
 XCOM2_APP_ID: Final[int] = 268500
 TARGET_LANGUAGE: Final[str] = "zh_Hans"
@@ -121,3 +123,14 @@ class SteamConfigSchema(BaseSchema):
     steam_password: SecretStr
     executable: Path = Path("/usr/games/steamcmd")
     root: Path = Path("data/steam")
+
+
+class AssetWorkSchema(BaseSchema):
+    """Everything derived from one source file, parsed exactly once."""
+
+    model_config = ConfigDict(frozen=True)
+
+    asset: LocalizationAssetSchema
+    source_file: LocalizationFile
+    units: list[CorpusUnitSchema]
+    expected: dict[str, str]

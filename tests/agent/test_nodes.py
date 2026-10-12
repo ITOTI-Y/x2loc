@@ -9,6 +9,7 @@ from src.agent.review import ThresholdReview
 from src.models.agent import NewAgentStateSchema
 from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySnapshots
+from src.services.stores import WeblateStore
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -27,6 +28,7 @@ async def _agents_used(
         client,
         config,
         review=ThresholdReview(),
+        store=WeblateStore(client),
         glossaries=GlossarySnapshots(client, ttl_seconds=60),
         context=ContextIndexSource(client, language="zh_Hans", ttl_seconds=60),
         llm_slots=asyncio.Semaphore(1),

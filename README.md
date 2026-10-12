@@ -88,6 +88,20 @@ uv run x2loc local 1122974240 667104300
 
 `x2loc local` reads mods straight from the local Workshop content directory and runs the same pipeline as `batch`, so it needs Weblate and the LLM endpoint but neither SteamCMD, a Steam account nor `service_token`. Set the two paths once in the `[local]` table (or pass `--workshop-dir` and `--mods-dir`). Mods without `.int` files under `Localization` are skipped.
 
+#### Without a Weblate token
+
+Weblate is only read when `[weblate] token` is empty: translations Weblate already holds are used as they are, the rest are translated with your own LLM endpoint, and the results are kept in a local SQLite file (`store_path`, default `data/store.sqlite`) instead of being written back. `--store local` does the same with a token set; `--store weblate` forces writing to Weblate. Push what was kept locally later with a token that may write:
+
+```bash
+uv run x2loc local 1122974240 --store local
+uv run x2loc upload                # every queued translation
+uv run x2loc upload <component slug>
+```
+
+A unit someone changed on Weblate after it was translated here is not overwritten: `upload` lists it as a conflict.
+
+When Weblate, this machine and the mod itself each hold a translation of a unit, the overlay takes the first available one in `priority` order: `manual` (edited here by hand), `upstream` (translated on Weblate), `machine` (translated here), `needs_editing`, `shipped` (the mod's own); the source text is the last resort.
+
 Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_<workshop id>_zh/`, holding the generated `.chn` files and its own `.XComMod`, so a Steam update of the original mod cannot overwrite the translation; re-running replaces it. Enable the overlay mods in the mod launcher. Overlay zips and `summary.json` also go to `output/local/<UTC timestamp>/`. Run it on the host that has the game installed, not in the container.
 
 ### Docker
@@ -114,7 +128,7 @@ src/
 ├── core/          # UE3 parsing, alignment, term extraction, overlay writing, packaging
 ├── models/        # Pydantic schemas
 ├── export/        # CSV/JSON serializers for the offline CLI
-├── services/      # Weblate and Steam clients, custom-glossary writer
+├── services/      # Weblate and Steam clients, glossaries, translation stores
 ├── agent/         # LangGraph translation agent and its nodes
 ├── jobs/          # service job manager and Workshop pipeline
 ├── api/           # FastAPI app

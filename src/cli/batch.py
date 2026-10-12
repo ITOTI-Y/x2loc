@@ -29,6 +29,7 @@ from src.jobs.manager import JobManager
 from src.jobs.pipeline import WorkshopPipeline, WorkshopSource, reset_work_dirs
 from src.models._share import DEFAULT_LLM_CONCURRENCY, MAX_LLM_CONCURRENCY
 from src.models.job import JobRecordSchema, WorkshopJobRequestSchema
+from src.models.store import StoreMode
 from src.models.workshop import TARGET_LANGUAGE, XCOM2_APP_ID, WorkshopMetadataSchema
 from src.services.context_index import ContextIndexSource
 from src.services.glossary import validate_weblate_components
@@ -38,6 +39,7 @@ from src.services.steam import (
     SteamDownloader,
     fetch_collection_items,
 )
+from src.services.stores import build_store
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -67,9 +69,17 @@ def batch(
             help="LLM requests in flight per job.",
         ),
     ] = DEFAULT_LLM_CONCURRENCY,
+    store: Annotated[
+        StoreMode | None,
+        typer.Option(
+            "--store",
+            help="Where translations go: weblate, local, or auto (Weblate "
+            "when a token is set). Overrides the config.",
+        ),
+    ] = None,
 ) -> None:
     """Translate a Workshop collection; publish new glossary terms at the end."""
-    config = ServiceConfigSchema.from_toml(config_path)
+    config = with_store(ServiceConfigSchema.from_toml(config_path), store)
     config = config.model_copy(update={"data_root": config.data_root / "batch"})
     asyncio.run(
         _run(
@@ -81,6 +91,12 @@ def batch(
             llm_concurrency=llm_concurrency,
         )
     )
+
+
+def with_store(
+    config: ServiceConfigSchema, store: StoreMode | None
+) -> ServiceConfigSchema:
+    return config if store is None else config.model_copy(update={"store": store})
 
 
 def new_run_dir(output: Path) -> Path:
@@ -137,7 +153,8 @@ async def open_pipeline(
     """Wire one in-process pipeline over the persistent glossary store.
 
     Queued custom-glossary terms are published only when the body finishes
-    without an exception; otherwise they stay on disk for the next run.
+    without an exception and the run writes to Weblate; otherwise they stay
+    on disk for a later run.
     """
     reset_work_dirs(config)
     llm_client = build_llm_http_client(config.agent.llm_timeout_seconds)
@@ -158,11 +175,17 @@ async def open_pipeline(
             context = ContextIndexSource(
                 weblate, language=TARGET_LANGUAGE, ttl_seconds=math.inf
             )
+            translations = build_store(config, weblate)
+            logger.info(
+                "Translations go to {}",
+                "Weblate" if config.writes_weblate else config.store_path,
+            )
             pipeline = WorkshopPipeline(
                 config=config,
                 jobs=manager,
                 source=source,
                 weblate=weblate,
+                store=translations,
                 glossary_writer=writer,
                 glossaries=store,
                 context=context,
@@ -178,10 +201,12 @@ async def open_pipeline(
             finally:
                 await manager.close()
                 await context.aclose()
+                await translations.aclose()
                 warm.cancel()
                 await asyncio.gather(warm, return_exceptions=True)
-            published = await writer.flush(weblate)
-            logger.success("Published {} new custom glossary terms", published)
+            if config.writes_weblate:
+                published = await writer.flush(weblate)
+                logger.success("Published {} new custom glossary terms", published)
     finally:
         await llm_client.aclose()
 

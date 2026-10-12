@@ -17,6 +17,7 @@ from src.models._share import (
     DEFAULT_LLM_TIMEOUT_SECONDS,
     BaseSchema,
 )
+from src.models.store import DEFAULT_PRIORITY, SOURCE_KINDS, SourceKind, StoreMode
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
 
@@ -103,6 +104,12 @@ class ServiceConfigSchema(BaseSettings):
     glossary: GlossaryConfigSchema = Field(default_factory=GlossaryConfigSchema)
     # Absent on service hosts, which have no game install.
     local: LocalConfigSchema | None = None
+    # Where translations are written: "auto" writes to Weblate with a token
+    # and keeps them on this machine without one.
+    store: StoreMode = StoreMode.AUTO
+    # Overlay source order, first available wins; the source text is last.
+    priority: list[SourceKind] = Field(default_factory=lambda: list(DEFAULT_PRIORITY))
+    store_path: Path = Path("data/store.sqlite")
 
     @classmethod
     def settings_customise_sources(
@@ -131,6 +138,21 @@ class ServiceConfigSchema(BaseSettings):
             ),
         )
         return scoped()
+
+    @model_validator(mode="after")
+    def validate_priority(self) -> ServiceConfigSchema:
+        if sorted(self.priority) != sorted(SOURCE_KINDS):
+            raise ValueError(
+                f"priority must order each of {list(SOURCE_KINDS)} exactly once"
+            )
+        return self
+
+    @property
+    def writes_weblate(self) -> bool:
+        """Whether jobs write to Weblate rather than this machine's store."""
+        if self.store == StoreMode.AUTO:
+            return bool(self.weblate.token.get_secret_value())
+        return self.store == StoreMode.WEBLATE
 
     @model_validator(mode="after")
     def validate_loopback(self) -> ServiceConfigSchema:

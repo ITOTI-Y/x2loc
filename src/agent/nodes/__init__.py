@@ -25,6 +25,7 @@ from src.agent.review import ReviewOutputSchema, ReviewPolicy
 from src.models.agent import ComponentInfoSchema, NewAgentStateSchema
 from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySource
+from src.services.stores import UnitStore
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -47,6 +48,7 @@ class WorkflowNodes:
         config: ConfigSchema,
         *,
         review: ReviewPolicy,
+        store: UnitStore,
         glossaries: GlossarySource,
         context: ContextIndexSource,
         llm_slots: asyncio.Semaphore,
@@ -59,7 +61,7 @@ class WorkflowNodes:
         self._owns_client = owns_client
         self._llm_slots = llm_slots
         self._glossary_snapshots = glossaries
-        self._unit_iterator = UnitIterator(client)
+        self._unit_iterator = UnitIterator(store)
         self._translator_agent = build_translator_llm(
             config,
             model=config.translation_model_name,
@@ -80,7 +82,7 @@ class WorkflowNodes:
         self._scorer_llm = build_scorer_llm(config, http_async_client=http_async_client)
         self._glossaries: asyncio.Task[GlossaryLoaderOutputSchema] | None = None
         self._context = context
-        self._background_uploader = BackgroundUploader(client)
+        self._background_uploader = BackgroundUploader(store)
         self.pattern_extractor = pattern_extractor
 
     async def glossary_loader(

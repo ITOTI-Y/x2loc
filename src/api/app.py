@@ -28,13 +28,17 @@ from src.services.context_index import ContextIndexSource
 from src.services.glossary import (
     CustomGlossaryWriter,
     GlossarySnapshots,
+    GlossarySource,
+    GlossaryWriter,
     validate_weblate_components,
 )
+from src.services.glossary_store import DeferredGlossaryWriter, LocalGlossaryStore
 from src.services.steam import (
     SteamDownloader,
     SteamDownloadError,
     fetch_workshop_metadata,
 )
+from src.services.stores import build_store
 from src.services.weblate import AsyncWeblateClient
 
 
@@ -182,9 +186,8 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
             async with AsyncWeblateClient(config.weblate) as weblate:
                 await validate_weblate_components(weblate, config.glossary)
                 manager = JobManager()
-                glossaries = GlossarySnapshots(
-                    weblate, ttl_seconds=GLOSSARY_TTL_SECONDS
-                )
+                glossaries, writer = _glossaries(config, weblate)
+                translations = build_store(config, weblate)
                 # Other processes add components; a service rebuilds the
                 # index on the glossary cadence to see them.
                 context = ContextIndexSource(
@@ -201,12 +204,8 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                         limits=config.limits,
                     ),
                     weblate=weblate,
-                    glossary_writer=CustomGlossaryWriter(
-                        weblate,
-                        glossaries,
-                        component_slug=config.glossary.custom_slug,
-                        target_lang=TARGET_LANGUAGE,
-                    ),
+                    store=translations,
+                    glossary_writer=writer,
                     glossaries=glossaries,
                     context=context,
                     llm_client=llm_client,
@@ -217,12 +216,37 @@ def build_resources(config: ServiceConfigSchema) -> ResourceFactory:
                     )
                 finally:
                     await context.aclose()
+                    await translations.aclose()
                     await glossaries.aclose()
         finally:
             await steam_web.aclose()
             await llm_client.aclose()
 
     return factory
+
+
+def _glossaries(
+    config: ServiceConfigSchema, weblate: AsyncWeblateClient
+) -> tuple[GlossarySource, GlossaryWriter]:
+    """Glossaries to read, and where mined terms go.
+
+    A service writing to Weblate publishes terms as it mines them; one
+    that only reads keeps them queued on disk.
+    """
+    if config.writes_weblate:
+        snapshots = GlossarySnapshots(weblate, ttl_seconds=GLOSSARY_TTL_SECONDS)
+        return snapshots, CustomGlossaryWriter(
+            weblate,
+            snapshots,
+            component_slug=config.glossary.custom_slug,
+            target_lang=TARGET_LANGUAGE,
+        )
+    store = LocalGlossaryStore(
+        weblate, config.glossary_cache_dir, refresh_seconds=GLOSSARY_TTL_SECONDS
+    )
+    return store, DeferredGlossaryWriter(
+        store, component_slug=config.glossary.custom_slug, target_lang=TARGET_LANGUAGE
+    )
 
 
 def run() -> None:

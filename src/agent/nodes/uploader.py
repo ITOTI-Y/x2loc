@@ -1,15 +1,15 @@
 import asyncio
-from typing import NamedTuple, TypedDict
+import sqlite3
+from typing import TypedDict
 
 from httpx2 import TransportError
 from loguru import logger
 
 from src.models.agent import NewAgentStateSchema, StatsSchema
-from src.models.weblate import WeblateUnitPatchSchema
+from src.services.stores import UnitStore, UnitWrite
 from src.services.weblate import (
     WEBLATE_STATE_FUZZY,
     WEBLATE_STATE_TRANSLATED,
-    AsyncWeblateClient,
     WeblateAPIError,
 )
 
@@ -18,16 +18,8 @@ class UploaderOutputSchema(TypedDict):
     stats: StatsSchema
 
 
-class UnitWrite(NamedTuple):
-    unit_id: int
-    target: str
-    state: int
-    # Empty for none; otherwise posted on the unit after the target.
-    comment: str
-
-
 class BackgroundUploader:
-    """Fire-and-drain Weblate writes.
+    """Fire-and-drain store writes.
 
     The interactive path submits a batch and moves on to the next one while
     it uploads. Tasks stay referenced until `drain`, which re-raises every
@@ -35,8 +27,8 @@ class BackgroundUploader:
     the caller treat a lost batch as success.
     """
 
-    def __init__(self, client: AsyncWeblateClient) -> None:
-        self._client = client
+    def __init__(self, store: UnitStore) -> None:
+        self._store = store
         self._tasks: set[asyncio.Task[None]] = set()
 
     def submit(self, items: list[UnitWrite]) -> None:
@@ -51,7 +43,7 @@ class BackgroundUploader:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         errors = [result for result in results if isinstance(result, BaseException)]
         if errors:
-            raise BaseExceptionGroup("background Weblate uploads failed", errors)
+            raise BaseExceptionGroup("background store writes failed", errors)
 
     async def _upload(self, items: list[UnitWrite]) -> None:
         results = await asyncio.gather(*[self._patch(item) for item in items])
@@ -62,14 +54,8 @@ class BackgroundUploader:
 
     async def _patch(self, item: UnitWrite) -> bool:
         try:
-            await self._client.patch_unit(
-                item.unit_id,
-                WeblateUnitPatchSchema(target=[item.target], state=item.state),
-            )
-            # A unit handed to a human without its reason is a failed write.
-            if item.comment:
-                await self._client.add_unit_comment(item.unit_id, item.comment)
-        except (WeblateAPIError, TransportError) as exc:
+            await self._store.write(item)
+        except (WeblateAPIError, TransportError, sqlite3.Error) as exc:
             logger.error(f"Write failed for unit {item.unit_id}: {exc!r}")
             return False
         return True

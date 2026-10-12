@@ -1,9 +1,16 @@
 service_token = ""
 data_root = "data/service"
 bind_port = 8100
+# Where translations go: "weblate", "local" (a SQLite file at store_path),
+# or "auto", which writes to Weblate when [weblate] token is set.
+store = "auto"
+store_path = "data/store.sqlite"
+# Overlay source order; the first one a unit has wins.
+priority = ["manual", "upstream", "machine", "needs_editing", "shipped"]
 
 [weblate]
 url = "https://weblate.example.com/api"
+# Empty reads anonymously; the project must allow anonymous downloads.
 token = ""
 project_slug = "x2loc"
 license = "CC-BY-SA-4.0"

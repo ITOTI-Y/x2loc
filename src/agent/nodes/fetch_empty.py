@@ -6,7 +6,7 @@ from loguru import logger
 from src.agent.config import ConfigSchema
 from src.models.agent import NewAgentStateSchema
 from src.models.weblate import WeblateUnitSchema
-from src.services.weblate import AsyncWeblateClient
+from src.services.stores import UnitStore
 
 
 class FetchEmptyOutputSchema(TypedDict):
@@ -21,28 +21,27 @@ class UnitCursor:
 
 
 class UnitIterator:
-    """Per-run snapshot iterator over a stateful Weblate query.
+    """Per-run snapshot iterator over a store's pending units.
 
     The snapshot lives only in this iterator's memory: persisting it would
     let a later run in the same process act on stale emptiness and overwrite
-    targets Weblate already holds.
+    translations the store already holds.
     """
 
-    def __init__(self, client: AsyncWeblateClient):
-        self._client = client
-        self._cursors: dict[tuple[str, str, str], UnitCursor] = {}
+    def __init__(self, store: UnitStore):
+        self._store = store
+        self._cursors: dict[tuple[str, str], UnitCursor] = {}
 
     async def get_units(
         self,
         component_slug: str,
         lang: str,
         batch_size: int,
-        q: str = "",
     ) -> tuple[list[WeblateUnitSchema], bool]:
-        key = (component_slug, lang, q)
+        key = (component_slug, lang)
         cursor = self._cursors.get(key)
         if cursor is None:
-            units = await self._client.list_units(component_slug, lang, q=q)
+            units = await self._store.pending(component_slug, lang)
             cursor = self._cursors[key] = UnitCursor(units)
 
         start = cursor.offset
@@ -65,7 +64,6 @@ async def fetch_empty(
         component_slug=state.component_slug,
         lang=agent_config.target_lang,
         batch_size=agent_config.batch_size,
-        q="state:empty",
     )
     logger.success(f"Fetched {len(units)} empty units")
     return {

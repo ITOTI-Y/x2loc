@@ -10,7 +10,6 @@ from uuid import uuid4
 import httpx
 from httpx2 import TransportError
 from loguru import logger
-from pydantic import ConfigDict
 
 from src.agent.config import ConfigSchema, build_agent_config
 from src.config import ServiceConfigSchema
@@ -22,7 +21,6 @@ from src.core.parser import LocFileParser
 from src.core.placeholders import validate_tags
 from src.core.workshop import WorkshopInputError, discover_localization_assets
 from src.jobs.manager import JobManager
-from src.models._share import BaseSchema
 from src.models.agent import NewAgentStateSchema
 from src.models.file import LocalizationFile
 from src.models.glossary import Glossary
@@ -34,14 +32,18 @@ from src.models.job import (
     JobUpdateSchema,
     WorkshopJobRequestSchema,
 )
-from src.models.weblate import CorpusUnitSchema, WeblateUnitPatchSchema
-from src.models.workshop import LocalizationAssetSchema, WorkshopItemSchema
+from src.models.store import SourceKind
+from src.models.weblate import CorpusUnitSchema
+from src.models.workshop import (
+    AssetWorkSchema,
+    LocalizationAssetSchema,
+    WorkshopItemSchema,
+)
 from src.services.context_index import ContextIndexSource
 from src.services.glossary import GlossarySource, GlossaryWriter
 from src.services.steam import SteamDownloadError
+from src.services.stores import Candidates, TranslationStore, merge
 from src.services.weblate import (
-    WEBLATE_STATE_EMPTY,
-    WEBLATE_STATE_TRANSLATED,
     AsyncWeblateClient,
     WeblateAPIError,
 )
@@ -59,6 +61,8 @@ ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
 
 
 COMPONENT_NAME_MAX_LENGTH: Final[int] = 100
+# Translations that passed review, the only ones terms are mined from.
+MINED_KINDS: Final[frozenset[SourceKind]] = frozenset({"upstream", "machine"})
 
 
 def error_code(exc: BaseException) -> str:
@@ -88,17 +92,6 @@ class PreparedWorkshopSource(WorkshopSource, Protocol):
     def prepared_works(
         self, workshop_id: str, target_lang: str
     ) -> list[AssetWorkSchema] | None: ...
-
-
-class AssetWorkSchema(BaseSchema):
-    """Everything derived from one source file, parsed exactly once."""
-
-    model_config = ConfigDict(frozen=True)
-
-    asset: LocalizationAssetSchema
-    source_file: LocalizationFile
-    units: list[CorpusUnitSchema]
-    expected: dict[str, str]
 
 
 def component_name(asset: LocalizationAssetSchema, namespace: str) -> str:
@@ -168,6 +161,7 @@ class WorkshopPipeline:
         jobs: JobManager,
         source: WorkshopSource,
         weblate: AsyncWeblateClient,
+        store: TranslationStore,
         glossary_writer: GlossaryWriter,
         glossaries: GlossarySource,
         context: ContextIndexSource,
@@ -177,6 +171,7 @@ class WorkshopPipeline:
         self._jobs = jobs
         self._source = source
         self._weblate = weblate
+        self._store = store
         self._glossary_writer = glossary_writer
         self._glossaries = glossaries
         self._context = context
@@ -229,27 +224,32 @@ class WorkshopPipeline:
         self._jobs.update(job_id, JobUpdateSchema(progress=progress))
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.SYNCING_WEBLATE))
+        language = request.target_lang
         async with asyncio.TaskGroup() as sync_group:
             syncs = [
                 sync_group.create_task(
-                    self._sync(work, request.target_lang, item.mod_info.namespace)
+                    self._store.prepare(
+                        work,
+                        name=component_name(work.asset, item.mod_info.namespace),
+                        language=language,
+                    )
                 )
                 for work in works
             ]
-        snapshots = [task.result()[0] for task in syncs]
-        # Translations cleared because their source changed, by component:
+        prepared = [task.result() for task in syncs]
+        for work, ready in zip(works, prepared, strict=True):
+            self._context.update(work.asset.component_slug, ready.snapshot)
+        # Translations of a source the mod has since changed, by component:
         # each is its unit's first-round candidate, after the mod's own.
         previous = {
-            work.asset.component_slug: task.result()[1]
-            for work, task in zip(works, syncs, strict=True)
+            work.asset.component_slug: ready.previous
+            for work, ready in zip(works, prepared, strict=True)
         }
-        # A component whose post-sync snapshot holds no empty target has
-        # nothing for the graph to fetch; skipping it saves a round trip and
-        # keeps its snapshot valid for the readback below.
+        # A component holding a translation of every unit skips the graph.
         pending = [
             work
-            for work, snapshot in zip(works, snapshots, strict=True)
-            if snapshot is None or any(not unit.target for unit in snapshot)
+            for work, ready in zip(works, prepared, strict=True)
+            if ready.needs_translation
         ]
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.TRANSLATING))
@@ -259,31 +259,40 @@ class WorkshopPipeline:
         )
         self._jobs.update(job_id, JobUpdateSchema(progress=progress))
 
-        pending_slugs = {work.asset.component_slug for work in pending}
-
-        async def read_back(
-            work: AssetWorkSchema, snapshot: list[CorpusUnitSchema] | None
-        ) -> dict[str, str]:
-            slug = work.asset.component_slug
-            if snapshot is None or slug in pending_slugs:
-                snapshot = await self._true_sources(
-                    work,
-                    await self._weblate.download_units(slug, request.target_lang),
-                )
-                self._context.update(slug, snapshot)
-            return self._authoritative(work, snapshot)
-
         async with asyncio.TaskGroup() as readback_group:
             readback = [
-                readback_group.create_task(read_back(work, snapshot))
-                for work, snapshot in zip(works, snapshots, strict=True)
+                readback_group.create_task(
+                    self._store.candidates(work, language=language)
+                )
+                for work in works
             ]
-        authoritative = [task.result() for task in readback]
+        candidates = [
+            self._with_shipped(work, task.result())
+            for work, task in zip(works, readback, strict=True)
+        ]
+        overlays = [merge(found, self._config.priority) for found in candidates]
+        for work, translations in zip(works, overlays, strict=True):
+            self._context.update(
+                work.asset.component_slug,
+                [
+                    unit.model_copy(
+                        update={"target": translations.get(unit.context, "")}
+                    )
+                    for unit in work.units
+                ],
+            )
+            missing = len(work.expected) - len(translations)
+            if missing:
+                logger.warning(
+                    "{} has {} untranslated units; the overlay keeps their source",
+                    work.asset.component_slug,
+                    missing,
+                )
         progress = progress.model_copy(
             update={
                 "units_untranslated": sum(
                     len(work.expected) - len(translations)
-                    for work, translations in zip(works, authoritative, strict=True)
+                    for work, translations in zip(works, overlays, strict=True)
                 )
             }
         )
@@ -291,11 +300,13 @@ class WorkshopPipeline:
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.WRITING))
         overlay = self._config.work_root / job_id / "overlay"
         written = await asyncio.to_thread(
-            self._write_all, works, authoritative, request.target_lang, overlay
+            self._write_all, works, overlays, request.target_lang, overlay
         )
 
         self._jobs.update(job_id, JobUpdateSchema(stage=JobStage.EXTRACTING_TERMS))
-        added, skipped = await self._extract_terms(works, authoritative, item, request)
+        mined_order = [kind for kind in self._config.priority if kind in MINED_KINDS]
+        reviewed = [merge(found, mined_order) for found in candidates]
+        added, skipped = await self._extract_terms(works, reviewed, item, request)
         progress = progress.model_copy(
             update={"terms_added": added, "terms_skipped": skipped}
         )
@@ -319,149 +330,6 @@ class WorkshopPipeline:
                 artifact=ArtifactSchema(path=artifact_path, sha256=digest, bytes=size),
             ),
         )
-
-    async def _sync(
-        self, work: AssetWorkSchema, target_lang: str, namespace: str
-    ) -> tuple[list[CorpusUnitSchema] | None, dict[str, str]]:
-        """Sync one component; return its target units if still current.
-
-        The snapshot is None once anything was cleared from it. Also
-        returns, by context, the translations cleared because the mod has
-        changed their source since.
-        """
-        # The slug is already unique per mod and file; the display name
-        # carries the mod namespace because a bare relative path such as
-        # "Localization/XComGame.int" is identical across most mods and
-        # Weblate rejects duplicate component names within one project.
-        snapshot = await self._weblate.sync_corpus(
-            work.asset.component_slug,
-            name=component_name(work.asset, namespace),
-            language=target_lang,
-            units=work.units,
-        )
-        if snapshot is None:
-            snapshot = await self._weblate.download_units(
-                work.asset.component_slug, target_lang
-            )
-        snapshot = await self._true_sources(work, snapshot)
-        self._context.update(work.asset.component_slug, snapshot)
-        previous = await self._clear_changed_sources(work, target_lang, snapshot)
-        cleared = await self._clear_tag_mismatches(work, target_lang, snapshot)
-        return (None if previous or cleared else snapshot), previous
-
-    async def _true_sources(
-        self, work: AssetWorkSchema, snapshot: list[CorpusUnitSchema]
-    ) -> list[CorpusUnitSchema]:
-        """The snapshot with each unit's source as Weblate's template holds it.
-
-        Weblate's CSV export keeps a unit's source column at the text the
-        unit was created with, even after the source is edited, while the
-        source-language file's target column always holds the current one.
-        That file is read only when the snapshot disagrees with the parsed
-        sources, which is rare.
-        """
-        if all(
-            work.expected.get(unit.context, unit.source) == unit.source
-            for unit in snapshot
-        ):
-            return snapshot
-        sources = {
-            unit.context: unit.target
-            for unit in await self._weblate.download_units(
-                work.asset.component_slug, self._weblate.config.source_language
-            )
-        }
-        return [
-            unit.model_copy(update={"source": sources.get(unit.context, unit.source)})
-            for unit in snapshot
-        ]
-
-    async def _clear_changed_sources(
-        self,
-        work: AssetWorkSchema,
-        target_lang: str,
-        snapshot: list[CorpusUnitSchema],
-    ) -> dict[str, str]:
-        """Update the sources the mod has changed; clear their translations.
-
-        A held translation was made for the old source, so it is emptied for
-        the graph to redo and returned by context, to be scored as the
-        unit's first-round candidate instead of trusted.
-        """
-        changed = {
-            unit.context: unit
-            for unit in snapshot
-            if unit.context in work.expected
-            and unit.source != work.expected[unit.context]
-        }
-        if not changed:
-            return {}
-        slug = work.asset.component_slug
-        # Patching needs unit ids, which only the (slow) units API carries.
-        for unit in await self._weblate.list_units(
-            slug, self._weblate.config.source_language
-        ):
-            if unit.context in changed:
-                await self._weblate.patch_unit(
-                    unit.id,
-                    WeblateUnitPatchSchema(
-                        target=[work.expected[unit.context]],
-                        state=WEBLATE_STATE_TRANSLATED,
-                    ),
-                )
-        for unit in await self._weblate.list_units(slug, target_lang):
-            if unit.context in changed:
-                await self._weblate.patch_unit(
-                    unit.id,
-                    WeblateUnitPatchSchema(target=[""], state=WEBLATE_STATE_EMPTY),
-                )
-        logger.warning(
-            "Updated {} changed sources in {}; their translations are redone",
-            len(changed),
-            slug,
-        )
-        return {
-            context: unit.target
-            for context, unit in changed.items()
-            if unit.target.strip()
-        }
-
-    async def _clear_tag_mismatches(
-        self,
-        work: AssetWorkSchema,
-        target_lang: str,
-        snapshot: list[CorpusUnitSchema],
-    ) -> bool:
-        """Empty held translations whose tags disagree with their source.
-
-        Such a translation, typically shipped in the mod's own `.chn`, would
-        fail the overlay check; emptied, it is retranslated like any
-        untranslated unit. Returns whether anything was cleared.
-        """
-        slug = work.asset.component_slug
-        broken_contexts = {
-            unit.context
-            for unit in snapshot
-            if unit.context in work.expected
-            and unit.target.strip()
-            and not validate_tags(unit.source, unit.target)[0]
-        }
-        if not broken_contexts:
-            return False
-        # Patching needs unit ids, which only the (slow) units API carries.
-        broken = [
-            unit
-            for unit in await self._weblate.list_units(slug, target_lang)
-            if unit.context in broken_contexts
-        ]
-        for unit in broken:
-            await self._weblate.patch_unit(
-                unit.id, WeblateUnitPatchSchema(target=[""], state=WEBLATE_STATE_EMPTY)
-            )
-        logger.warning(
-            "Cleared {} translations with mismatched tags in {}", len(broken), slug
-        )
-        return True
 
     async def _translate(
         self,
@@ -491,6 +359,7 @@ class WorkshopPipeline:
             review=ThresholdReview(),
             llm_slots=llm_slots,
             client=self._weblate,
+            store=self._store,
             glossaries=self._glossaries,
             context=self._context,
             http_async_client=self._llm_client,
@@ -529,41 +398,6 @@ class WorkshopPipeline:
             await nodes.aclose()
         return sum(task.result() for task in tasks)
 
-    @staticmethod
-    def _authoritative(
-        work: AssetWorkSchema, units: list[CorpusUnitSchema]
-    ) -> dict[str, str]:
-        """Weblate's own view of the component, from a fresh read.
-
-        Weblate is the authority: whatever it holds wins over the local
-        `.chn`, so the overlay is built from this read, not from what the
-        translator produced. Units still empty here (skipped by the quality
-        gate) are absent from the result, and the overlay keeps their source.
-        """
-        result: dict[str, str] = {}
-        for unit in units:
-            expected_source = work.expected.get(unit.context)
-            if expected_source is None:
-                continue
-            if unit.context in result:
-                raise ArtifactValidationError(
-                    f"{work.asset.component_slug} returned a duplicate unit context"
-                )
-            if unit.source != expected_source:
-                raise ArtifactValidationError(
-                    f"{work.asset.component_slug} returned a stale source unit"
-                )
-            if unit.target.strip():
-                result[unit.context] = unit.target
-        missing = len(work.expected) - len(result)
-        if missing:
-            logger.warning(
-                "{} has {} untranslated units; the overlay keeps their source",
-                work.asset.component_slug,
-                missing,
-            )
-        return result
-
     def _write_all(
         self,
         works: list[AssetWorkSchema],
@@ -577,7 +411,7 @@ class WorkshopPipeline:
             path, target_file = self._artifact.write_target(
                 asset=work.asset,
                 source_file=work.source_file,
-                translations=self._with_shipped(work, translations),
+                translations=translations,
                 target_lang=target_lang,
                 staging_root=overlay,
             )
@@ -588,36 +422,29 @@ class WorkshopPipeline:
         return written
 
     @staticmethod
-    def _with_shipped(
-        work: AssetWorkSchema, translations: dict[str, str]
-    ) -> dict[str, str]:
-        """Weblate's translations, the mod's own filling the units it lacks.
+    def _with_shipped(work: AssetWorkSchema, found: Candidates) -> Candidates:
+        """`found`, plus the translations the mod ships as `shipped`.
 
-        The overlay loads after the mod and writes every unit, its source
-        text where it has no translation; that would replace a translation
-        the mod ships. A shipped one whose tags disagree with the source is
-        left out, as the overlay check would reject it.
+        A shipped translation whose tags disagree with its source is left
+        out, as the overlay check would reject it.
         """
-        shipped = {
-            unit.context: unit.target
-            for unit in work.units
-            if unit.target
-            and unit.context not in translations
-            and validate_tags(unit.source, unit.target)[0]
-        }
-        return {**shipped, **translations}
+        result: Candidates = {context: dict(kinds) for context, kinds in found.items()}
+        for unit in work.units:
+            if unit.target and validate_tags(unit.source, unit.target)[0]:
+                result.setdefault(unit.context, {})["shipped"] = unit.target
+        return result
 
     async def _extract_terms(
         self,
         works: list[AssetWorkSchema],
-        authoritative: list[dict[str, str]],
+        reviewed: list[dict[str, str]],
         item: WorkshopItemSchema,
         request: WorkshopJobRequestSchema,
     ) -> tuple[int, int]:
-        """Mine terms from Weblate's translations only.
+        """Mine terms from translations that passed review only.
 
-        The overlay also carries the mod's unreviewed translations, which
-        must not reach the glossary.
+        The overlay also carries unreviewed translations, the mod's own and
+        those still needing edits, which must not reach the glossary.
         """
 
         def align_and_extract() -> Glossary:
@@ -633,7 +460,7 @@ class WorkshopPipeline:
                     target_lang=request.target_lang,
                     mod_info=item.mod_info,
                 )
-                for work, translations in zip(works, authoritative, strict=True)
+                for work, translations in zip(works, reviewed, strict=True)
             ]
             return self._extractor.extract(corpora)
 
