@@ -1,0 +1,55 @@
+[h1]English[/h1]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723]WOTCMusashiModFixes[/url] appends a coloured "valid weapons" line to ability descriptions. Weapon categories that other mods add have no localized name at the moment that line is built, so it shows their internal codes, such as [i]combatknife[/i] or [i]shoulder launcher[/i].
+
+This mod replaces each code with the name the category's own weapons use: their generic weapon name, or else their item name. The names are read from the weapon mods' localization when the game starts, so nothing is hard-coded.
+
+[h2]Features[/h2]
+[list]
+[*]Works in every game language: the names come from the localization of the language the game runs in.
+[*]Covers new weapon mods automatically, as soon as they ship a localization.
+[*]Runs after WOTCMusashiModFixes through the Community Highlander's run order, so the load order does not matter.
+[/list]
+
+[h2]Requirements[/h2]
+[list]
+[*]War of the Chosen
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495]X2WOTCCommunityHighlander[/url]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723]WOTCMusashiModFixes[/url]
+[/list]
+Without WOTCMusashiModFixes there is no "valid weapons" line, and this mod does nothing.
+
+[h2]Compatibility[/h2]
+It only rewrites ability description text in memory while the game starts, and stores nothing in saves. It can be added or removed at any time; after removing it, older saves may show the game's notice about a missing mod, which is harmless.
+
+[h2]Source[/h2]
+Part of [url=https://github.com/ITOTI-Y/x2loc]x2loc[/url], an XCOM 2 mod localization tool. The source code is in [i]mods/x2locWeaponCatNames[/i] of that repository; bug reports are welcome on its issue tracker.
+
+[hr][/hr]
+
+[h1]简体中文[/h1]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723]WOTCMusashiModFixes[/url] 会在技能说明末尾追加一行彩色的“可用武器”。其他 mod 新增的武器类别在这一行生成时还没有本地化名称，因此显示为内部代号，例如 [i]combatknife[/i]、[i]shoulder launcher[/i]。
+
+本 mod 把每个代号替换为该类别武器自身使用的名称：优先使用通用武器名，没有时使用物品名。名称在游戏启动时从各武器 mod 的本地化文本中读取，没有任何硬编码。
+
+[h2]功能[/h2]
+[list]
+[*]适用于任何游戏语言：名称取自游戏当前语言的本地化文本。
+[*]新的武器 mod 只要带有本地化文本，就会被自动覆盖。
+[*]借助 Community Highlander 的运行顺序配置，在 WOTCMusashiModFixes 之后运行，与加载顺序无关。
+[/list]
+
+[h2]前置要求[/h2]
+[list]
+[*]天选者之战（War of the Chosen）
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495]X2WOTCCommunityHighlander[/url]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723]WOTCMusashiModFixes[/url]
+[/list]
+没有 WOTCMusashiModFixes 时不存在“可用武器”这一行，本 mod 不会产生任何效果。
+
+[h2]兼容性[/h2]
+本 mod 只在游戏启动时修改内存中的技能说明文字，不向存档写入任何内容，可以随时添加或移除。移除后，旧存档读取时可能出现游戏的缺少 mod 提示，不影响游戏。
+
+[h2]源码[/h2]
+本 mod 属于 XCOM 2 模组汉化工具 [url=https://github.com/ITOTI-Y/x2loc]x2loc[/url]，源码位于该仓库的 [i]mods/x2locWeaponCatNames[/i] 目录，问题反馈请提交到仓库的 Issues。

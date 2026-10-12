@@ -1,6 +1,12 @@
 # x2loc
 
+English | [简体中文](README.zh-CN.md)
+
 XCOM 2 War of the Chosen localization toolkit. It parses UE3 `.int`/`.chn` files, aligns source and target languages, and translates mods through Weblate with an LLM agent, either interactively from the CLI or as an HTTP service that takes a Steam Workshop URL and returns a translated overlay package.
+
+## Download
+
+Players can download `x2loc.exe` from [Releases](https://github.com/ITOTI-Y/x2loc/releases) and run it: it opens a page in the browser that scans your subscribed mods, translates the missing text with your own OpenAI-compatible model and installs each translation as a separate mod. Without a Weblate token it only reads the shared translations and keeps its own results on your computer. See [Local app](#local-app) for details.
 
 ## Requirements
 
@@ -104,6 +110,14 @@ When Weblate, this machine and the mod itself each hold a translation of a unit,
 
 Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_<workshop id>_zh/`, holding the generated `.chn` files and its own `.XComMod`, so a Steam update of the original mod cannot overwrite the translation; re-running replaces it. Enable the overlay mods in the mod launcher. Overlay zips and `summary.json` also go to `output/local/<UTC timestamp>/`. Run it on the host that has the game installed, not in the container.
 
+### Docker
+
+```bash
+docker compose up -d --build
+```
+
+The container mounts `configs/weblate.local.toml` read-only, listens on `127.0.0.1:8180`, and keeps SteamCMD, its login cache and the Workshop download cache in named volumes.
+
 ## Local app
 
 `x2loc-app` serves the same pipeline to a browser page on this machine: settings (model, Weblate, game paths, translation priority), the subscribed mods with their Weblate progress, runs, installed translations, review and the upload queue. It binds to `127.0.0.1` on a free port and opens the browser with a per-launch session token; every API call must carry it.
@@ -122,13 +136,16 @@ cd webui && pnpm build && cd ..
 uv run --group build python packaging/build.py -- --zig   # without Visual Studio; omit --zig with MSVC
 ```
 
-### Docker
+## Weapon category names mod
+
+`mods/x2locWeaponCatNames` is a small script mod. [WOTCMusashiModFixes](https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723) appends a "valid weapons" line to ability descriptions, where categories added by mods show as internal codes such as `combatknife`; this mod replaces each code with the localized name of the category's own weapons, in whatever language the game runs. It needs War of the Chosen, [X2WOTCCommunityHighlander](https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495) and WOTCMusashiModFixes, and the local app can install it from its Installed page.
 
 ```bash
-docker compose up -d --build
+uv run python mods/x2locWeaponCatNames/build.py --sdk <WOTC SDK> --mods-dir <XComGame/Mods>
+uv run python mods/x2locWeaponCatNames/publish.py --steamcmd <steamcmd.exe> --username <Steam account>
 ```
 
-The container mounts `configs/weblate.local.toml` read-only, listens on `127.0.0.1:8180`, and keeps SteamCMD, its login cache and the Workshop download cache in named volumes.
+`build.py` compiles it with the War of the Chosen SDK and installs it; `publish.py` uploads it to the Steam Workshop with [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD), using `workshop/description.bbcode` and `ModPreview.jpg`. Tags and required items are set on the item's Workshop page.
 
 ## Development
 
@@ -155,6 +172,8 @@ src/
 ├── cli/           # `x2loc` Typer entry point
 └── ui/            # interactive review prompts
 webui/             # the local app's pages (React, Vite, Tailwind)
+packaging/         # Nuitka build of x2loc.exe
+mods/x2locWeaponCatNames/   # weapon category names script mod
 ```
 
 ## License
