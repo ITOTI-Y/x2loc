@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Annotated, Final, Literal, Self
 
 from pydantic import BeforeValidator, ConfigDict, Field, SecretStr
@@ -124,6 +125,32 @@ class WeblateTranslationStatsSchema(BaseSchema):
     language_code: str = ""
     total: int = 0
     translated: int = 0
+    # .../translations/<project>/<component>/<language>/
+    url: str = ""
+
+
+class WeblateUserSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    username: str
+
+
+class WeblateRoleSchema(BaseSchema):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    permissions: list[str] = []
+
+
+@dataclass(frozen=True)
+class WeblateAccount:
+    """Who a client acts as; `username` is None when anonymous."""
+
+    username: str | None
+    permissions: frozenset[str]
+
+    @property
+    def can_write(self) -> bool:
+        return "unit.edit" in self.permissions
 
 
 class WeblatePageSchema[T: BaseSchema](BaseSchema):

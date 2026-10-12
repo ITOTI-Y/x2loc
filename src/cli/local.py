@@ -152,7 +152,7 @@ def _resolve_paths(
     return LocalConfigSchema(workshop_dir=workshop_dir, mods_dir=mods_dir)
 
 
-def _load_items(
+def load_items(
     workshop_dir: Path, wanted: list[str] | None, limits: WorkshopLimitsSchema
 ) -> tuple[
     dict[str, WorkshopItemSchema],
@@ -209,7 +209,7 @@ async def _run(
     two overlap; jobs are submitted only once the scan is done.
     """
     scan = asyncio.create_task(
-        asyncio.to_thread(_load_items, paths.workshop_dir, wanted, config.limits)
+        asyncio.to_thread(load_items, paths.workshop_dir, wanted, config.limits)
     )
     source = LocalWorkshopSource({}, {})
     try:

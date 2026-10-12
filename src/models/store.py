@@ -24,3 +24,12 @@ class StoreMode(StrEnum):
     AUTO = "auto"
     WEBLATE = "weblate"
     LOCAL = "local"
+
+
+def check_priority(priority: list[SourceKind]) -> list[SourceKind]:
+    """`priority` itself, if it orders every source kind exactly once."""
+    if sorted(priority) != sorted(SOURCE_KINDS):
+        raise ValueError(
+            f"priority must order each of {list(SOURCE_KINDS)} exactly once"
+        )
+    return priority

@@ -2,7 +2,7 @@
 
 import asyncio
 
-from src.models.weblate import CorpusUnitSchema
+from src.models.weblate import CorpusUnitSchema, WeblateUnitSchema
 from src.models.workshop import AssetWorkSchema
 from src.services.weblate import AsyncWeblateClient
 
@@ -36,6 +36,21 @@ async def true_sources(
     ]
 
 
+async def needs_editing_units(
+    client: AsyncWeblateClient, language: str
+) -> list[WeblateUnitSchema]:
+    """Every unit of the project in `language` marked as needing edits."""
+    return await client.search_units(
+        f"project:{client.config.project_slug} AND "
+        f"language:{language} AND state:needs-editing"
+    )
+
+
+def component_of(unit: WeblateUnitSchema) -> str:
+    # A unit's translation URL ends in .../<component>/<language>/.
+    return unit.translation.rstrip("/").split("/")[-2]
+
+
 class NeedsEditing:
     """Which units Weblate holds as "needs editing", per language.
 
@@ -67,15 +82,8 @@ class NeedsEditing:
         return task
 
     async def _search(self, language: str) -> set[tuple[str, str]]:
-        units = await self._client.search_units(
-            f"project:{self._client.config.project_slug} AND "
-            f"language:{language} AND state:needs-editing"
-        )
-        # A unit's translation URL ends in .../<component>/<language>/.
-        return {
-            (unit.translation.rstrip("/").split("/")[-2], unit.context)
-            for unit in units
-        }
+        units = await needs_editing_units(self._client, language)
+        return {(component_of(unit), unit.context) for unit in units}
 
     async def aclose(self) -> None:
         for task in self._loads.values():

@@ -194,11 +194,20 @@ class LocalStore:
         )
 
     def edit(
-        self, slug: str, language: str, context: str, *, source: str, target: str
+        self,
+        slug: str,
+        language: str,
+        context: str,
+        *,
+        source: str,
+        target: str,
+        upstream_at_read: str,
     ) -> None:
-        """Keep a player's own translation; it outranks every other source."""
-        component = self._components.get((slug, language))
-        upstream = component.upstream.get(context, "") if component else ""
+        """Keep a player's own translation; it outranks every other source.
+
+        `upstream_at_read` is Weblate's translation the player saw, so an
+        upload can tell whether someone changed it since.
+        """
         self._save(
             slug,
             language,
@@ -208,8 +217,22 @@ class LocalStore:
             target=target,
             state=WEBLATE_STATE_TRANSLATED,
             comment="",
-            upstream_at_read=upstream,
+            upstream_at_read=upstream_at_read,
         )
+
+    def review(self, language: str) -> list[QueuedTranslation]:
+        """Machine translations the quality gate did not approve, unless a
+        player has since translated the unit by hand."""
+        rows = self._db.execute(
+            "SELECT slug, language, context, origin, source, target, state, "
+            "comment, upload, upstream_at_read, upstream_now FROM translations AS t "
+            "WHERE language = ? AND origin = 'machine' AND state < ? "
+            "AND NOT EXISTS (SELECT 1 FROM translations AS m WHERE "
+            "m.slug = t.slug AND m.language = t.language AND m.context = t.context "
+            "AND m.origin = 'manual') ORDER BY slug, context",
+            (language, WEBLATE_STATE_TRANSLATED),
+        ).fetchall()
+        return [QueuedTranslation(*row) for row in rows]
 
     async def candidates(self, work: AssetWorkSchema, *, language: str) -> Candidates:
         slug = work.asset.component_slug
@@ -261,12 +284,16 @@ class LocalStore:
         ]
         uploaded = conflicts = 0
         for slug in sorted({row.slug for row in queued}):
-            await client.sync_corpus(
-                slug,
-                name=self._component_name(slug),
-                language=language,
-                units=self._sources(slug),
-            )
+            # Edits of units read from Weblate have no stored sources: their
+            # component is already there.
+            sources = self._sources(slug)
+            if sources:
+                await client.sync_corpus(
+                    slug,
+                    name=self._component_name(slug),
+                    language=language,
+                    units=sources,
+                )
             held = {u.context: u for u in await client.list_units(slug, language)}
             for row in (r for r in queued if r.slug == slug):
                 unit = held.get(row.context)

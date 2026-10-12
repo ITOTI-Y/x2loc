@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from src.cli.local import _load_items
+from src.cli.local import load_items
 from src.models.workshop import WorkshopLimitsSchema
 from tests.conftest import _write_loc_file
 
@@ -28,7 +28,7 @@ def test_load_items_skips_mod_without_localization(tmp_path: Path) -> None:
     _write_mod(tmp_path / "222", localized=False)
     (tmp_path / "not-a-mod").mkdir()
 
-    items, works, skipped = _load_items(tmp_path, None, LIMITS)
+    items, works, skipped = load_items(tmp_path, None, LIMITS)
 
     assert list(items) == ["111"]
     assert list(works) == ["111"] and works["111"]
@@ -39,4 +39,4 @@ def test_load_items_skips_mod_without_localization(tmp_path: Path) -> None:
 def test_load_items_rejects_unknown_id(tmp_path: Path) -> None:
     _write_mod(tmp_path / "111", localized=True)
     with pytest.raises(typer.BadParameter, match="999"):
-        _load_items(tmp_path, ["111", "999"], LIMITS)
+        load_items(tmp_path, ["111", "999"], LIMITS)

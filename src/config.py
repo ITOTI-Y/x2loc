@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 from pathlib import Path
-from typing import Self, cast
+from typing import Any, Self, cast
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import (
@@ -17,13 +17,18 @@ from src.models._share import (
     DEFAULT_LLM_TIMEOUT_SECONDS,
     BaseSchema,
 )
-from src.models.store import DEFAULT_PRIORITY, SOURCE_KINDS, SourceKind, StoreMode
+from src.models.store import (
+    DEFAULT_PRIORITY,
+    SourceKind,
+    StoreMode,
+    check_priority,
+)
 from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema, WorkshopLimitsSchema
 
 
 class GlossaryConfigSchema(BaseSchema):
-    base_slug: str = "glossary-base-xcom2-wotc"
+    base_slug: str = "glossary-bases"
     mods_slug: str = "glossary-mods"
     custom_slug: str = "glossary-custom"
 
@@ -139,12 +144,14 @@ class ServiceConfigSchema(BaseSettings):
         )
         return scoped()
 
+    @classmethod
+    def from_values(cls, **values: Any) -> ServiceConfigSchema:
+        """Build from `values` alone, reading neither TOML nor the environment."""
+        return _ValuesOnlyServiceConfig(**values)
+
     @model_validator(mode="after")
     def validate_priority(self) -> ServiceConfigSchema:
-        if sorted(self.priority) != sorted(SOURCE_KINDS):
-            raise ValueError(
-                f"priority must order each of {list(SOURCE_KINDS)} exactly once"
-            )
+        check_priority(self.priority)
         return self
 
     @property
@@ -172,3 +179,18 @@ class ServiceConfigSchema(BaseSettings):
     @property
     def artifact_root(self) -> Path:
         return self.data_root / "artifacts"
+
+
+class _ValuesOnlyServiceConfig(ServiceConfigSchema):
+    model_config = ServiceConfigSchema.model_config | {"toml_file": None}
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (init_settings,)

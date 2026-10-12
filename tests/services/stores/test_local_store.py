@@ -151,7 +151,7 @@ async def test_written_and_edited_translations_become_candidates(db: Path) -> No
 
     await store.write(UnitWrite(ids["a"], "甲", WEBLATE_STATE_TRANSLATED, ""))
     await store.write(UnitWrite(ids["b"], "乙", WEBLATE_STATE_FUZZY, "score 80"))
-    store.edit(SLUG, LANG, "a", source="A", target="甲甲")
+    store.edit(SLUG, LANG, "a", source="A", target="甲甲", upstream_at_read="")
 
     assert await store.candidates(w, language=LANG) == {
         "a": {"manual": "甲甲", "machine": "甲"},

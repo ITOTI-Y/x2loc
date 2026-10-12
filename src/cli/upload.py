@@ -3,12 +3,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from loguru import logger
 
 from src.config import ServiceConfigSchema
 from src.models.workshop import TARGET_LANGUAGE
-from src.services.stores import LocalStore, UploadReport
-from src.services.weblate import AsyncWeblateClient
+from src.services.stores import upload_local
 
 
 def upload(
@@ -28,22 +26,8 @@ def upload(
     config = ServiceConfigSchema.from_toml(config_path)
     if not config.weblate.token.get_secret_value():
         raise typer.BadParameter("uploading needs a token in the [weblate] table")
-    asyncio.run(_upload(config, set(slugs) if slugs else None))
-
-
-async def _upload(config: ServiceConfigSchema, slugs: set[str] | None) -> UploadReport:
-    async with AsyncWeblateClient(config.weblate) as client:
-        store = LocalStore(client, config.store_path)
-        try:
-            report = await store.upload(client, language=TARGET_LANGUAGE, slugs=slugs)
-            for row in store.queue(uploads=("conflict",)):
-                logger.warning(
-                    "Conflict in {} [{}]: here {!r}, Weblate now {!r}",
-                    row.slug,
-                    row.context,
-                    row.target,
-                    row.upstream_now,
-                )
-        finally:
-            await store.aclose()
-    return report
+    asyncio.run(
+        upload_local(
+            config, language=TARGET_LANGUAGE, slugs=set(slugs) if slugs else None
+        )
+    )

@@ -21,18 +21,21 @@ from loguru import logger
 from src.models.weblate import (
     UNIT_PAGE_SIZE,
     CorpusUnitSchema,
+    WeblateAccount,
     WeblateComponentDraftSchema,
     WeblateComponentSchema,
     WeblateConfigSchema,
     WeblatePageSchema,
     WeblateRequestParamsSchema,
     WeblateRequestSchema,
+    WeblateRoleSchema,
     WeblateTaskSchema,
     WeblateTranslationStatsSchema,
     WeblateUnitDraftSchema,
     WeblateUnitPatchSchema,
     WeblateUnitSchema,
     WeblateUploadResultSchema,
+    WeblateUserSchema,
 )
 
 WEBLATE_STATE_EMPTY: Final[int] = 0
@@ -348,6 +351,55 @@ class AsyncWeblateClient:
             response.json()
         )
         return {stats.language_code: stats for stats in page.results}
+
+    async def account(self) -> WeblateAccount:
+        """The token's user and the permissions its roles grant.
+
+        Weblate lists only the caller among users unless the caller is an
+        admin, and nobody when anonymous.
+        """
+        users, roles = await asyncio.gather(
+            self._request(WeblateRequestSchema(method="GET", path="users/")),
+            self._request(WeblateRequestSchema(method="GET", path="roles/")),
+        )
+        listed = WeblatePageSchema[WeblateUserSchema].model_validate(users.json())
+        granted = WeblatePageSchema[WeblateRoleSchema].model_validate(roles.json())
+        return WeblateAccount(
+            username=listed.results[0].username if listed.count == 1 else None,
+            permissions=frozenset(
+                p for role in granted.results for p in role.permissions
+            ),
+        )
+
+    async def project_translation_stats(
+        self, language: str
+    ) -> dict[str, WeblateTranslationStatsSchema]:
+        """Counts of `language` in every component of the project, by slug.
+
+        One listing of every translation; Weblate takes seconds to build
+        it, so callers cache the result.
+        """
+        stats: dict[str, WeblateTranslationStatsSchema] = {}
+        page = 1
+        while True:
+            response = await self._request(
+                WeblateRequestSchema(
+                    method="GET",
+                    path="translations/",
+                    params=WeblateRequestParamsSchema(page=page),
+                ),
+                timeout=HTTP_UPLOAD_TIMEOUT,
+            )
+            listing = WeblatePageSchema[WeblateTranslationStatsSchema].model_validate(
+                response.json()
+            )
+            for entry in listing.results:
+                project, slug, code = entry.url.rstrip("/").split("/")[-3:]
+                if project == self.config.project_slug and code == language:
+                    stats[slug] = entry
+            if listing.next is None:
+                return stats
+            page += 1
 
     async def translation_total(self, component_slug: str, language: str) -> int:
         return (await self.translation_stats(component_slug, language)).total
