@@ -11,7 +11,7 @@ import httpx
 from httpx2 import TransportError
 from loguru import logger
 
-from src.agent.config import ConfigSchema, build_agent_config
+from src.agent.config import ConfigSchema, LLMNotConfiguredError, build_agent_config
 from src.config import ServiceConfigSchema
 from src.core.aligner import BilingualAligner
 from src.core.artifact import ArtifactBuilder, ArtifactValidationError
@@ -56,6 +56,9 @@ ERROR_CODES: Final[tuple[tuple[type[Exception], str], ...]] = (
     (ArtifactValidationError, "artifact_failed"),
     (WeblateAPIError, "weblate_failed"),
     (TransportError, "weblate_failed"),
+    # Reached only when a mod has units to translate: a run over translated
+    # mods needs no LLM at all.
+    (LLMNotConfiguredError, "llm_not_configured"),
     (ValueError, "invalid_request"),
 )
 

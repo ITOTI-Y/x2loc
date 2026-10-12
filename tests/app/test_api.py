@@ -117,22 +117,6 @@ def test_mods_need_paths(client: TestClient) -> None:
     assert response.json()["code"] == "paths_not_set"
 
 
-def test_a_run_needs_a_translation_model(client: TestClient) -> None:
-    response = client.post("/api/runs", json={"workshop_ids": ["1"]})
-
-    assert response.json()["code"] == "model_not_set"
-
-
-def test_a_run_needs_an_api_key(client: TestClient) -> None:
-    settings = client.get("/api/settings").json()["settings"]
-    settings["model"]["translation_model"] = "some/model"
-    client.put("/api/settings", json=settings)
-
-    response = client.post("/api/runs", json={"workshop_ids": ["1"]})
-
-    assert response.json()["code"] == "api_key_not_set"
-
-
 def test_a_run_rejects_ids_that_are_not_workshop_ids(client: TestClient) -> None:
     response = client.post("/api/runs", json={"workshop_ids": ["../x"]})
 
@@ -198,14 +182,11 @@ def test_uploading_needs_a_token(client: TestClient, tmp_path: Path) -> None:
     assert response.json()["code"] == "token_not_set"
 
 
-def test_a_run_refuses_mods_that_are_not_subscribed(
+def test_a_run_needs_no_model_or_api_key_to_start(
     client: TestClient, tmp_path: Path
 ) -> None:
+    # Only the subscription check is left to fail: translated mods need no LLM.
     local_settings(client, tmp_path)
-    settings = client.get("/api/settings").json()["settings"]
-    settings["model"]["translation_model"] = "some/model"
-    client.put("/api/settings", json=settings)
-    client.put("/api/secrets/llm_api_key", json={"value": "sk-test"})
 
     response = client.post("/api/runs", json={"workshop_ids": ["404"]})
 

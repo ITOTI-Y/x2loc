@@ -476,12 +476,9 @@ def create_app(*, home: Path, session_token: str, secrets: Secrets) -> FastAPI:
     @app.post("/api/runs", status_code=202)
     async def start_run(body: RunRequestSchema) -> RunViewSchema:
         settings = state.settings()
-        if not settings.model.translation_model:
-            raise AppError("model_not_set", 409)
-        # The OpenAI client refuses an empty key, even for endpoints that
-        # ignore it, so a run without one could only fail.
-        if not state.secrets.get("llm_api_key"):
-            raise AppError("api_key_not_set", 409)
+        # No model or API key is checked here: mods Weblate has translated in
+        # full need neither, and a mod that does fails with
+        # `llm_not_configured`.
         config = await state.config()
         try:
             run = state.runs.start(

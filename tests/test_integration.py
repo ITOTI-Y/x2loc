@@ -325,3 +325,11 @@ def test_weblate_transport_failure_maps_to_weblate_error_code() -> None:
     from src.jobs.pipeline import error_code
 
     assert error_code(ReadTimeout("stalled")) == "weblate_failed"
+
+
+def test_a_missing_llm_setting_maps_to_its_own_error_code() -> None:
+    from src.agent.config import LLMNotConfiguredError
+    from src.jobs.pipeline import error_code
+
+    assert error_code(LLMNotConfiguredError("no key")) == "llm_not_configured"
+    assert error_code(ValueError("bad request")) == "invalid_request"

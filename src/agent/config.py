@@ -7,6 +7,10 @@ from src.models.weblate import WeblateConfigSchema
 from src.models.workshop import SteamConfigSchema
 
 
+class LLMNotConfiguredError(ValueError):
+    """A translation needs an LLM, and no API key or model was given."""
+
+
 class ConfigSchema(BaseSchema):
     """Fully resolved settings for one agent run.
 
@@ -57,7 +61,7 @@ def build_agent_config(
 ) -> ConfigSchema:
     """Combine service-wide settings with the (possibly overridden) LLM table."""
     if not agent.api_key.get_secret_value() or not agent.translation_model_name:
-        raise ValueError(
+        raise LLMNotConfiguredError(
             "no LLM api key or translation model: provide them in the "
             "request or in the [agent] table of the service TOML"
         )

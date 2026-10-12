@@ -2,8 +2,8 @@
   "app": {
     "tagline": "Mod localization",
     "setup": {
-      "title": "Setup is not finished.",
-      "description": "Enter a model, its API key and the game paths to start translating."
+      "title": "The game paths are not set.",
+      "description": "Set them to install the translations Weblate already has; translating new text also needs a model and an API key."
     },
     "no_session": {
       "title": "Open this page from the x2loc program",
@@ -35,6 +35,7 @@
     "paths_not_set": "The Workshop folder and the game's Mods folder are not set.",
     "model_not_set": "No translation model is set.",
     "api_key_not_set": "No API key is set.",
+    "llm_not_configured": "This mod has text to translate; set a translation model and an API key in Settings first.",
     "no_mods_selected": "No mods are selected.",
     "mod_not_found": "A selected mod is not in the Workshop folder.",
     "run_in_progress": "A run is already in progress; wait for it to finish.",
@@ -99,7 +100,7 @@
       "base_url_hint": "Ends in /v1, e.g. https://openrouter.ai/api/v1",
       "translation_model": "Translation model",
       "api_key": "API key",
-      "api_key_hint": "Required. For a local model that does not check it, any text will do.",
+      "api_key_hint": "Needed only to translate text Weblate does not have yet. For a local model that does not check it, any text will do.",
       "advanced": "Advanced",
       "retry_translation_model": "Retry model",
       "validation_model": "Validation model",

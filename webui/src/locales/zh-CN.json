@@ -2,8 +2,8 @@
   "app": {
     "tagline": "XCOM 2 模组汉化",
     "setup": {
-      "title": "尚未完成设置。",
-      "description": "填写模型、API key 与游戏路径后即可开始翻译。"
+      "title": "尚未设置游戏路径。",
+      "description": "设置后即可安装 Weblate 上已有的汉化；翻译新内容还需要模型和 API key。"
     },
     "no_session": {
       "title": "请从 x2loc 程序打开本页面",
@@ -35,6 +35,7 @@
     "paths_not_set": "尚未设置 Workshop 目录和游戏 Mods 目录。",
     "model_not_set": "尚未填写翻译模型。",
     "api_key_not_set": "尚未填写 API key。",
+    "llm_not_configured": "该 mod 有需要翻译的条目，请先在设置中填写翻译模型和 API key。",
     "no_mods_selected": "没有选择模组。",
     "mod_not_found": "所选模组不在 Workshop 目录中。",
     "run_in_progress": "已有任务在运行，请等待其结束。",
@@ -99,7 +100,7 @@
       "base_url_hint": "以 /v1 结尾的地址，例如 https://openrouter.ai/api/v1",
       "translation_model": "翻译模型",
       "api_key": "API key",
-      "api_key_hint": "必填。本地部署的模型不校验 key 时，填任意字符即可。",
+      "api_key_hint": "需要翻译 Weblate 上没有的内容时才用到。本地部署的模型不校验 key 时，填任意字符即可。",
       "advanced": "高级参数",
       "retry_translation_model": "重译模型",
       "validation_model": "校验模型",
