@@ -84,9 +84,10 @@ function Shell() {
   const uploads = useQuery({ queryKey: keys.uploads, queryFn: api.uploads })
   const [page, setPageState] = useState<Page | null>(storedPage)
 
+  // Paths are all a run needs; a model and a key only matter once a mod has
+  // text Weblate lacks, and the run then says so.
   const configured =
     settings.data !== undefined &&
-    settings.data.settings.model.translation_model !== "" &&
     settings.data.settings.paths.workshop_dir !== null &&
     settings.data.settings.paths.mods_dir !== null
 
@@ -95,7 +96,10 @@ function Shell() {
   }, [settings.data, i18n])
 
   // A first start goes to the settings; later ones resume where they left.
-  const current: Page = page ?? (settings.data && !configured ? "settings" : "mods")
+  // Decided once, so saving the paths does not pull the player off the page.
+  if (page === null && settings.data) setPageState(configured ? "mods" : "settings")
+  // Null until the settings load; nothing is shown before the page is known.
+  const current = page
 
   const setPage = (next: Page) => {
     setPageState(next)
