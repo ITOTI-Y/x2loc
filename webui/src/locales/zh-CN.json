@@ -1,0 +1,302 @@
+{
+  "app": {
+    "tagline": "XCOM 2 模组汉化",
+    "setup": {
+      "title": "尚未完成设置。",
+      "description": "填写模型、API key 与游戏路径后即可开始翻译。"
+    },
+    "no_session": {
+      "title": "请从 x2loc 程序打开本页面",
+      "description": "本页面需要由 x2loc 启动时打开的链接访问；关闭此标签页后，重新运行 x2loc 即可。"
+    }
+  },
+  "nav": {
+    "mods": "模组",
+    "runs": "任务",
+    "overlays": "已安装汉化",
+    "review": "审核",
+    "uploads": "待上传",
+    "settings": "设置"
+  },
+  "common": {
+    "error": "出错了",
+    "save": "保存",
+    "cancel": "取消",
+    "clear": "清除选择",
+    "show_more": "再显示 {{count}} 条"
+  },
+  "errors": {
+    "unknown": "未知错误：{{code}}",
+    "app_unreachable": "无法连接 x2loc，程序可能已关闭。",
+    "unauthorized": "会话已失效，请重新从 x2loc 程序打开本页面。",
+    "forbidden_host": "请求来源不受信任。",
+    "invalid_request": "提交的内容不合法",
+    "internal_error": "程序内部错误，详情见 x2loc 窗口日志。",
+    "paths_not_set": "尚未设置 Workshop 目录和游戏 Mods 目录。",
+    "model_not_set": "尚未填写翻译模型。",
+    "no_mods_selected": "没有选择模组。",
+    "mod_not_found": "所选模组不在 Workshop 目录中。",
+    "run_in_progress": "已有任务在运行，请等待其结束。",
+    "run_not_found": "任务不存在。",
+    "job_not_found": "该模组的翻译记录不存在。",
+    "overlay_not_found": "该汉化未安装。",
+    "token_not_set": "尚未填写 Weblate token。",
+    "token_read_only": "当前 Weblate token 没有写权限。",
+    "token_invalid": "Weblate token 无效",
+    "unit_not_on_weblate": "该条目不在 Weblate 上，无法直接提交。",
+    "weblate_forbidden": "Weblate 拒绝了该操作，请检查 token 权限",
+    "weblate_rejected": "Weblate 返回错误",
+    "weblate_unreachable": "无法连接 Weblate",
+    "weblate_failed": "与 Weblate 通信失败",
+    "llm_unreachable": "无法连接模型服务",
+    "llm_unauthorized": "模型服务拒绝了 API key",
+    "llm_rejected": "模型服务返回错误",
+    "llm_failed": "模型调用失败",
+    "mod_content_invalid": "模组文件无法解析",
+    "steam_download_failed": "下载模组失败",
+    "artifact_failed": "生成汉化文件失败"
+  },
+  "sources": {
+    "manual": "本地人工修改",
+    "manual_hint": "在审核页中手动改过的译文",
+    "upstream": "Weblate 已翻译",
+    "upstream_hint": "社区译文库中已确认的译文",
+    "machine": "本地机器翻译",
+    "machine_hint": "用你的模型在本地翻译并通过质量检查的译文",
+    "needs_editing": "需要编辑",
+    "needs_editing_hint": "未通过质量检查、等待人工确认的译文",
+    "shipped": "模组自带",
+    "shipped_hint": "模组作者随模组发布的中文，未经审核",
+    "source": "原文",
+    "source_hint": "以上都没有时保留英文原文，固定在最后"
+  },
+  "settings": {
+    "title": "设置",
+    "description": "模型、Weblate 与游戏路径。密钥保存在 Windows 凭据管理器中，不写入设置文件。",
+    "saved": "设置已保存",
+    "unsaved": "有未保存的修改",
+    "secret": {
+      "saved": "已保存到凭据管理器",
+      "stored": "已保存",
+      "not_set": "未设置",
+      "replace": "输入新值以替换",
+      "clear": "删除"
+    },
+    "test": {
+      "run": "测试连接",
+      "ok": "正常",
+      "llm": "模型",
+      "weblate": "Weblate",
+      "writer": "{{name}}，可写入",
+      "reader": "{{name}}，只读",
+      "anonymous": "匿名访问，只读"
+    },
+    "model": {
+      "title": "翻译模型",
+      "description": "任意兼容 OpenAI 接口的服务，例如 OpenRouter 或本地部署的模型。",
+      "base_url": "接口地址",
+      "base_url_hint": "以 /v1 结尾的地址，例如 https://openrouter.ai/api/v1",
+      "translation_model": "翻译模型",
+      "api_key": "API key",
+      "api_key_hint": "本地模型不需要时可留空。",
+      "advanced": "高级参数",
+      "retry_translation_model": "重译模型",
+      "validation_model": "校验模型",
+      "scoring_model": "评分模型",
+      "same_as_translation": "留空则使用翻译模型。",
+      "concurrency": "并发请求数",
+      "concurrency_hint": "同时发往模型服务的请求上限，任务中的所有模组共用这一上限。应低于模型服务商的速率限制。",
+      "timeout": "超时（秒）",
+      "batch_size": "批大小",
+      "units_per_request": "每次请求的条目数",
+      "threshold": "自动通过分数",
+      "threshold_hint": "评分低于该值的译文标为“需要编辑”。",
+      "batch_size_hint": "每一轮从待译条目中取出的条数，一轮依次完成翻译、校验、评分和写入。调大轮数更少，调小则译文更早写入。",
+      "units_per_request_hint": "合并到同一次模型请求中的条数。调大请求次数更少，但单次请求更长，失败时需要重试的条目也更多。"
+    },
+    "weblate": {
+      "title": "Weblate",
+      "description": "社区译文库。没有 token 时只读取已有译文，缺失部分在本地翻译。",
+      "url": "接口地址",
+      "project": "项目",
+      "token": "Token",
+      "token_hint": "可选。填写具有写权限的 token 后可以把本地译文上传到 Weblate。",
+      "store": "译文保存位置",
+      "store_name_auto": "自动",
+      "store_name_local": "本地",
+      "store_name_weblate": "Weblate",
+      "store_auto": "token 可写入时直接写入 Weblate，否则保存在本地。",
+      "store_local": "始终保存在本地，之后可在“待上传”中挑选上传。",
+      "store_weblate": "始终直接写入 Weblate，需要可写入的 token。"
+    },
+    "paths": {
+      "title": "游戏路径",
+      "description": "已订阅模组所在的 Workshop 目录，以及安装汉化的游戏 Mods 目录。",
+      "workshop_dir": "Workshop 目录",
+      "workshop_hint": "steamapps\\workshop\\content\\268500",
+      "mods_dir": "游戏 Mods 目录",
+      "mods_hint": "XCom2-WarOfTheChosen\\XComGame\\Mods",
+      "detect": "从 Steam 自动检测",
+      "not_found": "没有在 Steam 库中找到 XCOM 2。"
+    },
+    "priority": {
+      "title": "译文优先级",
+      "description": "同一条目有多个来源时，生成汉化取排在最前的一个。拖动调整顺序。",
+      "drag": "拖动调整“{{name}}”的位置"
+    },
+    "general": {
+      "title": "通用",
+      "description": "任务规模与界面。",
+      "jobs": "同时翻译的模组数",
+      "jobs_hint": "同时处理的模组个数。它们共用模型设置中的并发请求上限，调大不会增加对模型服务的请求压力，只是让小模组不必排队等待大模组。",
+      "language": "界面语言",
+      "theme": "外观",
+      "theme_hint": "仅保存在当前浏览器。",
+      "theme_system": "跟随系统",
+      "theme_light": "浅色",
+      "theme_dark": "深色"
+    }
+  },
+  "mods": {
+    "title": "模组",
+    "description": "已订阅的 Workshop 模组及其在 Weblate 上的翻译进度。勾选后开始翻译，完成后自动安装汉化。",
+    "rescan": "重新扫描",
+    "scanning": "正在扫描模组目录……",
+    "search": "搜索名称或 ID",
+    "empty": "没有符合条件的模组",
+    "select_all": "全选",
+    "filter": {
+      "all": "全部",
+      "incomplete": "待处理",
+      "installed": "汉化已安装",
+      "problems": "无法翻译"
+    },
+    "column": {
+      "mod": "模组",
+      "coverage": "Weblate 进度",
+      "overlay": "汉化状态"
+    },
+    "coverage": {
+      "none": "无可翻译条目",
+      "unsynced_other": "{{count}} 个文件尚未同步",
+      "failed": "读取 Weblate 进度失败，进度暂不显示。",
+      "not_synced": "尚未同步到 Weblate"
+    },
+    "problem": {
+      "no_localization": "无本地化文件",
+      "invalid_mod": "模组文件损坏"
+    },
+    "installed": "汉化已安装",
+    "not_installed": "汉化未安装",
+    "selected_other": "已选 {{count}} 个",
+    "upload_after": "完成后上传到 Weblate",
+    "translate": "开始翻译",
+    "run_busy": "已有任务在运行",
+    "no_paths": {
+      "title": "先设置游戏路径",
+      "description": "需要知道已订阅模组所在的 Workshop 目录和游戏 Mods 目录。",
+      "action": "前往设置"
+    }
+  },
+  "runs": {
+    "title": "任务",
+    "description": "每次开始翻译都是一个任务，任务中的每个模组独立翻译、独立安装。",
+    "progress": "{{files}} / {{filesTotal}} 个文件 · 新译 {{units}} 条，共 {{unitsTotal}} 条",
+    "mods_other": "{{count}} 个模组",
+    "installed_other": "已安装 {{count}} 个",
+    "uploaded": "上传 {{uploaded}} 条，冲突 {{conflicts}} 条",
+    "cancel": "停止任务",
+    "preparing": "正在解析模组文件……",
+    "skipped": "已跳过",
+    "status": {
+      "running": "进行中",
+      "succeeded": "已完成",
+      "failed": "部分失败",
+      "cancelled": "已停止"
+    },
+    "empty": {
+      "title": "还没有任务",
+      "description": "在模组页勾选要汉化的模组即可开始。",
+      "action": "前往模组"
+    }
+  },
+  "status": {
+    "queued": "排队中",
+    "running": "进行中",
+    "succeeded": "已完成",
+    "cancelled": "已取消",
+    "failed": "失败"
+  },
+  "stages": {
+    "downloading": "下载中",
+    "discovering": "读取文件",
+    "syncing_weblate": "同步原文",
+    "translating": "翻译中",
+    "writing": "写入译文",
+    "extracting_terms": "提取术语",
+    "packaging": "生成汉化"
+  },
+  "overlays": {
+    "title": "已安装汉化",
+    "description": "x2loc 安装在游戏 Mods 目录中的汉化模组。它们独立于原模组，原模组更新不会覆盖汉化。",
+    "installed_other": "{{count}} 个汉化",
+    "removed": "已卸载",
+    "remove": "卸载",
+    "weapon_names": {
+      "title": "武器类别名称",
+      "description": "部分模组新增的武器类别在技能说明的“可用武器”一行中显示为英文代号。该脚本模组在游戏启动时，用武器自身的本地化名称替换这些代号，跟随游戏当前语言，不限于中文。"
+    },
+    "empty": {
+      "title": "还没有安装汉化",
+      "description": "翻译完成的模组会自动安装到这里。"
+    },
+    "confirm": {
+      "title": "卸载汉化？",
+      "description": "将删除“{{title}}”的汉化模组文件夹。本地保存的译文不受影响，可随时重新生成。"
+    }
+  },
+  "review": {
+    "title": "审核",
+    "description": "未通过质量检查的译文。有写权限时修改直接提交到 Weblate，否则保存在本地并进入待上传。",
+    "count_other": "{{count}} 条待审核",
+    "search": "搜索组件、原文或译文",
+    "saved": "已保存",
+    "source": "原文",
+    "target": "译文",
+    "approve": "确认无误",
+    "save": "保存修改",
+    "open_weblate": "在 Weblate 中查看",
+    "where": {
+      "weblate": "Weblate",
+      "local": "本地"
+    },
+    "empty": {
+      "title": "没有待审核的译文",
+      "description": "质量检查未通过的译文会出现在这里。"
+    }
+  },
+  "uploads": {
+    "title": "待上传",
+    "description": "保存在本地、尚未上传到 Weblate 的译文。上传前会核对 Weblate 上的当前译文，被他人改过的条目标为冲突。",
+    "upload_all": "全部上传",
+    "upload_selected_other": "上传所选 {{count}} 个组件",
+    "done": "已上传 {{uploaded}} 条，冲突 {{conflicts}} 条",
+    "no_token": "上传需要具有写权限的 Weblate token。",
+    "go_settings": "前往设置",
+    "pending_other": "待上传 {{count}} 条",
+    "units_other": "{{count}} 条",
+    "conflicts_other": "冲突 {{count}} 条",
+    "conflicts_hint": "这些条目在本地翻译之后，Weblate 上的译文已被他人修改。选择保留哪一个。",
+    "conflict": {
+      "local": "本地译文",
+      "upstream": "Weblate 当前译文",
+      "empty": "（空）",
+      "keep_local": "保留本地，下次上传",
+      "keep_upstream": "采用 Weblate，删除本地"
+    },
+    "empty": {
+      "title": "没有待上传的译文",
+      "description": "本地翻译或修改的译文会出现在这里。"
+    }
+  }
+}

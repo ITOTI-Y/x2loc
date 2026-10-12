@@ -104,6 +104,17 @@ When Weblate, this machine and the mod itself each hold a translation of a unit,
 
 Each translated mod is installed as a standalone mod `XComGame/Mods/x2loc_<workshop id>_zh/`, holding the generated `.chn` files and its own `.XComMod`, so a Steam update of the original mod cannot overwrite the translation; re-running replaces it. Enable the overlay mods in the mod launcher. Overlay zips and `summary.json` also go to `output/local/<UTC timestamp>/`. Run it on the host that has the game installed, not in the container.
 
+## Local app
+
+`x2loc-app` serves the same pipeline to a browser page on this machine: settings (model, Weblate, game paths, translation priority), the subscribed mods with their Weblate progress, runs, installed translations, review and the upload queue. It binds to `127.0.0.1` on a free port and opens the browser with a per-launch session token; every API call must carry it.
+
+```bash
+cd webui && pnpm install && pnpm build && cd ..   # builds into src/webui/dist
+uv run x2loc-app
+```
+
+Settings live in `%LOCALAPPDATA%\x2loc\settings.json` (`X2LOC_HOME` overrides the folder), together with the local translation store; the LLM API key and the Weblate token are kept in the Windows Credential Manager. For UI work, run `uv run x2loc-app --port 8765 --token dev --no-browser` and `pnpm dev` in `webui/`, then open `http://localhost:5173/#token=dev`.
+
 ### Docker
 
 ```bash
@@ -118,6 +129,7 @@ The container mounts `configs/weblate.local.toml` read-only, listens on `127.0.0
 uv run pytest
 uv run ruff check --fix . && uv run ruff format .
 uv run ty check src tests
+cd webui && pnpm lint && pnpm check:i18n && pnpm build
 ```
 
 ## Layout
@@ -131,9 +143,11 @@ src/
 ├── services/      # Weblate and Steam clients, glossaries, translation stores
 ├── agent/         # LangGraph translation agent and its nodes
 ├── jobs/          # service job manager and Workshop pipeline
-├── api/           # FastAPI app
+├── api/           # FastAPI service
+├── app/           # local app: settings, secrets, runs and its HTTP interface
 ├── cli/           # `x2loc` Typer entry point
 └── ui/            # interactive review prompts
+webui/             # the local app's pages (React, Vite, Tailwind)
 ```
 
 ## License

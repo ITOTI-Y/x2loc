@@ -1,0 +1,312 @@
+{
+  "app": {
+    "tagline": "Mod localization",
+    "setup": {
+      "title": "Setup is not finished.",
+      "description": "Enter a model, its API key and the game paths to start translating."
+    },
+    "no_session": {
+      "title": "Open this page from the x2loc program",
+      "description": "This page is reached through the link x2loc opens when it starts. Run x2loc again to get a new one."
+    }
+  },
+  "nav": {
+    "mods": "Mods",
+    "runs": "Runs",
+    "overlays": "Installed",
+    "review": "Review",
+    "uploads": "Uploads",
+    "settings": "Settings"
+  },
+  "common": {
+    "error": "Something went wrong",
+    "save": "Save",
+    "cancel": "Cancel",
+    "clear": "Clear selection",
+    "show_more": "Show {{count}} more"
+  },
+  "errors": {
+    "unknown": "Unknown error: {{code}}",
+    "app_unreachable": "Cannot reach x2loc; the program may have been closed.",
+    "unauthorized": "The session has expired. Open this page from the x2loc program again.",
+    "forbidden_host": "The request came from an untrusted origin.",
+    "invalid_request": "The submitted values are invalid",
+    "internal_error": "Internal error; see the log in the x2loc window.",
+    "paths_not_set": "The Workshop folder and the game's Mods folder are not set.",
+    "model_not_set": "No translation model is set.",
+    "no_mods_selected": "No mods are selected.",
+    "mod_not_found": "A selected mod is not in the Workshop folder.",
+    "run_in_progress": "A run is already in progress; wait for it to finish.",
+    "run_not_found": "The run does not exist.",
+    "job_not_found": "No translation of this mod exists.",
+    "overlay_not_found": "This translation is not installed.",
+    "token_not_set": "No Weblate token is set.",
+    "token_read_only": "The Weblate token cannot write.",
+    "token_invalid": "The Weblate token is invalid",
+    "unit_not_on_weblate": "This string is not on Weblate and cannot be submitted there.",
+    "weblate_forbidden": "Weblate refused the operation; check the token's permissions",
+    "weblate_rejected": "Weblate returned an error",
+    "weblate_unreachable": "Cannot reach Weblate",
+    "weblate_failed": "Talking to Weblate failed",
+    "llm_unreachable": "Cannot reach the model service",
+    "llm_unauthorized": "The model service rejected the API key",
+    "llm_rejected": "The model service returned an error",
+    "llm_failed": "A model call failed",
+    "mod_content_invalid": "The mod's files cannot be parsed",
+    "steam_download_failed": "Downloading the mod failed",
+    "artifact_failed": "Building the translation failed"
+  },
+  "sources": {
+    "manual": "Edited here",
+    "manual_hint": "Translations you corrected on the Review page",
+    "upstream": "Translated on Weblate",
+    "upstream_hint": "Confirmed translations of the community",
+    "machine": "Machine translated here",
+    "machine_hint": "Translated here with your model and approved by the quality gate",
+    "needs_editing": "Needs editing",
+    "needs_editing_hint": "Failed the quality gate and await a human check",
+    "shipped": "Shipped with the mod",
+    "shipped_hint": "Chinese the mod's author ships, never reviewed",
+    "source": "Source text",
+    "source_hint": "Kept in English when none of the above exists; always last"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Model, Weblate and game paths. Secrets are kept in the Windows Credential Manager, never in the settings file.",
+    "saved": "Settings saved",
+    "unsaved": "Unsaved changes",
+    "secret": {
+      "saved": "Saved to the Credential Manager",
+      "stored": "Saved",
+      "not_set": "Not set",
+      "replace": "Enter a new value to replace it",
+      "clear": "Delete"
+    },
+    "test": {
+      "run": "Test connection",
+      "ok": "OK",
+      "llm": "Model",
+      "weblate": "Weblate",
+      "writer": "{{name}}, can write",
+      "reader": "{{name}}, read only",
+      "anonymous": "Anonymous, read only"
+    },
+    "model": {
+      "title": "Translation model",
+      "description": "Any OpenAI-compatible service, such as OpenRouter or a model running locally.",
+      "base_url": "API URL",
+      "base_url_hint": "Ends in /v1, e.g. https://openrouter.ai/api/v1",
+      "translation_model": "Translation model",
+      "api_key": "API key",
+      "api_key_hint": "Leave empty for local models that need none.",
+      "advanced": "Advanced",
+      "retry_translation_model": "Retry model",
+      "validation_model": "Validation model",
+      "scoring_model": "Scoring model",
+      "same_as_translation": "Empty uses the translation model.",
+      "concurrency": "Concurrent requests",
+      "concurrency_hint": "Most requests sent to the model service at once, shared by every mod of a run. Keep it below your provider's rate limit.",
+      "timeout": "Timeout (seconds)",
+      "batch_size": "Batch size",
+      "units_per_request": "Strings per request",
+      "threshold": "Approval score",
+      "threshold_hint": "Translations scored below it are marked as needing edits.",
+      "batch_size_hint": "Strings taken per round; each round translates, validates, scores and writes them. Larger means fewer rounds, smaller means translations are written sooner.",
+      "units_per_request_hint": "Strings packed into one model request. Larger means fewer requests, but each is longer and a failure retries more strings."
+    },
+    "weblate": {
+      "title": "Weblate",
+      "description": "The community translation memory. Without a token, existing translations are read and the rest is translated here.",
+      "url": "API URL",
+      "project": "Project",
+      "token": "Token",
+      "token_hint": "Optional. A token that can write lets you upload translations made here.",
+      "store": "Where translations go",
+      "store_name_auto": "Automatic",
+      "store_name_local": "This computer",
+      "store_name_weblate": "Weblate",
+      "store_auto": "Weblate when the token can write, otherwise this computer.",
+      "store_local": "Always this computer; upload a selection later from Uploads.",
+      "store_weblate": "Always straight to Weblate; needs a token that can write."
+    },
+    "paths": {
+      "title": "Game paths",
+      "description": "The Workshop folder of your subscribed mods, and the game's Mods folder translations are installed into.",
+      "workshop_dir": "Workshop folder",
+      "workshop_hint": "steamapps\\workshop\\content\\268500",
+      "mods_dir": "Game Mods folder",
+      "mods_hint": "XCom2-WarOfTheChosen\\XComGame\\Mods",
+      "detect": "Detect from Steam",
+      "not_found": "XCOM 2 was not found in any Steam library."
+    },
+    "priority": {
+      "title": "Translation priority",
+      "description": "When a string has several translations, the first in this order is used. Drag to reorder.",
+      "drag": "Drag to move \"{{name}}\""
+    },
+    "general": {
+      "title": "General",
+      "description": "Run size and appearance.",
+      "jobs": "Mods translated at once",
+      "jobs_hint": "Mods processed side by side. They share the model's request limit above, so raising this adds no load on the model service; it only spares small mods from waiting behind large ones.",
+      "language": "Language",
+      "theme": "Appearance",
+      "theme_hint": "Kept in this browser only.",
+      "theme_system": "System",
+      "theme_light": "Light",
+      "theme_dark": "Dark"
+    }
+  },
+  "mods": {
+    "title": "Mods",
+    "description": "Your subscribed Workshop mods and their progress on Weblate. Select mods to translate; finished translations are installed automatically.",
+    "rescan": "Rescan",
+    "scanning": "Scanning the Workshop folder…",
+    "search": "Search name or ID",
+    "empty": "No mods match",
+    "select_all": "Select all",
+    "filter": {
+      "all": "All",
+      "incomplete": "To do",
+      "installed": "Translation installed",
+      "problems": "Not translatable"
+    },
+    "column": {
+      "mod": "Mod",
+      "coverage": "Weblate progress",
+      "overlay": "Translation"
+    },
+    "coverage": {
+      "none": "Nothing to translate",
+      "unsynced_one": "{{count}} file not synced yet",
+      "unsynced_other": "{{count}} files not synced yet",
+      "failed": "Reading progress from Weblate failed; it is not shown for now.",
+      "not_synced": "Not on Weblate yet"
+    },
+    "problem": {
+      "no_localization": "No localization files",
+      "invalid_mod": "Broken mod files"
+    },
+    "installed": "Translation installed",
+    "not_installed": "No translation installed",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "upload_after": "Upload to Weblate afterwards",
+    "translate": "Translate",
+    "run_busy": "A run is in progress",
+    "no_paths": {
+      "title": "Set the game paths first",
+      "description": "x2loc needs the Workshop folder of your subscribed mods and the game's Mods folder.",
+      "action": "Open settings"
+    }
+  },
+  "runs": {
+    "title": "Runs",
+    "description": "Each start of a translation is a run; every mod in it is translated and installed on its own.",
+    "progress": "{{files}} / {{filesTotal}} files · {{units}} of {{unitsTotal}} strings newly translated",
+    "mods_one": "{{count}} mod",
+    "mods_other": "{{count}} mods",
+    "installed_one": "{{count}} installed",
+    "installed_other": "{{count}} installed",
+    "uploaded": "{{uploaded}} uploaded, {{conflicts}} conflicts",
+    "cancel": "Stop run",
+    "preparing": "Parsing the mods' files…",
+    "skipped": "Skipped",
+    "status": {
+      "running": "Running",
+      "succeeded": "Finished",
+      "failed": "Partly failed",
+      "cancelled": "Stopped"
+    },
+    "empty": {
+      "title": "No runs yet",
+      "description": "Select the mods to translate on the Mods page.",
+      "action": "Open Mods"
+    }
+  },
+  "status": {
+    "queued": "Queued",
+    "running": "Running",
+    "succeeded": "Finished",
+    "cancelled": "Cancelled",
+    "failed": "Failed"
+  },
+  "stages": {
+    "downloading": "Downloading",
+    "discovering": "Reading files",
+    "syncing_weblate": "Syncing sources",
+    "translating": "Translating",
+    "writing": "Writing translations",
+    "extracting_terms": "Extracting terms",
+    "packaging": "Building translation"
+  },
+  "overlays": {
+    "title": "Installed translations",
+    "description": "Translation mods x2loc installed into the game's Mods folder. They are separate from the original mods, so a mod update never overwrites them.",
+    "installed_one": "{{count}} translation",
+    "installed_other": "{{count}} translations",
+    "removed": "Uninstalled",
+    "remove": "Uninstall",
+    "weapon_names": {
+      "title": "Weapon category names",
+      "description": "Weapon categories some mods add show as internal codes in the valid-weapons line of ability descriptions. When the game starts, this script mod replaces them with the weapons' own localized names, in whatever language the game runs."
+    },
+    "empty": {
+      "title": "No translations installed",
+      "description": "Translated mods are installed here automatically."
+    },
+    "confirm": {
+      "title": "Uninstall this translation?",
+      "description": "The translation mod folder of \"{{title}}\" will be deleted. Translations kept on this computer stay, so it can be rebuilt at any time."
+    }
+  },
+  "review": {
+    "title": "Review",
+    "description": "Translations that failed the quality gate. With write access, edits go straight to Weblate; otherwise they are kept here and queued for upload.",
+    "count_one": "{{count}} to review",
+    "count_other": "{{count}} to review",
+    "search": "Search component, source or translation",
+    "saved": "Saved",
+    "source": "Source",
+    "target": "Translation",
+    "approve": "Approve",
+    "save": "Save edit",
+    "open_weblate": "View on Weblate",
+    "where": {
+      "weblate": "Weblate",
+      "local": "This computer"
+    },
+    "empty": {
+      "title": "Nothing to review",
+      "description": "Translations that fail the quality gate show up here."
+    }
+  },
+  "uploads": {
+    "title": "Uploads",
+    "description": "Translations kept on this computer and not yet on Weblate. Before uploading, each is checked against Weblate; strings someone else changed meanwhile become conflicts.",
+    "upload_all": "Upload all",
+    "upload_selected_one": "Upload {{count}} component",
+    "upload_selected_other": "Upload {{count}} components",
+    "done": "{{uploaded}} uploaded, {{conflicts}} conflicts",
+    "no_token": "Uploading needs a Weblate token that can write.",
+    "go_settings": "Open settings",
+    "pending_one": "{{count}} waiting",
+    "pending_other": "{{count}} waiting",
+    "units_one": "{{count}} string",
+    "units_other": "{{count}} strings",
+    "conflicts_one": "{{count}} conflict",
+    "conflicts_other": "{{count}} conflicts",
+    "conflicts_hint": "Weblate's translation of these strings changed after they were translated here. Choose which one to keep.",
+    "conflict": {
+      "local": "Translated here",
+      "upstream": "On Weblate now",
+      "empty": "(empty)",
+      "keep_local": "Keep mine, upload next time",
+      "keep_upstream": "Keep Weblate's, drop mine"
+    },
+    "empty": {
+      "title": "Nothing to upload",
+      "description": "Translations made or edited here show up here."
+    }
+  }
+}
