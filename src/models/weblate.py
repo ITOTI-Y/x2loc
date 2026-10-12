@@ -16,7 +16,8 @@ ListAsStr = Annotated[str, BeforeValidator(_list_to_str)]
 
 class WeblateConfigSchema(BaseSchema):
     url: str
-    token: SecretStr
+    # Empty reads anonymously; the project allows anonymous downloads.
+    token: SecretStr = SecretStr("")
     project_slug: str
     license: str = "CC-BY-4.0"
     license_url: str = "https://creativecommons.org/licenses/by/4.0/"

@@ -173,14 +173,15 @@ class AsyncWeblateClient:
     ) -> None:
         self.config = config
         self.base_url = config.url.rstrip("/") + "/"
+        headers = {"Accept": "application/json", "Accept-Encoding": "gzip, deflate"}
+        # Weblate rejects an empty token outright; without one it serves
+        # what the project allows anonymous users to read.
+        if self.has_token:
+            headers["Authorization"] = f"Token {config.token.get_secret_value()}"
         self._client = AsyncClient(
             base_url=self.base_url,
             transport=transport,
-            headers={
-                "Authorization": f"Token {config.token.get_secret_value()}",
-                "Accept": "application/json",
-                "Accept-Encoding": "gzip, deflate",
-            },
+            headers=headers,
             timeout=HTTP_TIMEOUT,
             follow_redirects=False,
             trust_env=False,
@@ -194,6 +195,10 @@ class AsyncWeblateClient:
         )
         self._request_sem = asyncio.Semaphore(REQUEST_CONCURRENCY)
         self._paginate_sem = asyncio.Semaphore(PAGINATE_CONCURRENCY)
+
+    @property
+    def has_token(self) -> bool:
+        return bool(self.config.token.get_secret_value())
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -438,34 +443,43 @@ class AsyncWeblateClient:
         language: str,
         params: WeblateRequestParamsSchema,
     ) -> WeblatePageSchema[WeblateUnitSchema]:
-        response = await self._request(
-            WeblateRequestSchema(
-                method="GET",
-                path=(
-                    f"translations/{self.config.project_slug}/{component_slug}"
-                    f"/{language}/units/"
-                ),
-                params=params,
-            )
+        return await self._units_page(
+            self._units_path(component_slug, language), params
         )
-        return WeblatePageSchema[WeblateUnitSchema].model_validate(response.json())
 
     async def list_units(
         self, component_slug: str, language: str, q: str = ""
     ) -> list[WeblateUnitSchema]:
-        first = await self.list_units_page(
-            component_slug, language, WeblateRequestParamsSchema(q=q)
+        return await self._all_units(self._units_path(component_slug, language), q)
+
+    async def search_units(self, q: str) -> list[WeblateUnitSchema]:
+        """Every unit Weblate's search query `q` matches, across components."""
+        return await self._all_units("units/", q)
+
+    def _units_path(self, component_slug: str, language: str) -> str:
+        return (
+            f"translations/{self.config.project_slug}/{component_slug}"
+            f"/{language}/units/"
         )
+
+    async def _units_page(
+        self, path: str, params: WeblateRequestParamsSchema
+    ) -> WeblatePageSchema[WeblateUnitSchema]:
+        response = await self._request(
+            WeblateRequestSchema(method="GET", path=path, params=params)
+        )
+        return WeblatePageSchema[WeblateUnitSchema].model_validate(response.json())
+
+    async def _all_units(self, path: str, q: str) -> list[WeblateUnitSchema]:
+        first = await self._units_page(path, WeblateRequestParamsSchema(q=q))
         total_pages = math.ceil(first.count / UNIT_PAGE_SIZE)
         if total_pages <= 1:
             return list(first.results)
 
         async def fetch(page: int) -> list[WeblateUnitSchema]:
             async with self._paginate_sem:
-                result = await self.list_units_page(
-                    component_slug,
-                    language,
-                    WeblateRequestParamsSchema(page=page, q=q),
+                result = await self._units_page(
+                    path, WeblateRequestParamsSchema(page=page, q=q)
                 )
             return list(result.results)
 

@@ -635,3 +635,14 @@ async def test_download_units_parses_translation_csv(
         CorpusUnitSchema(context="a", source="S, a", target="多\n行", note="n"),
         CorpusUnitSchema(context="b", source="S b", target="", note=""),
     ]
+
+
+async def test_an_empty_token_reads_anonymously(fake: FakeWeblate) -> None:
+    fake.route("GET", COMPONENT_PATH, Response(200, json=component_payload(COMPONENT)))
+    anonymous = WeblateConfigSchema(url=BASE_URL, project_slug=PROJECT)
+
+    async with AsyncWeblateClient(anonymous, transport=MockTransport(fake)) as client:
+        await client.get_component(COMPONENT)
+
+    assert not client.has_token
+    assert "authorization" not in fake.requests[0].headers
