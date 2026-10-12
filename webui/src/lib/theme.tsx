@@ -1,17 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
-export type ThemeMode = "system" | "light" | "dark"
+import { ThemeContext, type ThemeMode } from "@/lib/theme-context"
 
 const STORAGE_KEY = "x2loc.theme"
 const DARK_QUERY = "(prefers-color-scheme: dark)"
-
-interface ThemeState {
-  mode: ThemeMode
-  resolved: "light" | "dark"
-  setMode: (mode: ThemeMode) => void
-}
-
-const ThemeContext = createContext<ThemeState | null>(null)
 
 function storedMode(): ThemeMode {
   try {
@@ -51,10 +43,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ mode, resolved, setMode }}>{children}</ThemeContext.Provider>
   )
-}
-
-export function useTheme(): ThemeState {
-  const state = useContext(ThemeContext)
-  if (state === null) throw new Error("useTheme outside ThemeProvider")
-  return state
 }

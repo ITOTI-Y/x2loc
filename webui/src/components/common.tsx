@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { ApiError } from "@/lib/api"
+import { useErrorText } from "@/lib/errors"
 import { cn } from "@/lib/utils"
 
 export function PageHeader({
@@ -27,20 +27,6 @@ export function PageHeader({
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
   )
-}
-
-export function useCodeText() {
-  const { t } = useTranslation()
-  return (code: string, detail = "") => {
-    const text = t(`errors.${code}`, { defaultValue: t("errors.unknown", { code }) })
-    return detail ? `${text} (${detail})` : text
-  }
-}
-
-export function useErrorText() {
-  const codeText = useCodeText()
-  return (error: unknown) =>
-    error instanceof ApiError ? codeText(error.code, error.detail) : codeText("unknown", String(error))
 }
 
 export function ErrorNotice({ error, className }: { error: unknown; className?: string }) {

@@ -11,7 +11,7 @@ import { useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { ErrorNotice, PageHeader, useCodeText, useErrorText } from "@/components/common"
+import { ErrorNotice, PageHeader } from "@/components/common"
 import { PriorityList } from "@/components/PriorityList"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,8 +34,9 @@ import {
   type SettingsView,
   type StoreMode,
 } from "@/lib/api"
+import { useCodeText, useErrorText } from "@/lib/errors"
 import { keys, useSettings } from "@/lib/queries"
-import { useTheme, type ThemeMode } from "@/lib/theme"
+import { useTheme, type ThemeMode } from "@/lib/theme-context"
 
 function Section({
   title,

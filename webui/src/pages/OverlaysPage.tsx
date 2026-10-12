@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { EmptyState, ErrorNotice, Mono, PageHeader, useErrorText } from "@/components/common"
+import { EmptyState, ErrorNotice, Mono, PageHeader } from "@/components/common"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { useErrorText } from "@/lib/errors"
 import { ApiError, api } from "@/lib/api"
 import { keys } from "@/lib/queries"
 import type { Page } from "@/pages"

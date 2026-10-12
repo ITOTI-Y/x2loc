@@ -10,7 +10,7 @@ import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { EmptyState, ErrorNotice, Mono, PageHeader, useErrorText } from "@/components/common"
+import { EmptyState, ErrorNotice, Mono, PageHeader } from "@/components/common"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useErrorText } from "@/lib/errors"
 import { ApiError, api, type ModView } from "@/lib/api"
 import { keys, useActiveRun, useSettings } from "@/lib/queries"
 import type { Page } from "@/pages"
