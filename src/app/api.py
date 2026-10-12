@@ -8,7 +8,7 @@ stops a foreign site from reaching it through DNS rebinding.
 import asyncio
 import contextlib
 import hmac
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -246,7 +246,7 @@ def paths_of(config: ServiceConfigSchema) -> LocalConfigSchema:
 @asynccontextmanager
 async def local_store(
     config: ServiceConfigSchema,
-) -> AsyncIterator[tuple[AsyncWeblateClient, LocalStore]]:
+) -> AsyncGenerator[tuple[AsyncWeblateClient, LocalStore]]:
     async with AsyncWeblateClient(config.weblate) as client:
         store = LocalStore(client, config.store_path)
         try:
@@ -260,7 +260,9 @@ async def check_llm(settings: AppSettingsSchema, api_key: str) -> CheckSchema:
     model = settings.model
     if not model.translation_model:
         return CheckSchema(ok=False, code="model_not_set")
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    if not api_key:
+        return CheckSchema(ok=False, code="api_key_not_set")
+    headers = {"Authorization": f"Bearer {api_key}"}
     async with build_llm_http_client(model.timeout_seconds) as http:
         try:
             response = await http.post(
@@ -341,7 +343,7 @@ def create_app(
     state = AppState(home=home, secrets=secrets, bundle=bundle)
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         try:
             yield
         finally:
@@ -484,6 +486,10 @@ def create_app(
         settings = state.settings()
         if not settings.model.translation_model:
             raise AppError("model_not_set", 409)
+        # The OpenAI client refuses an empty key, even for endpoints that
+        # ignore it, so a run without one could only fail.
+        if not state.secrets.get("llm_api_key"):
+            raise AppError("api_key_not_set", 409)
         config = await state.config()
         try:
             run = state.runs.start(

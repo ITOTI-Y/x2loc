@@ -125,6 +125,16 @@ def test_a_run_needs_a_translation_model(client: TestClient) -> None:
     assert response.json()["code"] == "model_not_set"
 
 
+def test_a_run_needs_an_api_key(client: TestClient) -> None:
+    settings = client.get("/api/settings").json()["settings"]
+    settings["model"]["translation_model"] = "some/model"
+    client.put("/api/settings", json=settings)
+
+    response = client.post("/api/runs", json={"workshop_ids": ["1"]})
+
+    assert response.json()["code"] == "api_key_not_set"
+
+
 def test_a_run_rejects_ids_that_are_not_workshop_ids(client: TestClient) -> None:
     response = client.post("/api/runs", json={"workshop_ids": ["../x"]})
 
@@ -215,6 +225,7 @@ def test_a_run_refuses_mods_that_are_not_subscribed(
     settings = client.get("/api/settings").json()["settings"]
     settings["model"]["translation_model"] = "some/model"
     client.put("/api/settings", json=settings)
+    client.put("/api/secrets/llm_api_key", json={"value": "sk-test"})
 
     response = client.post("/api/runs", json={"workshop_ids": ["404"]})
 
