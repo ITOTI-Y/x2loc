@@ -17,9 +17,7 @@ from src.app.api import create_app
 from src.app.secrets import Secrets
 from src.app.settings import app_home
 
-ROOT: Final = Path(__file__).resolve().parents[2]
 WEBUI: Final = Path(__file__).resolve().parents[1] / "webui" / "dist"
-WEAPON_NAMES_BUNDLE: Final = ROOT / "mods" / "x2locWeaponCatNames"
 HOST: Final = "127.0.0.1"
 
 
@@ -69,7 +67,6 @@ def main(
         home=home,
         session_token=session_token,
         secrets=Secrets(credential_store()),
-        bundle=WEAPON_NAMES_BUNDLE,
     )
     if WEBUI.is_dir():
         app.mount("/", StaticFiles(directory=WEBUI, html=True), name="webui")

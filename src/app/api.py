@@ -30,11 +30,8 @@ from src.api.app import job_response
 from src.app.catalog import Coverage, ModEntry, ModProblem, coverage, scan_mods
 from src.app.overlays import (
     InstalledOverlay,
-    install_weapon_names,
     list_overlays,
     uninstall_overlay,
-    uninstall_weapon_names,
-    weapon_names_installed,
 )
 from src.app.runs import Run, RunError, RunManager, RunStatus
 from src.app.secrets import SecretName, Secrets
@@ -143,7 +140,6 @@ class RunViewSchema(BaseSchema):
 
 class OverlaysViewSchema(BaseSchema):
     overlays: list[InstalledOverlay]
-    weapon_names_installed: bool
 
 
 class TextSchema(BaseSchema):
@@ -198,8 +194,6 @@ class _Coverage:
 class AppState:
     home: Path
     secrets: Secrets
-    # The prebuilt weapon category mod the app installs.
-    bundle: Path
     runs: RunManager = field(default_factory=RunManager)
     mods: tuple[Path, list[ModEntry]] | None = None
     coverage: _Coverage = field(default_factory=_Coverage)
@@ -337,10 +331,8 @@ async def _fetch_coverage(state: AppState, config: ServiceConfigSchema) -> None:
         state.coverage.failed = True
 
 
-def create_app(
-    *, home: Path, session_token: str, secrets: Secrets, bundle: Path
-) -> FastAPI:
-    state = AppState(home=home, secrets=secrets, bundle=bundle)
+def create_app(*, home: Path, session_token: str, secrets: Secrets) -> FastAPI:
+    state = AppState(home=home, secrets=secrets)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
@@ -555,9 +547,7 @@ def create_app(
     async def get_overlays() -> OverlaysViewSchema:
         mods_dir = paths_of(await state.config()).mods_dir
         overlays = await asyncio.to_thread(list_overlays, mods_dir)
-        return OverlaysViewSchema(
-            overlays=overlays, weapon_names_installed=weapon_names_installed(mods_dir)
-        )
+        return OverlaysViewSchema(overlays=overlays)
 
     @app.delete("/api/overlays/{workshop_id}", status_code=204)
     async def delete_overlay(
@@ -568,16 +558,6 @@ def create_app(
             await asyncio.to_thread(uninstall_overlay, mods_dir, workshop_id)
         except FileNotFoundError as exc:
             raise AppError("overlay_not_found", 404) from exc
-
-    @app.put("/api/weapon-names", status_code=204)
-    async def put_weapon_names() -> None:
-        mods_dir = paths_of(await state.config()).mods_dir
-        await asyncio.to_thread(install_weapon_names, state.bundle, mods_dir)
-
-    @app.delete("/api/weapon-names", status_code=204)
-    async def delete_weapon_names() -> None:
-        mods_dir = paths_of(await state.config()).mods_dir
-        await asyncio.to_thread(uninstall_weapon_names, mods_dir)
 
     @app.get("/api/review")
     async def get_review() -> list[ReviewItemSchema]:

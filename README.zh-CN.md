@@ -140,17 +140,6 @@ cd webui && pnpm build && cd ..
 uv run --group build python packaging/build.py -- --zig   # 没有 Visual Studio 时使用；使用 MSVC 时省略 --zig
 ```
 
-## 武器类别名称 mod
-
-[WOTCMusashiModFixes](https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723) 会在技能说明末尾追加一行“可用武器”，其中由 mod 新增的武器类别显示为内部代号，例如 `combatknife`。脚本 mod `mods/x2locWeaponCatNames` 把每个代号替换为该类别武器自身的本地化名称，语言跟随游戏当前设置。它需要天选者之战、[X2WOTCCommunityHighlander](https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495) 和 WOTCMusashiModFixes，本地应用可以在“已安装汉化”页中安装它。
-
-```bash
-uv run python mods/x2locWeaponCatNames/build.py --sdk <WOTC SDK> --mods-dir <XComGame/Mods>
-uv run python mods/x2locWeaponCatNames/publish.py --steamcmd <steamcmd.exe> --username <Steam 账号>
-```
-
-`build.py` 用天选者之战 SDK 编译并安装该 mod。`publish.py` 用 [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) 把它上传到 Steam 创意工坊，简介取自 `workshop/description.bbcode`，预览图为 `ModPreview.jpg`。SteamCMD 无法设置标签和必需物品，二者需要在条目的创意工坊页面上设置。
-
 ## 开发
 
 ```bash
@@ -177,7 +166,6 @@ src/
 └── ui/            # 交互式审核提示
 webui/             # 本地应用的页面（React、Vite、Tailwind）
 packaging/         # 用 Nuitka 构建 x2loc.exe
-mods/x2locWeaponCatNames/   # 武器类别名称脚本 mod
 ```
 
 ## 许可证

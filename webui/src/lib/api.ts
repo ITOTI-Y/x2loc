@@ -117,7 +117,6 @@ export interface UploadReport {
 
 export interface OverlaysView {
   overlays: { workshop_id: string; title: string }[]
-  weapon_names_installed: boolean
 }
 
 export interface ReviewItem {
@@ -218,8 +217,6 @@ export const api = {
   overlays: () => request<OverlaysView>("GET", "/api/overlays"),
   uninstallOverlay: (workshopId: string) =>
     request<void>("DELETE", `/api/overlays/${workshopId}`),
-  installWeaponNames: () => request<void>("PUT", "/api/weapon-names"),
-  uninstallWeaponNames: () => request<void>("DELETE", "/api/weapon-names"),
   review: () => request<ReviewItem[]>("GET", "/api/review"),
   saveReview: (item: ReviewItem, target: string) =>
     request<void>("PUT", "/api/review", {

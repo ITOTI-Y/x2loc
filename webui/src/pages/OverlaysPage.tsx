@@ -1,4 +1,4 @@
-import { FolderSimpleDashedIcon, PackageIcon, SwordIcon, TrashIcon } from "@phosphor-icons/react"
+import { FolderSimpleDashedIcon, PackageIcon, TrashIcon } from "@phosphor-icons/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -18,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { useErrorText } from "@/lib/errors"
 import { ApiError, api } from "@/lib/api"
 import { keys } from "@/lib/queries"
@@ -42,12 +41,6 @@ export function OverlaysPage({ onNavigate }: { onNavigate: (page: Page) => void 
       toast.success(t("overlays.removed"))
       changed()
     },
-    onError: (error) => toast.error(errorText(error)),
-  })
-  const weaponNames = useMutation({
-    mutationFn: (install: boolean) =>
-      install ? api.installWeaponNames() : api.uninstallWeaponNames(),
-    onSuccess: changed,
     onError: (error) => toast.error(errorText(error)),
   })
 
@@ -77,26 +70,6 @@ export function OverlaysPage({ onNavigate }: { onNavigate: (page: Page) => void 
     <div className="grid gap-6">
       <PageHeader title={t("overlays.title")} description={t("overlays.description")} />
       {overlays.isError && <ErrorNotice error={overlays.error} />}
-
-      <section className="flex flex-wrap items-start gap-4 rounded-lg border p-4">
-        <SwordIcon className="mt-0.5 size-5 text-primary" weight="duotone" />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium">{t("overlays.weapon_names.title")}</p>
-          <p className="mt-1 max-w-[70ch] text-sm text-muted-foreground">
-            {t("overlays.weapon_names.description")}
-          </p>
-        </div>
-        {overlays.data ? (
-          <Switch
-            aria-label={t("overlays.weapon_names.title")}
-            checked={overlays.data.weapon_names_installed}
-            disabled={weaponNames.isPending}
-            onCheckedChange={(on) => weaponNames.mutate(on)}
-          />
-        ) : (
-          <Skeleton className="h-5 w-9 rounded-full" />
-        )}
-      </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-medium">

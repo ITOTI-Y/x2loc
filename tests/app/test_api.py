@@ -9,7 +9,6 @@ from src.app.api import create_app
 from src.app.secrets import Secrets
 
 TOKEN = "session"
-BUNDLE = Path(__file__).parents[2] / "mods" / "x2locWeaponCatNames"
 
 
 class MemoryKeyring(KeyringBackend):
@@ -40,7 +39,6 @@ def client(tmp_path: Path, keyring: MemoryKeyring) -> Iterator[TestClient]:
         home=tmp_path / "home",
         session_token=TOKEN,
         secrets=Secrets(keyring),
-        bundle=BUNDLE,
     )
     with TestClient(
         app, base_url="http://127.0.0.1:8000", headers={"X-Session-Token": TOKEN}
@@ -157,28 +155,10 @@ def test_overlays_are_listed_and_uninstalled(
 
     assert listed == {
         "overlays": [{"workshop_id": "123", "title": "Some Mod [zh_Hans]"}],
-        "weapon_names_installed": False,
     }
     assert deleted.status_code == 204
     assert not overlay.exists()
     assert client.delete("/api/overlays/123").json()["code"] == "overlay_not_found"
-
-
-def test_the_weapon_category_mod_installs_its_prebuilt_script(
-    client: TestClient, tmp_path: Path
-) -> None:
-    mods_dir = local_settings(client, tmp_path)
-
-    assert client.put("/api/weapon-names").status_code == 204
-
-    installed = mods_dir / "x2locWeaponCatNames"
-    assert (installed / "Script" / "x2locWeaponCatNames.u").is_file()
-    assert (installed / "Config" / "XComGame.ini").is_file()
-    assert not (installed / "Src").exists()
-    assert client.get("/api/overlays").json()["weapon_names_installed"] is True
-
-    client.delete("/api/weapon-names")
-    assert not installed.exists()
 
 
 def test_a_local_review_edit_waits_for_upload(

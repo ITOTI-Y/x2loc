@@ -140,17 +140,6 @@ cd webui && pnpm build && cd ..
 uv run --group build python packaging/build.py -- --zig   # without Visual Studio; omit --zig with MSVC
 ```
 
-## Weapon category names mod
-
-[WOTCMusashiModFixes](https://steamcommunity.com/sharedfiles/filedetails/?id=2569592723) appends a "valid weapons" line to ability descriptions, in which weapon categories added by mods appear as internal codes such as `combatknife`. The script mod `mods/x2locWeaponCatNames` replaces each code with the localized name of the category's own weapons, in the language the game runs in. It requires War of the Chosen, [X2WOTCCommunityHighlander](https://steamcommunity.com/sharedfiles/filedetails/?id=1134256495), and WOTCMusashiModFixes, and the local app installs it from its Installed page.
-
-```bash
-uv run python mods/x2locWeaponCatNames/build.py --sdk <WOTC SDK> --mods-dir <XComGame/Mods>
-uv run python mods/x2locWeaponCatNames/publish.py --steamcmd <steamcmd.exe> --username <Steam account>
-```
-
-`build.py` compiles the mod with the War of the Chosen SDK and installs it. `publish.py` uploads it to the Steam Workshop with [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD), taking the description from `workshop/description.bbcode` and the preview from `ModPreview.jpg`. Tags and required items are set on the item's Workshop page, since SteamCMD cannot set them.
-
 ## Development
 
 ```bash
@@ -177,7 +166,6 @@ src/
 └── ui/            # interactive review prompts
 webui/             # pages of the local app (React, Vite, Tailwind)
 packaging/         # Nuitka build of x2loc.exe
-mods/x2locWeaponCatNames/   # weapon category names script mod
 ```
 
 ## License

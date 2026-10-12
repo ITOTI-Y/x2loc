@@ -18,7 +18,6 @@ import typer
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 WEBUI: Final = Path("src/webui/dist")
-WEAPON_NAMES: Final = Path("mods/x2locWeaponCatNames")
 
 
 def project_version() -> str:
@@ -36,10 +35,6 @@ def main(
     version = (version or project_version()).removeprefix("v")
     if not (ROOT / WEBUI / "index.html").is_file():
         raise typer.BadParameter("build the pages first: cd webui && pnpm build")
-    weapon_files = [
-        WEAPON_NAMES / "x2locWeaponCatNames.XComMod",
-        WEAPON_NAMES / "Script" / "x2locWeaponCatNames.u",
-    ]
     command = [
         sys.executable,
         "-m",
@@ -63,8 +58,6 @@ def main(
         "--nofollow-import-to=questionary",
         "--nofollow-import-to=prompt_toolkit",
         f"--include-data-dir={WEBUI}={WEBUI}",
-        f"--include-data-dir={WEAPON_NAMES / 'Config'}={WEAPON_NAMES / 'Config'}",
-        *(f"--include-data-files={path}={path}" for path in weapon_files),
         # Unpack once per version instead of on every start, beside the app's
         # data. A rebuild under an unchanged version reuses the old unpack.
         "--onefile-tempdir-spec={CACHE_DIR}/x2loc/runtime/" + version,

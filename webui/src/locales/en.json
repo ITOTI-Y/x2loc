@@ -248,10 +248,6 @@
     "installed_other": "{{count}} translations",
     "removed": "Uninstalled",
     "remove": "Uninstall",
-    "weapon_names": {
-      "title": "Weapon category names",
-      "description": "Weapon categories some mods add show as internal codes in the valid-weapons line of ability descriptions. When the game starts, this script mod replaces them with the weapons' own localized names, in whatever language the game runs."
-    },
     "empty": {
       "title": "No translations installed",
       "description": "Translated mods are installed here automatically."
